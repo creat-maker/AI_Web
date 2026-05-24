@@ -1,0 +1,62 @@
+# environment
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Runtime storage
+storage/uploads/
+storage/reports/
+storage/chroma/
+backend/storage/
+
+# Frontend
+node_modules/
+dist/
+build/
+
+# Logs / pid
+*.log
+*.pid
+dev-server.log
+dev-server.pid
+dev-server.err.log
+backend-server.log
+backend-server.err.log
+backend-server.pid
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large media / compressed files
+*.mp3
+*.wav
+*.mp4
+*.avi
+*.mov
+*.zip
+*.rar
+*.7z
+
+# Model files
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
