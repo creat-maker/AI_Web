@@ -110,6 +110,17 @@ class AgentRun(Base, TimestampMixin):
     status = Column(String(50), default="running", nullable=False)
 
 
+class TutorQuestionLog(Base, TimestampMixin):
+    __tablename__ = "tutor_question_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    question = Column(Text, nullable=False)
+    answer_json = Column(Text, nullable=False)
+    contexts_json = Column(Text, nullable=False)
+    mode = Column(String(50), nullable=False)
+
+
 class LearningReport(Base, TimestampMixin):
     __tablename__ = "learning_reports"
 
