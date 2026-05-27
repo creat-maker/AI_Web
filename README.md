@@ -26,6 +26,7 @@ EduMind 是一个面向个性化学习资源生成与学习多智能体流程的
 - 教师分析：展示测评次数、平均得分、薄弱知识点、学生表现分布和教学建议
 - 报告中心：生成并下载 Word 学习报告
 - Agent 工作流：串联画像、规划、资源、评价和报告流程
+- 日志管理：聚合系统运行、问答、知识库、Agent 和报告生成记录
 
 ## 项目目录结构
 
@@ -163,6 +164,80 @@ http://localhost:5173/dashboard
 http://localhost:8000/docs
 ```
 
+## 演示数据初始化
+
+初始化本地演示数据：
+
+```bash
+python scripts/seed-demo-data.py
+```
+
+Windows 也可以双击或运行：
+
+```bat
+seed-demo-data.bat
+```
+
+然后启动项目：
+
+```bat
+start-dev.bat
+```
+
+建议依次验证以下页面：
+
+```text
+http://localhost:5173/dashboard
+http://localhost:5173/knowledge-base
+http://localhost:5173/tutor-chat
+http://localhost:5173/teacher-analysis
+http://localhost:5173/agent-workflow
+http://localhost:5173/reports
+http://localhost:5173/logs
+```
+
+说明：
+
+- 脚本不会清空数据库。
+- 脚本不会删除用户已有数据或 storage 文件。
+- 脚本会复用已存在的同名演示课程、学生、文档、测验、报告和 Agent 记录，避免重复插入。
+- 脚本只生成演示业务数据和小型本地演示文件，不写入真实 API Key 或敏感信息。
+
+## 演示前检查
+
+比赛现场完整手册见：[docs/demo-checklist.md](docs/demo-checklist.md)。
+
+推荐比赛演示前按以下顺序准备：
+
+```bat
+seed-demo-data.bat
+check-demo-ready.bat
+start-dev.bat
+```
+
+也可以直接运行检查脚本：
+
+```bash
+python scripts/check-demo-ready.py
+```
+
+检查项包括课程、学生画像、知识库文档、问答日志、测评提交、学习报告、Agent 运行记录、学习路径、生成资源、关键 storage 目录和常用 Windows 脚本。
+
+推荐演示页面顺序：
+
+```text
+http://localhost:5173/dashboard
+http://localhost:5173/knowledge-base
+http://localhost:5173/tutor-chat
+http://localhost:5173/teacher-analysis
+http://localhost:5173/agent-workflow
+http://localhost:5173/reports
+http://localhost:5173/logs
+http://localhost:5173/settings
+```
+
+检查脚本只读取数据库和文件状态，不会清空数据库、删除用户数据或启动服务。
+
 ## 智能体工作流页面
 
 进入方式：
@@ -180,6 +255,64 @@ http://localhost:5173/agent-workflow
 ```
 
 验证方式：先确认后端 `http://localhost:8000/docs` 可访问，再进入 `http://localhost:5173/agent-workflow`，选择课程并点击“运行完整学习流”。页面应展示节点状态、运行记录、答疑结果、知识库引用、薄弱点分析、教学建议和报告入口；接口失败时页面会显示错误和 fallback 内容，不应白屏。
+
+## 报告中心
+
+进入方式：
+
+```text
+http://localhost:5173/reports
+```
+
+报告中心展示报告总数、本周新增、已完成报告、平均质量评分，并支持按课程、状态和标题关键词筛选。
+
+报告详情预览包括：
+
+```text
+学习表现摘要、薄弱知识点、推荐学习路径、教学建议、引用来源、报告生成时间
+```
+
+验证方式：先通过 `http://localhost:5173/agent-workflow` 运行一次完整学习流生成报告，再进入 `http://localhost:5173/reports`。页面应显示报告列表、预览区和下载入口；如果通过 AgentWorkflow 的报告入口进入，URL 可携带 `report_id` 用于预留选中对应报告。
+
+## 日志管理中心
+
+进入方式：
+
+```text
+http://localhost:5173/logs
+http://localhost:5173/log-management
+```
+
+日志管理中心展示今日日志数、错误日志数、Agent 运行次数、问答记录数，并按系统日志、问答日志、知识库日志、Agent 日志、报告日志和错误日志分类查看。
+
+页面聚合的数据包括：
+
+```text
+Dashboard 运行状态、TutorChat 问答记录、KnowledgeBase 文档上传与解析记录、AgentWorkflow 运行记录、ReportCenter 报告生成记录、Settings 脱敏配置检查记录
+```
+
+验证方式：先确认后端 `http://localhost:8000/docs` 可访问，再进入 `http://localhost:5173/logs`。页面应显示概览卡片、分类标签、筛选搜索、日志列表和详情预览；如果真实日志不足，会展示兼容 fallback 数据；如果接口失败，前端会显示错误和本地 fallback 内容，不应白屏。
+
+安全说明：日志中心当前用于演示和运行追踪，只返回业务摘要、模块、状态、关联课程和记录 ID，不暴露 API Key、环境变量明文或上传文件敏感内容。
+
+## 系统设置与算法配置
+
+进入方式：
+
+```text
+http://localhost:5173/settings
+```
+
+系统设置页面展示 EduMind 的运行模式、模型模式、知识库状态、模型配置、RAG 知识库配置、教学策略配置和系统安全提示。
+
+安全说明：
+
+```text
+页面只显示 API Key 是否已配置，不会在前端明文展示真实 API Key。
+保存配置为当前页面暂存展示，不会修改系统环境变量。
+```
+
+验证方式：先确认后端 `http://localhost:8000/docs` 可访问，再进入 `http://localhost:5173/settings`。页面应显示概览卡片、模型配置、RAG 配置、教学策略、安全提示，并可点击“测试连接”查看脱敏检查结果；接口失败时页面会显示 fallback 配置，不应白屏。
 
 ## 常见问题
 

@@ -12,7 +12,11 @@ const routes = [
   { path: '/tutor-chat', name: 'TutorChat', component: () => import('../views/TutorChat.vue') },
   { path: '/quiz-evaluate', name: 'QuizEvaluate', component: () => import('../views/QuizEvaluate.vue') },
   { path: '/teacher-analysis', name: 'TeacherAnalysis', component: () => import('../views/TeacherAnalysis.vue') },
-  { path: '/reports', name: 'ReportCenter', component: () => import('../views/ReportCenter.vue') }
+  { path: '/reports', name: 'ReportCenter', component: () => import('../views/ReportCenter.vue') },
+  { path: '/logs', name: 'LogManagement', component: () => import('../views/LogManagement.vue') },
+  { path: '/log-management', redirect: '/logs' },
+  { path: '/settings', name: 'SystemSettings', component: () => import('../views/SystemSettings.vue') },
+  { path: '/system-settings', redirect: '/settings' }
 ];
 
 export default createRouter({

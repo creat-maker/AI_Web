@@ -17,7 +17,9 @@ const navItems = [
   ['智能答疑', '/tutor-chat'],
   ['测验评价', '/quiz-evaluate'],
   ['教师分析', '/teacher-analysis'],
-  ['报告中心', '/reports']
+  ['报告中心', '/reports'],
+  ['日志管理', '/logs'],
+  ['系统设置', '/settings']
 ];
 
 onMounted(async () => {

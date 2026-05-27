@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, courses, dashboard, knowledge_base, learning_paths, profiles, quizzes, reports, resources, tutor
+from app.api.routers import agent_workflow, courses, dashboard, knowledge_base, learning_paths, logs, profiles, quizzes, reports, resources, system_settings, tutor
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -36,6 +36,8 @@ app.include_router(tutor.router, prefix=API_PREFIX)
 app.include_router(quizzes.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
 app.include_router(agent_workflow.router, prefix=API_PREFIX)
+app.include_router(system_settings.router, prefix=API_PREFIX)
+app.include_router(logs.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix="/api")
 
 
