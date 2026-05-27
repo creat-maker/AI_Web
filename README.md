@@ -131,6 +131,56 @@ http://localhost:5173
 
 前端本地开发时，`/api` 和 `/health` 会代理到 `http://localhost:8000`。
 
+## Windows 一键启动
+
+首次使用前安装前端依赖：
+
+```bash
+cd frontend
+npm install
+```
+
+一键启动后端 FastAPI 和前端 Vue 开发服务器：
+
+```bash
+start-dev.bat
+```
+
+也可以在 Windows 资源管理器中双击 `start-dev.bat`。脚本会分别打开后端和前端命令行窗口。
+
+停止本地开发服务：
+
+```bash
+stop-dev.bat
+```
+
+也可以在 Windows 资源管理器中双击 `stop-dev.bat`。该脚本只会尝试关闭占用 `8000` 和 `5173` 的进程，不会删除文件。
+
+常用访问地址：
+
+```text
+http://localhost:5173/dashboard
+http://localhost:8000/docs
+```
+
+## 智能体工作流页面
+
+进入方式：
+
+```text
+http://localhost:5173/agent-workflow
+```
+
+页面展示教学智能体工作流中心，包括今日运行次数、成功率、平均耗时、生成产物数量、运行记录和最近一次产物摘要。
+
+流程节点包括：
+
+```text
+任务接收 -> 意图识别 -> 知识库检索 -> 答案生成 -> 学情分析 -> 教学建议 -> 报告生成
+```
+
+验证方式：先确认后端 `http://localhost:8000/docs` 可访问，再进入 `http://localhost:5173/agent-workflow`，选择课程并点击“运行完整学习流”。页面应展示节点状态、运行记录、答疑结果、知识库引用、薄弱点分析、教学建议和报告入口；接口失败时页面会显示错误和 fallback 内容，不应白屏。
+
 ## 常见问题
 
 ### 如何上传资料并检索知识库？

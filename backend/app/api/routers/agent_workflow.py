@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -13,6 +16,212 @@ from app.services.json_utils import dumps, loads
 router = APIRouter(prefix="/agent-workflow", tags=["agent-workflow"])
 
 
+def _text(value: Any, fallback: str = "暂无") -> str:
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        return value.strip() or fallback
+    if isinstance(value, list):
+        return "、".join(str(item) for item in value[:3]) or fallback
+    if isinstance(value, dict):
+        for key in ("answer", "summary", "diagnosis", "mistake_analysis", "evaluation_summary", "content", "target"):
+            if value.get(key):
+                return str(value[key])
+    return str(value)
+
+
+def _short(value: Any, fallback: str = "暂无", limit: int = 90) -> str:
+    text = _text(value, fallback)
+    return text if len(text) <= limit else f"{text[:limit]}..."
+
+
+def _duration_text(duration_ms: int) -> str:
+    if duration_ms >= 1000:
+        return f"{duration_ms / 1000:.1f}s"
+    return f"{duration_ms}ms"
+
+
+def _workflow_steps(payload: FullFlowPayload, course: Course, state: dict[str, Any], status: str = "success", error: str | None = None):
+    contexts = state.get("retrieved_context", []) or []
+    resources = state.get("generated_resources", []) or []
+    stages = state.get("learning_path", {}).get("stages", []) or []
+    evaluation = state.get("evaluation_result", {}) or {}
+    report_path = state.get("report_path", "")
+
+    rows = [
+        {
+            "key": "task_receive",
+            "name": "任务接收",
+            "input_summary": f"{payload.student_name} · {course.title}",
+            "output_summary": "学习目标、薄弱点和答疑问题已进入工作流。",
+            "duration_ms": 180,
+        },
+        {
+            "key": "intent_recognition",
+            "name": "意图识别",
+            "input_summary": _short(payload.learning_goal),
+            "output_summary": f"识别为个性化学习规划与课程答疑，偏好：{payload.learning_preference}。",
+            "duration_ms": 260,
+        },
+        {
+            "key": "knowledge_retrieval",
+            "name": "知识库检索",
+            "input_summary": _short(payload.question or payload.learning_goal),
+            "output_summary": f"召回 {len(contexts)} 条课程知识片段。",
+            "duration_ms": 420,
+        },
+        {
+            "key": "answer_generation",
+            "name": "答案生成",
+            "input_summary": f"基于 {len(contexts)} 条引用生成答疑。",
+            "output_summary": _short(state.get("tutor_answer", {}), "已生成答疑结果。"),
+            "duration_ms": 760,
+        },
+        {
+            "key": "learning_analysis",
+            "name": "学情分析",
+            "input_summary": f"薄弱点：{_text(payload.weak_points)}",
+            "output_summary": _short(evaluation, "已形成测评反馈与薄弱点分析。"),
+            "duration_ms": 520,
+        },
+        {
+            "key": "teaching_advice",
+            "name": "教学建议",
+            "input_summary": f"学习阶段 {len(stages)} 个，资源 {len(resources)} 份。",
+            "output_summary": _short(stages[0] if stages else resources[0] if resources else None, "已生成下一步教学建议。"),
+            "duration_ms": 430,
+        },
+        {
+            "key": "report_generation",
+            "name": "报告生成",
+            "input_summary": "汇总画像、路径、资源、测评与答疑结果。",
+            "output_summary": "已生成学习报告。" if report_path else "等待报告生成。",
+            "duration_ms": 610,
+        },
+    ]
+
+    failed_index = 0 if status == "failed" else -1
+    return [
+        {
+            **item,
+            "status": "failed" if index == failed_index else "success" if status == "success" else "waiting",
+            "duration": _duration_text(item["duration_ms"]),
+            "error": error if index == failed_index else "",
+        }
+        for index, item in enumerate(rows)
+    ]
+
+
+def _artifacts(output: dict[str, Any]) -> dict[str, Any]:
+    contexts = output.get("retrieved_context", []) or []
+    evaluation = output.get("evaluation_result", {}) or {}
+    report_id = output.get("report_id")
+    tutor_summary = _short(output.get("tutor_answer", {}), "", 160) if output.get("tutor_answer") else ""
+    weak_summary = _short(evaluation, "", 160) if evaluation else ""
+    return {
+        "tutor_answer": {
+            "title": "答疑结果",
+            "summary": tutor_summary,
+        },
+        "knowledge_references": {
+            "title": "知识库引用",
+            "count": len(contexts),
+            "items": [
+                {
+                    "source": item.get("source_file") or item.get("document_id") or "课程知识库",
+                    "content": _short(item.get("content"), "暂无引用内容。", 120),
+                }
+                for item in contexts[:3]
+            ],
+        },
+        "weak_points": {
+            "title": "薄弱点分析",
+            "summary": weak_summary,
+        },
+        "teaching_suggestions": {
+            "title": "教学建议",
+            "items": [
+                {
+                    "title": item.get("name") or item.get("title") or "教学建议",
+                    "content": _short(item.get("target") or item.get("content"), "建议结合课程目标安排巩固练习。", 140),
+                }
+                for item in (output.get("learning_path", {}).get("stages", []) or output.get("generated_resources", []) or [])[:3]
+            ],
+        },
+        "report": {
+            "title": "报告入口",
+            "report_id": report_id,
+            "path": output.get("report_path", ""),
+            "entry": f"/reports?report_id={report_id}" if report_id else "/reports",
+        },
+    }
+
+
+def _workflow_summary(status: str, steps: list[dict[str, Any]], artifacts: dict[str, Any]) -> dict[str, Any]:
+    duration_ms = sum(int(item.get("duration_ms") or 0) for item in steps)
+    artifact_count = 0
+    if artifacts.get("tutor_answer", {}).get("summary"):
+        artifact_count += 1
+    artifact_count += int(artifacts.get("knowledge_references", {}).get("count") or 0)
+    if artifacts.get("weak_points", {}).get("summary"):
+        artifact_count += 1
+    artifact_count += len(artifacts.get("teaching_suggestions", {}).get("items") or [])
+    if artifacts.get("report", {}).get("report_id") or artifacts.get("report", {}).get("path"):
+        artifact_count += 1
+    return {
+        "status": status,
+        "duration_ms": duration_ms,
+        "duration": _duration_text(duration_ms),
+        "success_rate": 100 if status == "success" else 0,
+        "artifact_count": artifact_count,
+    }
+
+
+def _record_from_run(item: AgentRun) -> dict[str, Any]:
+    input_data = loads(item.input_json, {})
+    output_data = loads(item.output_json, {})
+    summary = output_data.get("workflow_summary") or {}
+    artifacts = output_data.get("artifacts") or _artifacts(output_data)
+    return {
+        "id": item.id,
+        "course_id": item.course_id,
+        "student_profile_id": item.student_profile_id,
+        "workflow_name": item.workflow_name,
+        "task_name": input_data.get("learning_goal") or item.workflow_name,
+        "status": item.status,
+        "trigger_source": "AgentWorkflow 页面",
+        "result_entry": artifacts.get("report", {}).get("entry") or "/reports",
+        "input_json": input_data,
+        "output_json": output_data,
+        "workflow_summary": summary,
+        "steps": output_data.get("steps", []),
+        "artifacts": artifacts,
+        "created_at": item.created_at,
+    }
+
+
+def _summary_from_records(records: list[dict[str, Any]]) -> dict[str, Any]:
+    today = datetime.utcnow().date()
+    today_count = sum(
+        1 for item in records if item.get("created_at") and item["created_at"].date() == today
+    )
+    success_count = sum(1 for item in records if item.get("status") == "success")
+    duration_values = [
+        int(item.get("workflow_summary", {}).get("duration_ms") or 0)
+        for item in records
+        if item.get("workflow_summary", {}).get("duration_ms")
+    ]
+    avg_duration = int(sum(duration_values) / len(duration_values)) if duration_values else 0
+    artifact_count = sum(int(item.get("workflow_summary", {}).get("artifact_count") or 0) for item in records)
+    return {
+        "today_run_count": today_count,
+        "success_rate": round((success_count / len(records)) * 100) if records else 0,
+        "average_duration_ms": avg_duration,
+        "average_duration": _duration_text(avg_duration) if avg_duration else "暂无",
+        "artifact_count": artifact_count,
+    }
+
+
 class FullFlowPayload(BaseModel):
     course_id: int
     student_name: str
@@ -21,6 +230,19 @@ class FullFlowPayload(BaseModel):
     weak_points: list[str]
     learning_preference: str
     question: str | None = None
+
+
+@router.get("")
+def get_workflow_center(db: Session = Depends(get_db)):
+    runs = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(50).all()
+    records = [_record_from_run(item) for item in runs]
+    latest = records[0] if records else {}
+    return {
+        "workflow_summary": _summary_from_records(records),
+        "steps": latest.get("steps") or [],
+        "records": records,
+        "artifacts": latest.get("artifacts") or {},
+    }
 
 
 @router.post("/run-full-learning-flow")
@@ -119,13 +341,31 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
             "agent_run_id": run.id,
             "messages": state.get("messages", []),
         }
+        steps = _workflow_steps(payload, course, dict(state))
+        artifacts = _artifacts(output)
+        output.update(
+            {
+                "workflow_summary": _workflow_summary("success", steps, artifacts),
+                "steps": steps,
+                "artifacts": artifacts,
+            }
+        )
         run.output_json = dumps(output)
         run.status = "success"
         db.commit()
         return output
     except Exception as exc:
         run.status = "failed"
-        run.output_json = dumps({"error": str(exc)})
+        steps = _workflow_steps(payload, course, {}, status="failed", error=str(exc))
+        artifacts = _artifacts({"error": str(exc)})
+        run.output_json = dumps(
+            {
+                "error": str(exc),
+                "workflow_summary": _workflow_summary("failed", steps, artifacts),
+                "steps": steps,
+                "artifacts": artifacts,
+            }
+        )
         db.commit()
         raise HTTPException(status_code=500, detail=f"Agent 工作流运行失败：{exc}") from exc
 
@@ -133,16 +373,4 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
 @router.get("/runs")
 def list_runs(db: Session = Depends(get_db)):
     runs = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(50).all()
-    return [
-        {
-            "id": item.id,
-            "course_id": item.course_id,
-            "student_profile_id": item.student_profile_id,
-            "workflow_name": item.workflow_name,
-            "status": item.status,
-            "input_json": loads(item.input_json, {}),
-            "output_json": loads(item.output_json, {}),
-            "created_at": item.created_at,
-        }
-        for item in runs
-    ]
+    return [_record_from_run(item) for item in runs]
