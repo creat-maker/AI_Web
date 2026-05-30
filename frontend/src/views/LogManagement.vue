@@ -7,9 +7,13 @@ type LogCategory = 'all' | 'system' | 'qa' | 'knowledge' | 'agent' | 'report' | 
 
 interface LogItem {
   id: string;
+  type?: string;
   time: string;
+  created_at?: string;
   level: LogLevel;
   category: string;
+  title?: string;
+  content?: string;
   module: string;
   action: string;
   summary: string;
@@ -21,6 +25,9 @@ interface LogItem {
   related_type?: string | null;
   error_message?: string;
   suggestion?: string;
+  user?: string;
+  duration_ms?: number;
+  metadata?: Record<string, unknown>;
 }
 
 interface LogSummary {
@@ -81,6 +88,8 @@ const activeCategory = ref<LogCategory>('all');
 const levelFilter = ref('all');
 const moduleFilter = ref('all');
 const keyword = ref('');
+const startTime = ref('');
+const endTime = ref('');
 const sortOrder = ref<'desc' | 'asc'>('desc');
 const selectedId = ref<string>('');
 const loading = ref(true);
@@ -98,15 +107,23 @@ const filteredLogs = computed(() => {
     const matchModule = moduleFilter.value === 'all' || item.module === moduleFilter.value;
     const matchKeyword =
       !word
+      || (item.title || '').toLowerCase().includes(word)
+      || (item.content || '').toLowerCase().includes(word)
       || item.summary.toLowerCase().includes(word)
       || item.action.toLowerCase().includes(word)
       || item.module.toLowerCase().includes(word)
+      || (item.type || '').toLowerCase().includes(word)
+      || (item.status || '').toLowerCase().includes(word)
+      || (item.error_message || '').toLowerCase().includes(word)
       || (item.course_title || '').toLowerCase().includes(word);
-    return matchCategory && matchLevel && matchModule && matchKeyword;
+    const itemTime = new Date(item.created_at || item.time).getTime();
+    const matchStart = !startTime.value || itemTime >= new Date(startTime.value).getTime();
+    const matchEnd = !endTime.value || itemTime <= new Date(endTime.value).getTime();
+    return matchCategory && matchLevel && matchModule && matchKeyword && matchStart && matchEnd;
   });
   return [...rows].sort((a, b) => {
-    const left = new Date(a.time).getTime();
-    const right = new Date(b.time).getTime();
+    const left = new Date(a.created_at || a.time).getTime();
+    const right = new Date(b.created_at || b.time).getTime();
     return sortOrder.value === 'desc' ? right - left : left - right;
   });
 });
@@ -128,13 +145,21 @@ const overviewCards = computed(() => {
 
 function formatDate(value?: string) {
   if (!value) return '暂无时间';
-  return new Date(value).toLocaleString('zh-CN', {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '时间格式异常';
+  return date.toLocaleString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
   });
+}
+
+function durationText(value?: number) {
+  const duration = Number(value || 0);
+  if (!Number.isFinite(duration) || duration <= 0) return '暂无耗时';
+  return duration >= 1000 ? `${(duration / 1000).toFixed(1)}s` : `${duration}ms`;
 }
 
 function levelText(level: LogLevel) {
@@ -275,6 +300,14 @@ onMounted(loadPage);
           <input v-model="keyword" placeholder="搜索内容、操作、模块或课程" />
         </label>
         <label>
+          开始时间
+          <input v-model="startTime" type="datetime-local" />
+        </label>
+        <label>
+          结束时间
+          <input v-model="endTime" type="datetime-local" />
+        </label>
+        <label>
           时间排序
           <select v-model="sortOrder">
             <option value="desc">最新在前</option>
@@ -301,10 +334,12 @@ onMounted(loadPage);
                 <strong>{{ moduleText(item.module) }} · {{ item.action }}</strong>
                 <small>{{ formatDate(item.time) }}</small>
               </div>
-              <p>{{ item.summary }}</p>
+              <p>{{ item.content || item.summary }}</p>
               <div class="log-meta">
                 <span>{{ item.course_title || '暂无关联课程' }}</span>
                 <span>{{ item.status }}</span>
+                <span>{{ item.type || item.category }}</span>
+                <span>{{ durationText(item.duration_ms) }}</span>
                 <span>{{ relatedText(item) }}</span>
               </div>
             </button>
@@ -321,12 +356,20 @@ onMounted(loadPage);
         </div>
         <div v-if="selectedLog" class="detail-grid">
           <article class="detail-block">
+            <span>日志标题</span>
+            <p>{{ selectedLog.title || selectedLog.action || '暂无标题' }}</p>
+          </article>
+          <article class="detail-block">
+            <span>日志类型 / 用户 / 耗时</span>
+            <p>{{ selectedLog.type || selectedLog.category }} / {{ selectedLog.user || 'demo_teacher' }} / {{ durationText(selectedLog.duration_ms) }}</p>
+          </article>
+          <article class="detail-block">
             <span>请求来源</span>
             <p>{{ selectedLog.source || '暂无来源' }}</p>
           </article>
           <article class="detail-block">
             <span>执行摘要</span>
-            <p>{{ selectedLog.summary }}</p>
+            <p>{{ selectedLog.content || selectedLog.summary }}</p>
           </article>
           <article class="detail-block">
             <span>关联课程</span>
@@ -343,6 +386,10 @@ onMounted(loadPage);
           <article class="detail-block">
             <span>建议处理方式</span>
             <p>{{ selectedLog.suggestion || '当前日志无需额外处理。' }}</p>
+          </article>
+          <article class="detail-block">
+            <span>Metadata</span>
+            <pre>{{ JSON.stringify(selectedLog.metadata || {}, null, 2) }}</pre>
           </article>
         </div>
         <p v-else-if="!loading" class="empty-state">暂无日志可预览。</p>
@@ -531,6 +578,12 @@ onMounted(loadPage);
 
 .detail-grid {
   grid-template-columns: 1fr;
+}
+
+.detail-block pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 8px 0 0;
 }
 
 .empty-state {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { BarChart, LineChart } from 'echarts/charts';
 import {
   GridComponent,
@@ -34,6 +34,25 @@ interface DashboardSummary {
     quiz_submission_count: number;
     knowledge_chunk_count: number;
   };
+  overview_cards?: Array<{ key: string; label: string; value: number | string; unit?: string }>;
+  module_health?: Array<{ module: string; status: string; message: string }>;
+  knowledge_base_stats?: {
+    document_count: number;
+    indexed_document_count: number;
+    chunk_count: number;
+    coverage_rate: number;
+    quality_score: number;
+  };
+  tutor_chat_stats?: { total_questions: number; today_questions: number; citation_enabled: boolean };
+  agent_run_stats?: { total_runs: number; today_runs: number; failed_runs: number; latest_status: string };
+  report_stats?: { total_reports: number; today_reports: number };
+  student_risk_stats?: {
+    risk_student_count: number;
+    weak_points: Array<{ name: string; count: number }>;
+    items: Array<{ student_name: string; risk_level: string; reason: string }>;
+  };
+  warning_items?: Array<{ module: string; level: string; message: string; count: number }>;
+  data_loop?: { steps: Array<{ name: string; done: boolean }> };
   knowledge_base: {
     status: 'empty' | 'building' | 'ready' | string;
     parsed_document_count: number;
@@ -77,8 +96,19 @@ interface DashboardActivity {
   }>;
 }
 
+interface DemoStatus {
+  status: string;
+  passed: number;
+  total: number;
+  pass_rate: string;
+  report_path: string;
+  last_checked_at: string;
+  message: string;
+}
+
 const summary = ref<DashboardSummary | null>(null);
 const activity = ref<DashboardActivity | null>(null);
+const demoStatus = ref<DemoStatus | null>(null);
 const loading = ref(true);
 const error = ref('');
 const chartEl = ref<HTMLDivElement | null>(null);
@@ -93,9 +123,21 @@ const metricCards = [
   { key: 'knowledge_chunk_count', label: '知识切片', unit: '段' }
 ] as const;
 
+const dashboardCards = computed(() => {
+  if (summary.value?.overview_cards?.length) return summary.value.overview_cards;
+  return metricCards.map((card) => ({
+    key: card.key,
+    label: card.label,
+    value: summary.value?.metrics[card.key] ?? 0,
+    unit: card.unit
+  }));
+});
+
 function formatDate(value?: string) {
   if (!value) return '暂无时间';
-  return new Date(value).toLocaleString('zh-CN', {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '时间格式异常';
+  return date.toLocaleString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -115,7 +157,11 @@ function statusText(status?: string) {
     completed: '已完成',
     success: '成功',
     running: '运行中',
-    failed: '失败'
+    failed: '失败',
+    warning: '需关注',
+    demo: '演示数据',
+    indexed: '已入库',
+    fallback: '降级演示'
   };
   return map[status || ''] || status || '未知';
 }
@@ -175,6 +221,7 @@ async function loadDashboard() {
     ]);
     summary.value = summaryData;
     activity.value = activityData;
+    demoStatus.value = await api.get<DemoStatus>('/api/v1/demo-status').catch(() => null);
     await nextTick();
     renderChart();
   } catch (err) {
@@ -217,12 +264,62 @@ onBeforeUnmount(() => {
     <p v-if="error" class="panel error-text">{{ error }}</p>
     <p v-else-if="loading" class="panel muted">正在加载 Dashboard 数据...</p>
 
+    <section v-if="demoStatus" class="panel demo-status-card">
+      <div>
+        <p class="eyebrow">比赛演示状态</p>
+        <h2>{{ demoStatus.status === 'ready' ? 'Ready' : demoStatus.status === 'missing_report' ? 'Missing Report' : 'Warning' }}</h2>
+        <p class="muted">{{ demoStatus.message }}</p>
+      </div>
+      <div class="demo-status-metrics">
+        <strong>{{ demoStatus.passed }}/{{ demoStatus.total }}</strong>
+        <span>{{ demoStatus.pass_rate }} · {{ demoStatus.last_checked_at || '未验收' }}</span>
+        <RouterLink class="text-link" to="/demo-status">进入比赛演示模式</RouterLink>
+      </div>
+    </section>
+
     <div v-if="summary" class="dashboard-grid">
-      <article v-for="card in metricCards" :key="card.key" class="stat metric-card">
+      <article v-for="card in dashboardCards" :key="card.key" class="stat metric-card">
         <span>{{ card.label }}</span>
-        <strong>{{ summary.metrics[card.key] }}</strong>
+        <strong>{{ card.value }}</strong>
         <small>{{ card.unit }}</small>
       </article>
+    </div>
+
+    <div v-if="summary" class="dashboard-layout">
+      <section class="panel">
+        <div class="panel-title">
+          <h2>模块健康状态</h2>
+          <span class="muted">面向比赛演示的运行总控</span>
+        </div>
+        <div class="table-list">
+          <div v-for="item in summary.module_health || []" :key="item.module" class="table-row">
+            <div>
+              <strong>{{ item.module }}</strong>
+              <p>{{ item.message }}</p>
+            </div>
+            <span>{{ statusText(item.status) }}</span>
+          </div>
+          <p v-if="!summary.module_health?.length" class="muted">暂无模块健康状态，后端统计接口恢复后会自动展示。</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>数据闭环概览</h2>
+          <span class="muted">资料到报告的链路</span>
+        </div>
+        <div class="loop-list">
+          <span v-for="step in summary.data_loop?.steps || []" :key="step.name" :class="['loop-step', { done: step.done }]">
+            {{ step.name }}
+          </span>
+        </div>
+        <div class="weak-list">
+          <small v-for="item in summary.student_risk_stats?.weak_points || []" :key="item.name">
+            {{ item.name }} x{{ item.count }}
+          </small>
+          <p v-if="!summary.student_risk_stats?.weak_points?.length" class="muted">暂无集中薄弱点，完成测评或生成学生画像后会显示。</p>
+        </div>
+      </section>
     </div>
 
     <div class="dashboard-layout">
@@ -300,6 +397,30 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 18px;
   align-items: center;
+}
+
+.demo-status-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  border-left: 4px solid #2264d1;
+}
+
+.demo-status-card h2 {
+  margin: 0 0 8px;
+}
+
+.demo-status-metrics {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  text-align: right;
+}
+
+.demo-status-metrics strong {
+  color: #1453aa;
+  font-size: 28px;
 }
 
 .dashboard-hero h2 {
@@ -383,9 +504,29 @@ onBeforeUnmount(() => {
 }
 
 .activity-list,
-.table-list {
+.table-list,
+.weak-list {
   display: grid;
   gap: 10px;
+}
+
+.loop-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.loop-step,
+.weak-list small {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #955600;
+  background: #fff7e8;
+}
+
+.loop-step.done {
+  color: #1f7a45;
+  background: #effaf4;
 }
 
 .activity-item,

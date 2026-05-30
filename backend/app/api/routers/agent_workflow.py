@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.agents.graph import run_full_learning_graph
 from app.db.session import get_db
 from app.models import AgentRun, Course, GeneratedResource, LearningPath, LearningReport, Quiz, StudentProfile
+from app.services.business_event_service import list_events, record_event
 from app.services.json_utils import dumps, loads
 
 
@@ -184,6 +185,8 @@ def _record_from_run(item: AgentRun) -> dict[str, Any]:
     artifacts = output_data.get("artifacts") or _artifacts(output_data)
     return {
         "id": item.id,
+        "run_id": f"run-{item.id:06d}",
+        "langgraph_run_id": output_data.get("langgraph_run_id"),
         "course_id": item.course_id,
         "student_profile_id": item.student_profile_id,
         "workflow_name": item.workflow_name,
@@ -198,6 +201,62 @@ def _record_from_run(item: AgentRun) -> dict[str, Any]:
         "artifacts": artifacts,
         "created_at": item.created_at,
     }
+
+
+def _demo_rerun_steps(seed: AgentRun) -> list[dict[str, Any]]:
+    input_data = loads(seed.input_json, {})
+    return [
+        {
+            "key": "classify",
+            "name": "问题/任务分类",
+            "status": "success",
+            "input_summary": _short(input_data.get("learning_goal") or seed.workflow_name),
+            "output_summary": "识别为个性化学习支持任务。",
+            "duration_ms": 180,
+            "duration": "180ms",
+            "error": "",
+        },
+        {
+            "key": "retrieve",
+            "name": "知识库检索",
+            "status": "success",
+            "input_summary": "基于课程、问题和薄弱知识点检索资料。",
+            "output_summary": "命中课程讲义、测评记录和历史问答片段。",
+            "duration_ms": 360,
+            "duration": "360ms",
+            "error": "",
+        },
+        {
+            "key": "generate",
+            "name": "答案生成",
+            "status": "success",
+            "input_summary": "引用检索片段生成结构化回答。",
+            "output_summary": "生成带引用说明的答疑结果。",
+            "duration_ms": 540,
+            "duration": "540ms",
+            "error": "",
+        },
+        {
+            "key": "analyze",
+            "name": "学情分析",
+            "status": "success",
+            "input_summary": "汇总问答、测评和学生画像。",
+            "output_summary": "输出薄弱点和干预建议。",
+            "duration_ms": 430,
+            "duration": "430ms",
+            "error": "",
+        },
+        {
+            "key": "report",
+            "name": "报告生成",
+            "status": "success",
+            "input_summary": "沉淀本次运行产物。",
+            "output_summary": "生成可进入报告中心的 demo/fallback 报告摘要。",
+            "duration_ms": 520,
+            "duration": "520ms",
+            "error": "",
+        },
+    ]
 
 
 def _summary_from_records(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -222,6 +281,29 @@ def _summary_from_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _workflow_templates() -> list[dict[str, Any]]:
+    node_keys = ["profile_agent", "knowledge_agent", "planning_agent", "generation_agent", "review_agent", "recommendation_agent"]
+    names = ["个性化资源生成工作流", "学习路径规划工作流", "学习报告生成工作流"]
+    return [
+        {
+            "name": name,
+            "demo_fallback_note": "当前为 EduMind 内置 demo/fallback 工作流模板，未接真实 LangGraph。",
+            "nodes": [
+                {
+                    "key": key,
+                    "name": key,
+                    "status": "success" if index < 5 else "waiting",
+                    "input_summary": f"{name} 的 {key} 输入摘要。",
+                    "output_summary": f"{key} 输出将用于下一节点演示。",
+                    "duration_ms": 180 + index * 70,
+                }
+                for index, key in enumerate(node_keys)
+            ],
+        }
+        for name in names
+    ]
+
+
 class FullFlowPayload(BaseModel):
     course_id: int
     student_name: str
@@ -236,12 +318,27 @@ class FullFlowPayload(BaseModel):
 def get_workflow_center(db: Session = Depends(get_db)):
     runs = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(50).all()
     records = [_record_from_run(item) for item in runs]
+    business_events = [
+        item
+        for item in list_events(db, limit=20)
+        if item["event_type"] in {"resource_generated", "path_updated", "report_generated", "agent_workflow_rerun"}
+    ]
     latest = records[0] if records else {}
     return {
         "workflow_summary": _summary_from_records(records),
         "steps": latest.get("steps") or [],
         "records": records,
         "artifacts": latest.get("artifacts") or {},
+        "workflow_templates": _workflow_templates(),
+        "business_event_records": [
+            {
+                **item,
+                "run_id": f"event-run-{item['id']:06d}",
+                "workflow_name": item["event_type"],
+                "status": item["status"],
+            }
+            for item in business_events
+        ],
     }
 
 
@@ -258,6 +355,20 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
         status="running",
     )
     db.add(run)
+    db.flush()
+    record_event(
+        db,
+        event_type="agent_workflow_rerun",
+        title="Agent 工作流模拟重跑",
+        description=f"{seed.workflow_name} 已完成 demo/fallback 重跑。",
+        actor_role="admin",
+        actor_name="demo_admin",
+        target_type="agent_run",
+        target_id=run.id,
+        status="success",
+        metadata={"run_id": f"run-{run.id:06d}", "rerun_from": seed.id, "demo_fallback": True},
+        commit=False,
+    )
     db.commit()
     db.refresh(run)
 
@@ -374,3 +485,41 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
 def list_runs(db: Session = Depends(get_db)):
     runs = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(50).all()
     return [_record_from_run(item) for item in runs]
+
+
+@router.get("/runs/{run_id}")
+def get_run(run_id: int, db: Session = Depends(get_db)):
+    run = db.query(AgentRun).filter(AgentRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Agent 运行记录不存在")
+    return _record_from_run(run)
+
+
+@router.post("/runs/{run_id}/rerun")
+def rerun(run_id: int, db: Session = Depends(get_db)):
+    seed = db.query(AgentRun).filter(AgentRun.id == run_id).first()
+    if not seed:
+        raise HTTPException(status_code=404, detail="Agent 运行记录不存在")
+    input_data = loads(seed.input_json, {})
+    steps = _demo_rerun_steps(seed)
+    artifacts = seed.output_json and (loads(seed.output_json, {}).get("artifacts") or {}) or {}
+    output = {
+        "demo_fallback": True,
+        "rerun_from": seed.id,
+        "langgraph_run_id": None,
+        "steps": steps,
+        "artifacts": artifacts,
+        "workflow_summary": _workflow_summary("success", steps, artifacts),
+    }
+    run = AgentRun(
+        course_id=seed.course_id,
+        student_profile_id=seed.student_profile_id,
+        workflow_name=f"{seed.workflow_name}-rerun",
+        input_json=dumps({**input_data, "rerun_from": seed.id, "demo_fallback": True}),
+        output_json=dumps(output),
+        status="success",
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return _record_from_run(run)

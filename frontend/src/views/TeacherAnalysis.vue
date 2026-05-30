@@ -51,6 +51,24 @@ interface AnalysisData {
     created_at?: string;
   }>;
   teaching_suggestions?: Array<{ title: string; content: string }>;
+  knowledge_tracking?: {
+    demo_fallback_note: string;
+    formula: string;
+    knowledge_points: string[];
+    mastery_matrix: Array<{
+      student_id: number;
+      student_name: string;
+      risk_level: string;
+      average_mastery: number;
+      points: Array<{ knowledge_point: string; mastery: number; bkt_dkt_reserved?: Record<string, unknown> }>;
+    }>;
+    student_risk_levels: Array<{ student_id: number; student_name: string; risk_level: string; reason: string }>;
+    weak_knowledge_top5: Array<{ name: string; value: number }>;
+    class_mastery_distribution: Array<{ name: string; value: number }>;
+    student_progress_trend: Array<{ student_name: string; baseline: number; current: number; delta: number }>;
+    teacher_intervention_suggestions: Array<{ title: string; content: string }>;
+    bkt_dkt_reserved?: Record<string, unknown>;
+  };
 }
 
 const data = ref<AnalysisData | null>(null);
@@ -97,12 +115,19 @@ function performanceItems() {
 
 function formatDate(value?: string) {
   if (!value) return '暂无时间';
-  return new Date(value).toLocaleString('zh-CN', {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '时间格式异常';
+  return date.toLocaleString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function percent(value?: number) {
+  const numeric = Number(value || 0);
+  return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
 }
 
 function riskLevel(value: number) {
@@ -239,6 +264,70 @@ onBeforeUnmount(() => {
       </article>
     </div>
 
+    <section v-if="data" class="panel">
+      <div class="panel-title">
+        <h2>知识追踪与掌握度矩阵</h2>
+        <span class="muted">demo/fallback 掌握度估计，预留 BKT/DKT 字段</span>
+      </div>
+      <p class="demo-note">{{ data.knowledge_tracking?.demo_fallback_note || '掌握度为规则估计，后续可接入 BKT/DKT。' }}</p>
+      <p class="muted">{{ data.knowledge_tracking?.formula }}</p>
+      <div class="mastery-table">
+        <div class="mastery-row mastery-head">
+          <strong>学生</strong>
+          <span v-for="point in data.knowledge_tracking?.knowledge_points || []" :key="point">{{ point }}</span>
+          <span>风险等级</span>
+        </div>
+        <div v-for="row in data.knowledge_tracking?.mastery_matrix || []" :key="row.student_id" class="mastery-row">
+          <strong>{{ row.student_name }}</strong>
+          <span v-for="point in row.points" :key="`${row.student_id}-${point.knowledge_point}`" :class="['mastery-cell', { low: point.mastery < 0.6, mid: point.mastery >= 0.6 && point.mastery < 0.8 }]">
+            {{ percent(point.mastery) }}%
+          </span>
+          <span class="risk-pill">{{ row.risk_level }}</span>
+        </div>
+        <p v-if="!data.knowledge_tracking?.mastery_matrix?.length" class="empty-state">暂无掌握度矩阵，运行演示数据或提交测评后会显示。</p>
+      </div>
+    </section>
+
+    <div v-if="data" class="analysis-layout">
+      <section class="panel">
+        <div class="panel-title">
+          <h2>学生风险与进步趋势</h2>
+          <span class="muted">{{ data.knowledge_tracking?.student_risk_levels?.length || 0 }} 名需关注学生</span>
+        </div>
+        <div class="risk-grid">
+          <article v-for="item in data.knowledge_tracking?.student_risk_levels || []" :key="item.student_id" class="risk-card">
+            <strong>{{ item.student_name }}</strong>
+            <span class="risk-pill">{{ item.risk_level }}</span>
+            <p>{{ item.reason }}</p>
+          </article>
+          <p v-if="!data.knowledge_tracking?.student_risk_levels?.length" class="muted">暂无高风险学生。</p>
+        </div>
+        <div class="progress-list">
+          <p v-for="item in data.knowledge_tracking?.student_progress_trend || []" :key="item.student_name">
+            {{ item.student_name }}：{{ percent(item.baseline) }}% → {{ percent(item.current) }}%，提升 {{ percent(item.delta) }}%
+          </p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>班级掌握度分布与干预建议</h2>
+          <span class="muted">面向教师行动</span>
+        </div>
+        <div class="reference-list">
+          <small v-for="item in data.knowledge_tracking?.class_mastery_distribution || []" :key="item.name">
+            {{ item.name }}：{{ item.value }}
+          </small>
+        </div>
+        <div class="suggestion-list">
+          <article v-for="item in data.knowledge_tracking?.teacher_intervention_suggestions || []" :key="item.title" class="suggestion-card">
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.content }}</p>
+          </article>
+        </div>
+      </section>
+    </div>
+
     <div v-if="data" class="analysis-layout">
       <section class="panel">
         <div class="panel-title">
@@ -336,6 +425,12 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
+.demo-note {
+  margin: 8px 0;
+  color: #955600;
+  font-size: 13px;
+}
+
 .source-card {
   max-width: 360px;
   border: 1px solid #d9e0ea;
@@ -380,9 +475,64 @@ onBeforeUnmount(() => {
 
 .risk-grid,
 .suggestion-list,
-.record-grid {
+.record-grid,
+.progress-list {
   display: grid;
   gap: 10px;
+}
+
+.mastery-table {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.mastery-row {
+  display: grid;
+  grid-template-columns: 140px repeat(5, minmax(110px, 1fr)) 100px;
+  gap: 8px;
+  align-items: center;
+  min-width: 820px;
+}
+
+.mastery-row > * {
+  border-radius: 6px;
+  padding: 8px;
+  background: #fbfcff;
+}
+
+.mastery-head > * {
+  color: #66758a;
+  background: #f0f4fa;
+}
+
+.mastery-cell {
+  color: #1f7a45;
+  background: #effaf4;
+}
+
+.mastery-cell.mid {
+  color: #955600;
+  background: #fff7e8;
+}
+
+.mastery-cell.low {
+  color: #b42318;
+  background: #fff0f0;
+}
+
+.reference-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.reference-list small {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #1453aa;
+  background: #edf4ff;
 }
 
 .risk-grid {

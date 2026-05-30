@@ -1,15 +1,15 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-echo EduMind 演示数据初始化
+echo EduMind demo data seed
 echo.
-python scripts\seed-demo-data.py
+python scripts\seed_demo_data.py
 if errorlevel 1 (
   echo.
-  echo 演示数据初始化失败，请检查 Python 环境和后端依赖。
+  echo Demo data seed failed. Please check Python and backend dependencies.
   pause
   exit /b 1
 )
 echo.
-echo 演示数据初始化完成。
+echo Demo data seed completed.
 pause

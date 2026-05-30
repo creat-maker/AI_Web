@@ -18,6 +18,8 @@ interface WorkflowStep {
 
 interface WorkflowRecord {
   id: number;
+  run_id?: string;
+  langgraph_run_id?: string | null;
   task_name?: string;
   workflow_name: string;
   created_at?: string;
@@ -54,6 +56,8 @@ interface WorkflowCenter {
   steps: WorkflowStep[];
   records: WorkflowRecord[];
   artifacts: WorkflowArtifacts;
+  workflow_templates?: Array<{ name: string; demo_fallback_note?: string; nodes: WorkflowStep[] }>;
+  business_event_records?: Array<{ id: number; event_type: string; title: string; description: string; run_id?: string; status?: string }>;
 }
 
 interface FlowResult {
@@ -83,15 +87,19 @@ const fallbackCenter: WorkflowCenter = {
   },
   steps: stepTemplates,
   records: [],
-  artifacts: {}
+  artifacts: {},
+  workflow_templates: [],
+  business_event_records: []
 };
 
 const courses = ref<Course[]>([]);
 const center = ref<WorkflowCenter>(fallbackCenter);
 const result = ref<FlowResult | null>(null);
+const selectedRunId = ref<number | null>(null);
 const loading = ref(true);
 const running = ref(false);
 const error = ref('');
+const operationMessage = ref('');
 const fallbackActive = ref(false);
 
 const form = reactive({
@@ -144,7 +152,9 @@ function statusText(status?: StepStatus) {
 
 function formatDate(value?: string) {
   if (!value) return '暂无时间';
-  return new Date(value).toLocaleString('zh-CN', {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '时间格式异常';
+  return date.toLocaleString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -162,7 +172,9 @@ async function loadCenter() {
     workflow_summary: data.workflow_summary || fallbackCenter.workflow_summary,
     steps: data.steps?.length ? data.steps : stepTemplates,
     records: data.records || [],
-    artifacts: data.artifacts || {}
+    artifacts: data.artifacts || {},
+    workflow_templates: data.workflow_templates || [],
+    business_event_records: data.business_event_records || []
   };
 }
 
@@ -193,6 +205,7 @@ async function runFlow() {
   }
   running.value = true;
   error.value = '';
+  operationMessage.value = '';
   fallbackActive.value = false;
   try {
     const data = await api.post<FlowResult>('/api/v1/agent-workflow/run-full-learning-flow', {
@@ -204,12 +217,31 @@ async function runFlow() {
       workflow_summary: data.workflow_summary || center.value.workflow_summary,
       steps: data.steps?.length ? data.steps : center.value.steps,
       records: center.value.records,
-      artifacts: data.artifacts || center.value.artifacts
+      artifacts: data.artifacts || center.value.artifacts,
+      workflow_templates: center.value.workflow_templates,
+      business_event_records: center.value.business_event_records
     };
     await loadCenter();
+    operationMessage.value = `工作流运行完成，run_id：${center.value.records[0]?.run_id || `run-${center.value.records[0]?.id || ''}`}`;
   } catch (err) {
     error.value = err instanceof Error ? err.message : '工作流运行失败，已保留页面兜底展示。';
     fallbackActive.value = true;
+  } finally {
+    running.value = false;
+  }
+}
+
+async function rerunRecord(record: WorkflowRecord) {
+  running.value = true;
+  error.value = '';
+  operationMessage.value = '';
+  try {
+    const next = await api.post<WorkflowRecord>(`/api/v1/agent-workflow/runs/${record.id}/rerun`);
+    await loadCenter();
+    selectedRunId.value = center.value.records[0]?.id || null;
+    operationMessage.value = `已完成模拟重跑：${next.run_id || `run-${next.id}`}`;
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '模拟重新运行失败';
   } finally {
     running.value = false;
   }
@@ -225,6 +257,7 @@ onMounted(loadPage);
         <p class="eyebrow">教学智能体工作流中心</p>
         <h2>从任务接收到报告生成的教学闭环</h2>
         <p class="muted">展示任务编排、知识库检索、答疑生成、学情分析和教学建议产物，适合比赛现场演示。</p>
+        <p class="demo-note">当前为 EduMind 内置 demo/fallback 编排，已预留 langgraph_run_id 字段，未接入真实 LangGraph。</p>
       </div>
       <div class="hero-action">
         <span>当前课程</span>
@@ -233,6 +266,7 @@ onMounted(loadPage);
     </div>
 
     <p v-if="error" class="panel error-text">{{ error }}</p>
+    <p v-if="operationMessage" class="panel success-text">{{ operationMessage }}</p>
     <p v-if="fallbackActive" class="panel muted">接口暂不可用，页面已切换到本地 fallback 展示，避免白屏。</p>
     <p v-else-if="loading" class="panel muted">正在加载智能体工作流数据...</p>
 
@@ -271,10 +305,12 @@ onMounted(loadPage);
           <article v-for="item in center.records.slice(0, 5)" :key="item.id" class="record-card">
             <div>
               <strong>{{ item.task_name || item.workflow_name }}</strong>
+              <p>{{ item.run_id || `run-${item.id}` }} / {{ item.langgraph_run_id || 'langgraph_run_id 预留' }}</p>
               <p>{{ formatDate(item.created_at) }} · {{ item.trigger_source || '本地页面' }}</p>
             </div>
             <div class="record-actions">
               <span :class="['status-pill', item.status]">{{ statusText(item.status) }}</span>
+              <button class="secondary" type="button" :disabled="running" @click="rerunRecord(item)">模拟重跑</button>
               <RouterLink :to="item.result_entry || '/reports'">结果入口</RouterLink>
             </div>
           </article>
@@ -282,6 +318,46 @@ onMounted(loadPage);
         </div>
       </section>
     </div>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>三类 demo 工作流模板</h2>
+        <span class="muted">profile_agent / knowledge_agent / planning_agent / generation_agent / review_agent / recommendation_agent</span>
+      </div>
+      <div class="step-grid">
+        <article v-for="template in center.workflow_templates || []" :key="template.name" class="step-card success">
+          <div class="step-head">
+            <strong>{{ template.name }}</strong>
+            <span class="status-pill success">demo</span>
+          </div>
+          <p class="demo-note">{{ template.demo_fallback_note || '当前为 demo/fallback 模板。' }}</p>
+          <dl>
+            <template v-for="node in template.nodes" :key="`${template.name}-${node.key}`">
+              <dt>{{ node.name }}</dt>
+              <dd>{{ node.input_summary }} → {{ node.output_summary }}（{{ node.duration_ms }}ms）</dd>
+            </template>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>业务事件联动历史</h2>
+        <span class="muted">资源生成 / 路径更新 / 报告生成事件映射为模拟 run_id</span>
+      </div>
+      <div class="record-list">
+        <article v-for="item in center.business_event_records || []" :key="item.id" class="record-card">
+          <div>
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.run_id }} · {{ item.event_type }}</p>
+            <p>{{ item.description }}</p>
+          </div>
+          <span :class="['status-pill', item.status || 'success']">{{ statusText(item.status || 'success') }}</span>
+        </article>
+        <p v-if="!(center.business_event_records || []).length" class="empty-state">暂无业务事件联动记录。生成资源包、更新路径或重跑工作流后会出现。</p>
+      </div>
+    </section>
 
     <section class="panel">
       <div class="panel-title">
@@ -378,6 +454,12 @@ onMounted(loadPage);
   color: #2264d1;
   font-size: 13px;
   font-weight: 700;
+}
+
+.demo-note {
+  margin: 8px 0 0;
+  color: #955600;
+  font-size: 13px;
 }
 
 .hero-action {
@@ -540,6 +622,10 @@ onMounted(loadPage);
 
 .error-text {
   color: #b42318;
+}
+
+.success-text {
+  color: #1f7a45;
 }
 
 @media (max-width: 980px) {
