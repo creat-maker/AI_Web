@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, courses, dashboard, demo_status, events, knowledge_base, learning_paths, logs, profiles, quizzes, reports, resources, system_settings, tutor
+from app.api.routers import agent_workflow, courses, dashboard, demo_status, events, knowledge_base, learning_paths, logs, profiles, quizzes, reports, resources, system_settings, tutor, user_profile_ws
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -41,7 +41,7 @@ app.include_router(logs.router, prefix=API_PREFIX)
 app.include_router(events.router, prefix=API_PREFIX)
 app.include_router(demo_status.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix="/api")
-
+app.include_router(user_profile_ws.router)
 
 @app.get("/api/v1/runtime")
 def runtime():
