@@ -4,22 +4,22 @@
 >
 > 适用项目：EduMind / 中国软件杯 A3 方向 / 个性化学习资源与智能学习智能体系统
 >
-> 审计日期：2026-06-01
+> 审计日期：2026-06-01（v2 更新）
 
 ---
 
 ## 审计结论
 
-当前 EduMind 已具备 **Web 单端演示系统**（Vue3 + FastAPI）、LangGraph 多智能体工作流、Chroma RAG 检索、Mock/真实 LLM 双模式、Word 报告导出等核心闭环能力，适合作为阶段性 Web 演示版。
+当前 EduMind 已具备 **Web 三端演示系统**（学生端 / 教师端 / 管理员端）、登录入口与角色路由、LangGraph 多智能体工作流、Chroma RAG 检索、Mock/真实 LLM 双模式、Word 报告导出、Demo 状态页、一键验收脚本、学习行为采集、日志管理和系统设置等核心闭环能力。
 
-但对照软件杯方案，仍缺少或需要核验以下关键项：
+对照软件杯方案，仍缺少或需要核验以下关键项：
 
 - ❌ 微信小程序体验版
 - ❌ 对话式画像构建
 - ❌ 5 类资源生成（当前仅 4 类）
 - ⚠️ 课程知识库 / RAG（已有基础，需补完整课程资料集）
 - ⚠️ 引用溯源（TutorAgent 已有 source_file，需增强可信度评分）
-- ❌ 防幻觉审核中心
+- ❌ 防幻觉审核中心（教师端报告审核中心已有，但缺少可信度评分和风险等级）
 - ⚠️ 真实 Agent 执行链路（LangGraph 已接入，但缺少步骤日志/耗时/状态追踪）
 - ❌ 正式提交材料（PPT、视频、开发说明等）
 
@@ -47,11 +47,24 @@
 
 ## 2. 当前已实现项清单
 
-> **总体判断**：已实现部分主要集中在 Web 单端产品化展示、LangGraph 多智能体工作流、Chroma RAG 检索和 Mock/真实 LLM 双模式。部分核心 AI 能力在 mock 模式下可用，但真实 LLM 模式下的输出质量需进一步验证。
+> **总体判断**：已实现部分主要集中在 Web 三端产品化展示、三角色路由拆分、登录入口、Demo 状态页、一键验收脚本、LangGraph 多智能体工作流、Chroma RAG 检索和 Mock/真实 LLM 双模式。部分核心 AI 能力在 mock 模式下可用，但真实 LLM 模式下的输出质量需进一步验证。
 
 | 模块 | 已实现内容 | 代码位置 | 状态 | 后续建议 |
 |------|-----------|----------|------|----------|
-| 统一 UI 与布局 | 浅色 SaaS 风格；侧边栏 + 顶部栏 + 卡片 + 统计卡 | [App.vue](file:///e:/EduMind/frontend/src/App.vue) | 基本完成 | 继续只做小修 |
+| 统一 UI 与布局 | AppLayout、AppSidebar、AppHeader、DataCard、StatCard、StatusBadge 等公共组件 | [AppLayout.vue](file:///e:/EduMind/frontend/src/components/AppLayout.vue) | ✅ 已完成 | 继续只做小修 |
+| 登录页与三角色入口 | `/login` 页面，学员/教师/管理员入口分别进入 `/student` `/teacher` `/dashboard` | [Login.vue](file:///e:/EduMind/frontend/src/views/Login.vue) | ✅ 已完成 | — |
+| 三角色路由拆分 | 学生端 `/student/*`，教师端 `/teacher`，管理员端 `/dashboard` `/admin/*` | [router/index.ts](file:///e:/EduMind/frontend/src/router/index.ts) | ✅ 已完成 | — |
+| 角色权限配置 | `useRole` composable + `roles.ts` 角色菜单、路由权限 | [useRole.ts](file:///e:/EduMind/frontend/src/composables/useRole.ts) | ✅ 已完成 | — |
+| 学生端 Web 页面 | 学习总览、我的课程、学习路径、智能答疑、知识库、测验成绩、学习报告、任务、徽章、积分、笔记、小组 | [StudentHome.vue](file:///e:/EduMind/frontend/src/views/StudentHome.vue) 等 12 个页面 | ✅ 已完成 | 部分页面为占位，需补真实闭环 |
+| 教师端 Web 页面 | 班级概览、课程管理、学生画像、学习路径与任务布置、测评分析、报告中心 | [TeacherHome.vue](file:///e:/EduMind/frontend/src/views/TeacherHome.vue) | ✅ 已完成 | — |
+| 管理员端 Web 页面 | 平台总览、用户与角色、课程治理、资源生成、Agent 工作流、报告、知识库、日志、系统设置 | [AdminCourses.vue](file:///e:/EduMind/frontend/src/views/AdminCourses.vue) 等 | ✅ 已完成 | — |
+| Demo 状态页 | `/demo-status` 前后端，展示 Ready、通过率、三端路线和关键能力 | [DemoStatus.vue](file:///e:/EduMind/frontend/src/views/DemoStatus.vue) + [demo_status.py](file:///e:/EduMind/backend/app/api/routers/demo_status.py) | ✅ 已完成 | — |
+| 统一演示数据 | 张三、李四、王五；王老师、陈老师、张老师；四门课程；两个班级 | [seed_demo_data.py](file:///e:/EduMind/scripts/seed_demo_data.py) | ✅ 已完成 | — |
+| 一键验收脚本 | `seed-demo-data`、`check-demo-ready`、`e2e_demo_flow_check` | [scripts/](file:///e:/EduMind/scripts/) | ✅ 已完成 | — |
+| 学习行为数据采集 | 业务事件记录、资源包生成、路径更新、测验完成等事件 | [events.py](file:///e:/EduMind/backend/app/api/routers/events.py) | ✅ 已完成 | — |
+| 日志管理 | QA、文档上传、Agent、报告、错误等多类型日志 | [logs.py](file:///e:/EduMind/backend/app/api/routers/logs.py) | ✅ 已完成 | — |
+| 系统设置 | 运行模式、fallback 数据源和能力边界 | [system_settings.py](file:///e:/EduMind/backend/app/api/routers/system_settings.py) | ✅ 已完成 | — |
+| 能力边界说明 | `/capability-boundary` 页面，说明 AI 资源正文可由 fallback 模板生成等 | [CapabilityBoundary.vue](file:///e:/EduMind/frontend/src/views/CapabilityBoundary.vue) | ✅ 已完成 | — |
 | 课程管理 CRUD | 创建、编辑、删除课程 | [courses.py](file:///e:/EduMind/backend/app/api/routers/courses.py) | ✅ 已完成 | — |
 | 知识库上传与解析 | 支持 PDF/PPT/TXT/MD 上传、解析、分块、Chroma 向量化 | [knowledge_base.py](file:///e:/EduMind/backend/app/api/routers/knowledge_base.py) | ✅ 已完成 | 补完整课程资料集 |
 | RAG 检索 | Chroma 向量检索 + HashEmbedding + JSON fallback | [vector_store.py](file:///e:/EduMind/backend/app/rag/vector_store.py) | ⚠️ 部分实现 | embedding 质量待提升 |
@@ -63,7 +76,7 @@
 | Word 报告导出 | python-docx 生成学习报告 | [report_service.py](file:///e:/EduMind/backend/app/services/report_service.py) | ✅ 已完成 | — |
 | LangGraph 多智能体 | 6 Agent 顺序工作流 + fallback | [graph.py](file:///e:/EduMind/backend/app/agents/graph.py) | ✅ 已完成 | 补执行日志 |
 | Mock/真实 LLM 双模式 | DeepSeek / 通义千问 / Mock 三模式 | [llm_service.py](file:///e:/EduMind/backend/app/services/llm_service.py) | ✅ 已完成 | — |
-| Dashboard 统计 | 课程/画像/资源/测验/报告/Agent 运行数 | [Dashboard.vue](file:///e:/EduMind/frontend/src/views/Dashboard.vue) | ✅ 已完成 | — |
+| Dashboard 统计 | 课程/画像/资源/测验/报告/Agent 运行数 + 7 天趋势 | [Dashboard.vue](file:///e:/EduMind/frontend/src/views/Dashboard.vue) | ✅ 已完成 | — |
 | .env.example | 环境变量样例文件 | [.env.example](file:///e:/EduMind/.env.example) | ✅ 已完成 | — |
 
 ---
@@ -81,7 +94,7 @@
 | 3 | **至少 5 类个性化资源生成** | 赛题硬要求；当前 ResourceAgent 仅生成 4 类（讲义、案例、测验、任务） | ⚠️ 仅 4 类 | 增加第 5 类资源（如思维导图/代码案例/视频脚本），实现演示级接口与页面输出 |
 | 4 | **课程知识库与样例课程资料集** | 赛题要求自行构造至少一门完整高校专业课程知识库/文档集 | ⚠️ 仅有上传入口 | 准备一门完整课程：章节、知识点、讲义、题库、实验/项目材料；放入 `dataset` 或 `docs/course_kb` |
 | 5 | **RAG 引用溯源与可信度评分** | 防幻觉和课程资料约束需要引用片段、来源文件、可信度 | ⚠️ 有基础引用 | 增强 TutorAgent 返回：引用资料、可信度评分、推荐练习 |
-| 6 | **防幻觉审核中心/审核记录** | 赛题非功能需求明确要求防幻觉与内容安全过滤 | ❌ 不存在 | 新增资源审核：引用来源、可信度、风险等级、审核状态、通过/退回/重生成 |
+| 6 | **防幻觉审核中心/审核记录** | 赛题非功能需求明确要求防幻觉与内容安全过滤；当前报告审核中心已有基础 | ⚠️ 有基础框架 | 增加可信度评分、风险等级、审核状态、通过/退回/重生成 |
 
 ### P1 — 重要但非硬性截止
 
@@ -90,7 +103,7 @@
 | 7 | **Agent 执行步骤日志** | AgentWorkflow 页面已有，但缺少每步输入/输出/耗时/状态追踪 | ⚠️ 仅记录 AgentRun | 实现 `run_demo_agent_flow`：画像→检索→规划→资源→审核→报告，每步有日志 |
 | 8 | **资源推荐理由** | 个性化系统必须能解释"为什么推荐" | ❌ 不存在 | 在学生课程/路径/资源/报告页加入推荐原因：薄弱点、测验证据、目标匹配 |
 | 9 | **学习路径动态调整** | 当前有路径展示，但测验/答疑后不会自动调整 | ❌ 不存在 | 用规则演示：错题薄弱点变化后更新下一任务与推荐资源 |
-| 10 | **正式文档包** | 赛题要求系统开发说明、测试说明、部署说明等 | ❌ 不存在 | 生成 docx：系统开发说明、测试说明、部署说明、AI 工具说明、开源协议说明、用户手册 |
+| 10 | **正式文档包** | 赛题要求系统开发说明、测试说明、部署说明等 | ⚠️ 部分文档已有 | 补齐 docx：系统开发说明、测试说明、部署说明、AI 工具说明、开源协议说明、用户手册 |
 | 11 | **演示 PPT 与 7 分钟视频** | 赛题明确提交 PPT 和 7 分钟以内演示视频 | ❌ 不存在 | 制作 PPT；录制固定三端路线 + demo-status + 资源生成/Agent |
 | 12 | **提交包目录** | 方案建议整理完整提交目录 | ❌ 不存在 | 整理 `EduMind_Submission` 目录 |
 
@@ -102,22 +115,22 @@
 
 | # | 可能缺少项 | 核验原因 | 代码审计结果 | 处理建议 |
 |---|-----------|----------|-------------|----------|
-| 1 | **真实登录鉴权与权限控制** | 当前无 `/login` 页面、无 JWT、无 auth 中间件 | ❌ 不存在 | 初赛可接受 Demo 登录；后续扩展真实鉴权 |
-| 2 | **三角色路由拆分** | 文档声称有 `/student` `/teacher` `/admin`，但前端仅有单侧边栏 | ❌ 不存在 | 实现角色路由拆分，或明确说明当前为统一管理界面 |
-| 3 | **Demo 状态页** | 文档声称有 `/demo-status`，但代码中未找到 | ❌ 不存在 | 新增 `/api/v1/demo-status` 和前端页面 |
-| 4 | **一键验收脚本** | 文档声称有 `seed-demo-data` `check-demo-ready`，但代码中未找到 | ❌ 不存在 | 新增验收脚本 |
+| 1 | **真实登录鉴权与权限控制** | 当前为 Demo 角色入口，无 JWT/auth 中间件 | ⚠️ Demo 级 | 初赛可接受 Demo 登录；后续扩展真实鉴权 |
+| 2 | **三角色路由拆分** | 已有 `/student/*` `/teacher` `/admin/*` 完整路由 | ✅ 已实现 | 确认各角色菜单不再跨角色切换 |
+| 3 | **Demo 状态页** | `/demo-status` 前后端已实现 | ✅ 已实现 | 保持为答辩入口 |
+| 4 | **一键验收脚本** | `seed-demo-data` `check-demo-ready` `e2e_demo_flow_check` 已实现 | ✅ 已实现 | 每次提交后必须重跑 |
 | 5 | **生成进度追踪/流式输出** | 赛题建议流式输出或生成进度追踪 | ❌ 不存在 | 可在资源生成/Agent 页面用步骤条模拟进度；真实 SSE 后续做 |
-| 6 | **学习行为数据采集** | 学习事件日志 | ❌ 不存在 | 可先写演示事件；点击问答/测验/报告记录日志 |
-| 7 | **测验在线作答与错题本** | 学生端有测验成绩，但未明确能在线作答、生成错题 | ⚠️ 有提交接口 | 先做 3~5 题演示测验和错题分析 |
+| 6 | **学习行为数据采集** | `events.py` 已实现业务事件记录 | ✅ 已实现 | — |
+| 7 | **测验在线作答与错题本** | `QuizEvaluate` + `StudentExamResult` 已有在线作答 | ✅ 已实现 | 可增加错题本功能 |
 | 8 | **知识点图谱/前置关系** | 学习路径页面有节点，但无知识图谱数据结构 | ❌ 不存在 | 用 JSON 表示知识点和 `prereq_ids` 即可 |
-| 9 | **教师资源审核权限** | 有教师端分析，但资源审核中心不存在 | ❌ 不存在 | 把防幻觉审核放到教师端核心菜单 |
-| 10 | **开源协议与 AI Coding 使用说明** | 赛题要求使用开源项目/AI Coding 要显著标注 | ❌ 不存在 | 补 `docs/AI工具与开源协议说明.md` |
-| 11 | **部署说明** | 本地能跑，但未明确完整部署包 | ⚠️ 有 .env.example | 补部署说明、常见问题 |
+| 9 | **教师资源审核权限** | `AdminReports.vue` 报告审核中心已实现 | ✅ 已实现 | 可增加防幻觉审核到教师端核心菜单 |
+| 10 | **开源协议与 AI Coding 使用说明** | `CapabilityBoundary.vue` 已实现能力边界说明 | ✅ 已实现 | 可补充独立文档 |
+| 11 | **部署说明** | `.env.example` + `start-dev.bat` + `stop-dev.bat` 已有 | ✅ 已实现 | 可补充生产部署说明 |
 | 12 | **截图与演示素材** | 未整理 screenshots 文件夹 | ❌ 不存在 | 导出关键页面截图 |
 | 13 | **旧页面/未跟踪文件清理** | `legacy/` 目录存在大量旧代码 | ⚠️ 已隔离 | 确认 `.gitignore` 覆盖，提交时排除 |
 | 14 | **移动端响应式** | Web 页面多为桌面布局 | ⚠️ 桌面优先 | Web 保持桌面演示；小程序负责移动端 |
 | 15 | **接口契约一致性** | 前端 mock 与后端可能字段不一致 | ⚠️ 需核验 | 做 API schema 文档或字段映射表 |
-| 16 | **测试覆盖** | 仅有路由 200 与手动检查，无单元测试/API 测试 | ❌ 不存在 | 保留 check-demo-ready 作为核心验收 |
+| 16 | **测试覆盖** | `check-demo-ready` 验收脚本已有，但无单元测试 | ⚠️ 部分覆盖 | 保留 check-demo-ready 作为核心验收 |
 
 ---
 
@@ -128,7 +141,7 @@
 | 完整 LangChain / LangGraph 接入 | 已接入 LangGraph，但复杂状态图调试和现场稳定性有风险 | 当前已接入 LangGraph，后续可优化状态图 |
 | 真实向量数据库全量接入 | Chroma 已接入，但 embedding 质量待提升 | 当前使用 HashEmbedding，后续可替换为真实 embedding 模型 |
 | 正式上线微信小程序 | 注册/审核/备案不确定，初赛不要求正式上线 | 提供开发版/体验版源码、运行说明和二维码 |
-| 复杂权限系统 | RBAC、后端鉴权、权限矩阵会拖慢演示版本 | 当前演示级角色入口，后续生产化补强 |
+| 复杂权限系统 | RBAC、后端鉴权、权限矩阵会拖慢演示版本 | 当前 Demo 角色入口，后续生产化补强 |
 | 真实多模态视频生成 | 生成视频成本高、时间不稳定、依赖外部模型 | 先生成视频脚本、分镜、旁白和画面提示词 |
 | 完整 Docker/云部署 | 部署很加分但不是当前代码闭环的第一问题 | 若时间充足再补 `docker-compose` 和服务器演示地址 |
 
@@ -195,9 +208,9 @@
 
 | 维度 | 当前判断 | 说明 |
 |------|----------|------|
-| 产品形态 | ⚠️ 部分符合 | Web 单端完整；小程序学生端缺失；三角色路由未拆分 |
+| 产品形态 | ✅ 较好 | Web 三端完整；登录入口、角色路由、Demo 状态页、验收脚本均已就位；小程序学生端缺失 |
 | 赛题核心功能 | ⚠️ 部分符合 | 页面与演示路线完整，但画像、5 类资源、RAG 可信度、防幻觉还不够真实 |
-| 工程完整性 | ✅ 较好 | 有前后端、统一数据、LangGraph Agent、Chroma RAG、Mock/真实双模式 |
-| 比赛展示效果 | ✅ 较好 | Dashboard、Agent 工作流、智能答疑已能支撑讲解；还需 PPT/视频/截图 |
+| 工程完整性 | ✅ 较好 | 有前后端、统一数据、演示数据脚本、验收脚本、LangGraph Agent、Chroma RAG、Mock/真实双模式 |
+| 比赛展示效果 | ✅ 较好 | 登录页、三端路由、Demo 状态页、Agent 工作流已能支撑讲解；还需 PPT/视频/截图 |
 | 技术深度 | ⚠️ 中等偏上 | Agent/RAG 已有基础实现；embedding 质量和防幻觉需加强 |
-| 提交准备度 | ❌ 未完成 | 正式文档、小程序、PPT、视频、提交包还需整理 |
+| 提交准备度 | ⚠️ 部分完成 | 正式文档、小程序、PPT、视频、提交包还需整理 |
