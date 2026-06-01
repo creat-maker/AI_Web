@@ -1,8 +1,8 @@
 # EduMind 演示状态检查报告
 
-- 检查时间：2026-06-01T15:47:05
+- 检查时间：2026-06-01T20:14:06
 - 总体状态：READY
-- 通过 / 警告 / 失败：52 / 0 / 0
+- 通过 / 警告 / 失败：56 / 0 / 0
 - 后端地址：http://127.0.0.1:8000
 - 前端地址：http://127.0.0.1:5173
 
@@ -19,22 +19,23 @@
 | --- | --- | --- | --- | --- | --- |
 | data | courses | PASS | 6 | 4 | 满足演示要求 |
 | data | core_courses | PASS | 4 | 4 | 满足演示要求 |
-| data | student_profiles | PASS | 22 | 3 | 满足演示要求 |
-| data | core_students | PASS | 10 | 3 | 满足演示要求 |
+| data | student_profiles | PASS | 23 | 3 | 满足演示要求 |
+| data | core_students | PASS | 11 | 3 | 满足演示要求 |
 | data | core_teachers | PASS | 3 | 3 | 满足演示要求 |
 | data | course_documents | PASS | 13 | 3 | 满足演示要求 |
-| data | tutor_question_logs | PASS | 29 | 5 | 满足演示要求 |
+| data | tutor_question_logs | PASS | 30 | 5 | 满足演示要求 |
 | data | quizzes | PASS | 12 | 1 | 满足演示要求 |
-| data | quiz_submissions | PASS | 21 | 1 | 满足演示要求 |
+| data | quiz_submissions | PASS | 22 | 1 | 满足演示要求 |
 | data | learning_reports | PASS | 12 | 3 | 满足演示要求 |
 | data | agent_runs | PASS | 12 | 3 | 满足演示要求 |
-| data | learning_paths | PASS | 22 | 3 | 满足演示要求 |
-| data | generated_resources | PASS | 108 | 3 | 满足演示要求 |
-| data | business_events | PASS | 108 | 9 | 满足演示要求 |
+| data | learning_paths | PASS | 23 | 3 | 满足演示要求 |
+| data | generated_resources | PASS | 116 | 3 | 满足演示要求 |
+| data | business_events | PASS | 125 | 9 | 满足演示要求 |
 | file | backend/storage/uploads | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/reports | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/chroma | PASS | exists | exists | 文件或目录已存在 |
 | file | frontend/dist/index.html | PASS | exists | exists | 文件或目录已存在 |
+| file | docs/course_kb/python_programming.json | PASS | exists | exists | 文件或目录已存在 |
 | script | start-dev.bat | PASS | exists | exists | 文件或目录已存在 |
 | script | stop-dev.bat | PASS | exists | exists | 文件或目录已存在 |
 | script | seed-demo-data.bat | PASS | exists | exists | 文件或目录已存在 |
@@ -44,6 +45,9 @@
 | http | backend_health | PASS | 200 | 200 | HTTP 访问正常 |
 | http | backend_demo_status | PASS | 200 | 200 | HTTP 访问正常 |
 | http | backend_courses_api | PASS | 200 | 200 | HTTP 访问正常 |
+| http | backend_rag_ask | PASS | 200 | 200 | HTTP 访问正常 |
+| http | backend_content_review | PASS | 200 | 200 | HTTP 访问正常 |
+| http | backend_content_review_records | PASS | 200 | 200 | HTTP 访问正常 |
 | http | frontend/ | PASS | 200 | 200 | HTTP 访问正常 |
 | http | frontend/login | PASS | 200 | 200 | HTTP 访问正常 |
 | http | frontend/student | PASS | 200 | 200 | HTTP 访问正常 |

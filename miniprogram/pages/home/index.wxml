@@ -1,0 +1,64 @@
+<view class="page">
+  <view class="hero">
+    <text class="hero-title">今日学习</text>
+    <text class="hero-subtitle">{{student.name}} · {{student.className}} · {{student.todayFocus}}</text>
+  </view>
+
+  <view class="section grid">
+    <view class="stat">
+      <text class="muted">综合评分</text>
+      <text class="stat-value">{{report.score}}</text>
+    </view>
+    <view class="stat">
+      <text class="muted">学习进度</text>
+      <text class="stat-value">{{report.progress}}%</text>
+    </view>
+    <view class="stat">
+      <text class="muted">本周时长</text>
+      <text class="stat-value">{{report.studyTime}}</text>
+    </view>
+    <view class="stat" bindtap="goQuiz">
+      <text class="muted">任务完成</text>
+      <text class="stat-value">{{report.completion}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">我的课程</view>
+    <view class="card" wx:for="{{courses}}" wx:key="name">
+      <view class="split">
+        <view class="list-item">
+          <text class="icon-box">{{item.icon}}</text>
+          <view>
+            <text class="strong">{{item.name}}</text>
+            <text class="muted">{{item.teacher}} · {{item.weakPoint}}</text>
+          </view>
+        </view>
+        <text class="tag">{{item.status}}</text>
+      </view>
+      <view class="progress">
+        <view class="progress-bar" style="width: {{item.progress}}%;"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">今日任务</view>
+    <view class="card" wx:for="{{todayTasks}}" wx:key="title">
+      <view class="split">
+        <view>
+          <text class="strong">{{item.title}}</text>
+          <text class="muted">预计 {{item.time}}</text>
+        </view>
+        <text class="tag {{item.status === '进行中' ? 'purple' : 'warning'}}">{{item.status}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">薄弱点提醒</view>
+    <view class="card" wx:for="{{weakPoints}}" wx:key="*this">
+      <text class="muted">{{item}}</text>
+    </view>
+  </view>
+</view>

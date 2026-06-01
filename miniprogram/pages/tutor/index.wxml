@@ -1,0 +1,44 @@
+<view class="page tutor-page">
+  <view class="hero">
+    <text class="hero-title">AI 辅导</text>
+    <text class="hero-subtitle">围绕课程资料、薄弱点和错题给出引导式学习建议。</text>
+  </view>
+
+  <view class="section">
+    <view class="section-title">对话演示</view>
+    <view class="message {{item.role}}" wx:for="{{messages}}" wx:key="content">
+      <text>{{item.content}}</text>
+    </view>
+  </view>
+
+  <view class="input-card card">
+    <input value="{{question}}" bindinput="onInput" placeholder="输入你的学习问题" />
+    <button class="send-button" bindtap="sendQuestion">{{loading ? '检索中' : '发送'}}</button>
+  </view>
+
+  <view class="section">
+    <view class="section-title">
+      <text>RAG 引用回答</text>
+      <text class="tag {{fromBackend ? 'success' : 'warning'}}">{{fromBackend ? '后端检索' : '本地演示'}}</text>
+    </view>
+    <view class="card">
+      <text class="strong">可信度 {{ragResult.confidence}}</text>
+      <text class="muted">{{ragResult.answer}}</text>
+    </view>
+    <view class="card citation-card" wx:for="{{ragResult.citations}}" wx:key="sourceFile">
+      <text class="tag">{{item.sourceFile}}</text>
+      <text class="strong">{{item.chapter}} · {{item.section}}</text>
+      <text class="muted">{{item.snippet}}</text>
+    </view>
+    <view class="card" wx:for="{{ragResult.recommendedExercises}}" wx:key="*this">
+      <text class="muted">推荐练习：{{item}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">可追问方向</view>
+    <view class="card" wx:for="{{weakPoints}}" wx:key="*this">
+      <text class="muted">{{item}}</text>
+    </view>
+  </view>
+</view>

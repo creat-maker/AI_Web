@@ -1,0 +1,52 @@
+.message {
+  max-width: 86%;
+  margin-bottom: 18rpx;
+  border-radius: 24rpx;
+  padding: 22rpx;
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.message.assistant {
+  color: #334155;
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+}
+
+.message.user {
+  margin-left: auto;
+  color: #ffffff;
+  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+}
+
+.input-card {
+  display: flex;
+  gap: 14rpx;
+  align-items: center;
+}
+
+.input-card input {
+  flex: 1;
+  min-height: 68rpx;
+  color: #0f172a;
+}
+
+.send-button {
+  min-width: 132rpx;
+  height: 68rpx;
+  border-radius: 16rpx;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.citation-card {
+  display: grid;
+  gap: 10rpx;
+}
+
+.card .strong,
+.card .muted {
+  display: block;
+}

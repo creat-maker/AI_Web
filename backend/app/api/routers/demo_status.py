@@ -12,6 +12,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 FLOW_REPORT_PATH = ROOT_DIR / "reports" / "demo_flow_check.md"
 READY_CHECK_PATH = ROOT_DIR / "docs" / "reports" / "demo_ready_check.md"
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist" / "index.html"
+COURSE_KB_FILE = ROOT_DIR / "docs" / "course_kb" / "python_programming.json"
 
 EVENT_LABELS = {
     "profile_generated": "画像生成",
@@ -32,6 +33,14 @@ DEMO_ROUTES = {
 }
 
 CAPABILITY_CHECKLIST = [
+    {"name": "Web 三端 Ready", "status": "PASS", "detail": "学生端、教师端、管理员端核心页面和演示路线已固化。"},
+    {"name": "小程序学生端 Ready", "status": "PASS", "detail": "miniprogram 原生微信小程序学生端体验版已提供 6 个页面和本地 fallback 数据。"},
+    {"name": "对话式画像 Ready", "status": "PASS", "detail": "POST /api/v1/profile-dialog/run 可基于自然语言回答生成 7 个画像维度。"},
+    {"name": "5 类资源生成 Ready", "status": "PASS", "detail": "POST /api/v1/resources/generate-pack 可生成讲义、练习题、实验任务、思维导图和视频脚本/任务书。"},
+    {"name": "课程知识库 Ready", "status": "PASS", "detail": "docs/course_kb/python_programming.json 已包含章节、知识点、讲义片段、练习题、实验任务和来源。"},
+    {"name": "RAG 引用来源 Ready", "status": "PASS", "detail": "POST /api/v1/rag/ask 使用关键词匹配和规则排序返回 citations、matchedChunks 与可信度。"},
+    {"name": "防幻觉审核 Ready", "status": "PASS", "detail": "POST /api/v1/content-review/check 可检查引用覆盖、夸张承诺和无依据结论。"},
+    {"name": "Agent 执行链路 Ready", "status": "PASS", "detail": "AgentWorkflow 展示画像构建、知识检索、路径规划、资源生成、内容审核和学习报告。"},
     {"name": "三端角色系统", "status": "PASS", "detail": "学生端、教师端、管理员端入口和菜单已拆分。"},
     {"name": "学习画像", "status": "PASS", "detail": "围绕张三、李四、王五生成画像和薄弱点。"},
     {"name": "个性化路径", "status": "PASS", "detail": "学习路径与资源包、任务布置联动。"},
@@ -44,6 +53,13 @@ CAPABILITY_CHECKLIST = [
 
 REAL_CAPABILITIES = [
     "三端角色系统",
+    "小程序学生端体验版",
+    "对话式学习画像",
+    "5 类个性化资源生成",
+    "课程知识库",
+    "轻量 RAG 引用问答",
+    "防幻觉内容审核",
+    "Agent 执行链路",
     "学习画像",
     "个性化路径",
     "智能答疑",
@@ -102,6 +118,11 @@ def _readiness_checks() -> list[dict]:
             "name": "最近一次构建/验收结果",
             "status": "PASS" if overall == "READY" and FRONTEND_DIST.exists() else "WARN",
             "detail": f"检查报告：{overall}；构建产物：{'存在' if FRONTEND_DIST.exists() else '缺失'}",
+        },
+        {
+            "name": "课程知识库文件",
+            "status": "PASS" if COURSE_KB_FILE.exists() else "WARN",
+            "detail": "docs/course_kb/python_programming.json" if COURSE_KB_FILE.exists() else "课程知识库文件缺失",
         },
     ]
 

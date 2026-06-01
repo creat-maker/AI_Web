@@ -1,0 +1,25 @@
+.resource-card .muted {
+  display: block;
+  margin-top: 8rpx;
+}
+
+.reason {
+  margin-top: 18rpx;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  color: #1e40af;
+  background: #eff6ff;
+  font-size: 24rpx;
+}
+
+.resource-pack-card .strong,
+.resource-pack-card .muted {
+  display: block;
+}
+
+.point-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin: 16rpx 0;
+}

@@ -24,6 +24,57 @@ python scripts/e2e_demo_flow_check.py --base-url http://127.0.0.1:8000 --output 
 cd frontend && npm run build
 ```
 
+## 软件杯新增核心能力检查
+
+画像对话接口：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/profile-dialog/run ^
+  -H "Content-Type: application/json" ^
+  -d "{\"studentName\":\"张三\",\"courseName\":\"Python 程序设计\",\"answer\":\"我递归和文件处理比较弱，每天有 30 分钟学习时间，喜欢代码案例。\"}"
+```
+
+5 类资源包接口：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/resources/generate-pack ^
+  -H "Content-Type: application/json" ^
+  -d "{\"studentId\":\"demo-student-zhangsan\",\"courseId\":\"demo-course-python\",\"courseName\":\"Python 程序设计\",\"weakPoints\":[\"递归边界\",\"文件读写\"]}"
+```
+
+预期结果：
+
+- `profile-dialog/run` 返回不少于 6 个画像维度，当前规则输出 7 个维度。
+- `resources/generate-pack` 返回 5 类资源，每类包含 `resourceType`、`title`、`content`、`reason`、`relatedKnowledgePoints`、`difficulty`、`estimatedMinutes`。
+- `/demo-status` 能看到 Web 三端、小程序学生端、对话式画像、5 类资源生成均为 Ready。
+- Web 演示入口：`/student/assistant`。
+- 小程序演示入口：`miniprogram/pages/resources/index`。
+
+轻量 RAG 引用问答接口：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/rag/ask ^
+  -H "Content-Type: application/json" ^
+  -d "{\"question\":\"递归题应该怎么分析？\",\"courseId\":\"python-programming\",\"studentId\":\"demo-student-zhangsan\"}"
+```
+
+防幻觉内容审核接口：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/content-review/check ^
+  -H "Content-Type: application/json" ^
+  -d "{\"courseId\":\"python-programming\",\"content\":\"递归函数必须包含递归出口，并通过更小规模的问题逐步逼近结果。\",\"citations\":[{\"sourceFile\":\"python_ch02_functions.md\",\"chapter\":\"第 2 章 函数与模块化\",\"section\":\"递归基础\",\"snippet\":\"递归函数必须包含递归出口。\"}]}"
+```
+
+新增能力预期结果：
+
+- `docs/course_kb/python_programming.json` 存在，包含章节、知识点、讲义片段、练习题、实验任务和来源信息。
+- `rag/ask` 返回 `answer`、`citations`、`matchedChunks`、`confidence`、`recommendedExercises`、`relatedKnowledgePoints`。
+- `content-review/check` 返回 `riskLevel`、`confidence`、`citationCoverage`、`hallucinationWarning`、`reviewStatus`、`suggestions`。
+- `/demo-status` 能看到课程知识库、RAG 引用来源、防幻觉审核、Agent 执行链路均为 Ready。
+- Web 演示入口：`/student/assistant`、`/resource-generation`、`/agent-workflow`。
+- 小程序演示入口：`miniprogram/pages/tutor/index`，后端不可用时自动回退本地 `demoData.js`。
+
 ## 必验路由
 
 - 学生端：`/student`、`/student/courses`、`/student/learning-path`、`/student/assistant`、`/student/knowledge`、`/student/exams`、`/student/reports`

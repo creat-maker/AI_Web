@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,6 +36,7 @@ CORE_STUDENTS = ["张三", "李四", "王五"]
 CORE_TEACHERS = ["王老师", "陈老师", "张老师"]
 CORE_COURSES = ["Python 爬虫基础与实践", "人工智能导论", "数据结构与算法", "Web 开发技术"]
 CORE_CLASSES = ["计科大三 1 班", "计科大三 2 班"]
+COURSE_KB_FILE = ROOT_DIR / "docs" / "course_kb" / "python_programming.json"
 
 FRONTEND_ROUTES = [
     "/",
@@ -117,6 +119,35 @@ def _http_check(name: str, url: str, expected_status: int = 200) -> CheckResult:
         return CheckResult("FAIL", name, "error", str(expected_status), f"检查异常：{exc}", "http")
 
 
+def _http_post_check(name: str, url: str, payload: dict, expected_status: int = 200) -> CheckResult:
+    try:
+        request = Request(
+            url,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "EduMind-demo-ready-check/1.0",
+            },
+            method="POST",
+        )
+        with urlopen(request, timeout=8) as response:
+            status = int(response.status)
+        return CheckResult(
+            "PASS" if status == expected_status else "FAIL",
+            name,
+            str(status),
+            str(expected_status),
+            "HTTP 访问正常" if status == expected_status else f"请检查服务和接口：{url}",
+            "http",
+        )
+    except HTTPError as exc:
+        return CheckResult("FAIL", name, str(exc.code), str(expected_status), f"HTTP 状态异常：{url}", "http")
+    except (URLError, TimeoutError) as exc:
+        return CheckResult("FAIL", name, "unavailable", str(expected_status), f"服务不可用或超时：{url}；{exc}", "http")
+    except Exception as exc:  # noqa: BLE001
+        return CheckResult("FAIL", name, "error", str(expected_status), f"检查异常：{exc}", "http")
+
+
 def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple[str, list[CheckResult]]:
     results: list[CheckResult] = []
     db = SessionLocal()
@@ -151,6 +182,7 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
         ("backend/storage/reports", settings.path_from_root(settings.report_dir), "目录缺失，建议生成报告或运行演示数据脚本。"),
         ("backend/storage/chroma", settings.path_from_root(settings.chroma_persist_dir), "目录缺失，建议先上传文档或构建知识库。"),
         ("frontend/dist/index.html", ROOT_DIR / "frontend" / "dist" / "index.html", "尚未检测到前端构建产物，请运行 npm run build。"),
+        ("docs/course_kb/python_programming.json", COURSE_KB_FILE, "课程知识库文件缺失，请补齐 Python 程序设计示例资料集。"),
     ]:
         results.append(_exists_check(name, path, fail_if_missing=False, suggestion=suggestion))
 
@@ -165,6 +197,32 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
                 _http_check("backend_health", f"{backend_url}/health"),
                 _http_check("backend_demo_status", f"{backend_url}/api/v1/demo-status"),
                 _http_check("backend_courses_api", f"{backend_url}/api/v1/courses"),
+                _http_post_check(
+                    "backend_rag_ask",
+                    f"{backend_url}/api/v1/rag/ask",
+                    {
+                        "question": "递归题应该怎么分析？",
+                        "courseId": "python-programming",
+                        "studentId": "demo-student-zhangsan",
+                    },
+                ),
+                _http_post_check(
+                    "backend_content_review",
+                    f"{backend_url}/api/v1/content-review/check",
+                    {
+                        "courseId": "python-programming",
+                        "content": "递归函数必须包含递归出口，并通过更小规模的问题逐步逼近结果。",
+                        "citations": [
+                            {
+                                "sourceFile": "python_ch02_functions.md",
+                                "chapter": "第 2 章 函数与模块化",
+                                "section": "递归基础",
+                                "snippet": "递归函数必须包含递归出口。",
+                            }
+                        ],
+                    },
+                ),
+                _http_check("backend_content_review_records", f"{backend_url}/api/v1/content-review/records"),
             ]
         )
         for route in FRONTEND_ROUTES:

@@ -1,0 +1,23 @@
+.path-card {
+  position: relative;
+}
+
+.path-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 18rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+  font-weight: 800;
+}
+
+.path-content {
+  flex: 1;
+}
+
+.progress {
+  margin-top: 18rpx;
+}

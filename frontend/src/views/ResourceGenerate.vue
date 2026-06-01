@@ -15,9 +15,23 @@ interface GeneratedResource {
   created_at?: string;
 }
 
+interface ReviewRecord {
+  id: number;
+  riskLevel: string;
+  confidence: number;
+  citationCoverage: number;
+  hallucinationWarning: string;
+  reviewStatus: string;
+  suggestions: string[];
+  createdAt: string;
+  contentPreview: string;
+}
+
 const resources = ref<GeneratedResource[]>([]);
+const reviewRecords = ref<ReviewRecord[]>([]);
 const loading = ref(true);
 const error = ref('');
+const reviewLoading = ref(false);
 
 const fallbackResources: GeneratedResource[] = [
   { title: 'Python 爬虫分层练习题', resource_type: '习题', source_agent: '资源生成 Agent', created_at: '2024-05-31 10:20' },
@@ -60,7 +74,47 @@ async function loadResources() {
   }
 }
 
-onMounted(loadResources);
+async function loadReviewRecords() {
+  try {
+    const result = await api.get<{ items: ReviewRecord[] }>('/api/v1/content-review/records');
+    reviewRecords.value = result.items;
+  } catch {
+    reviewRecords.value = [
+      {
+        id: 1,
+        riskLevel: 'medium',
+        confidence: 0.7,
+        citationCoverage: 0.33,
+        hallucinationWarning: '',
+        reviewStatus: 'warning',
+        suggestions: ['引用覆盖不足，建议关联到章节、讲义片段或练习题。'],
+        createdAt: 'demo',
+        contentPreview: '资源内容需要补充课程知识库引用。'
+      }
+    ];
+  }
+}
+
+async function runReviewDemo() {
+  reviewLoading.value = true;
+  try {
+    await api.post('/api/v1/content-review/check', {
+      courseId: 'python-programming',
+      content: '学生只要看完这份讲义就一定能完全掌握递归，不需要继续练习。',
+      citations: []
+    });
+    await loadReviewRecords();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '内容审核接口暂不可用。';
+  } finally {
+    reviewLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  loadResources();
+  loadReviewRecords();
+});
 </script>
 
 <template>
@@ -144,6 +198,28 @@ onMounted(loadResources);
             <div class="item compact"><strong>生成内容待审核</strong><StatusBadge label="12 份" tone="purple" /></div>
           </div>
         </DataCard>
+
+        <DataCard title="AI 内容审核 / 防幻觉审核" subtitle="检查引用覆盖、夸张承诺和无依据结论">
+          <template #action>
+            <button class="secondary" :disabled="reviewLoading" @click="runReviewDemo">{{ reviewLoading ? '审核中...' : '运行审核' }}</button>
+          </template>
+          <div class="review-list">
+            <article v-for="item in reviewRecords" :key="item.id" class="review-card">
+              <div class="queue-head">
+                <StatusBadge :label="item.reviewStatus" :tone="item.riskLevel === 'high' ? 'danger' : item.riskLevel === 'medium' ? 'warning' : 'success'" />
+                <span>{{ item.createdAt }}</span>
+              </div>
+              <p>{{ item.contentPreview }}</p>
+              <div class="review-metrics">
+                <span>风险：{{ item.riskLevel }}</span>
+                <span>可信度：{{ Math.round(item.confidence * 100) }}%</span>
+                <span>引用覆盖：{{ Math.round(item.citationCoverage * 100) }}%</span>
+              </div>
+              <p v-if="item.hallucinationWarning" class="error-text">{{ item.hallucinationWarning }}</p>
+              <p>{{ item.suggestions?.[0] }}</p>
+            </article>
+          </div>
+        </DataCard>
       </div>
     </div>
   </section>
@@ -156,7 +232,8 @@ onMounted(loadResources);
 
 .side-stack,
 .queue-list,
-.queue-row {
+.queue-row,
+.review-list {
   display: grid;
   gap: 14px;
 }
@@ -167,6 +244,35 @@ onMounted(loadResources);
   justify-content: space-between;
   gap: 8px;
   align-items: center;
+}
+
+.review-card {
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.review-card p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.review-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.review-metrics span {
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--text-secondary);
+  background: var(--status-neutral-bg);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .row-actions {

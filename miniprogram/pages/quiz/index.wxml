@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="hero">
+    <text class="hero-title">练习错题</text>
+    <text class="hero-subtitle">聚合本周薄弱题型，帮助张三完成针对性复盘。</text>
+  </view>
+
+  <view class="section">
+    <view class="section-title">错题清单</view>
+    <view class="card" wx:for="{{wrongQuestions}}" wx:key="title">
+      <view class="split">
+        <text class="tag purple">{{item.course}}</text>
+        <text class="tag {{item.status === '已订正' ? 'success' : 'warning'}}">{{item.status}}</text>
+      </view>
+      <view class="question-title">{{item.title}}</view>
+      <text class="muted">{{item.answer}}</text>
+    </view>
+  </view>
+</view>
