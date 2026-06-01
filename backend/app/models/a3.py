@@ -110,6 +110,34 @@ class AgentRun(Base, TimestampMixin):
     status = Column(String(50), default="running", nullable=False)
 
 
+class TutorQuestionLog(Base, TimestampMixin):
+    __tablename__ = "tutor_question_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    question = Column(Text, nullable=False)
+    answer_json = Column(Text, nullable=False)
+    contexts_json = Column(Text, nullable=False)
+    mode = Column(String(50), nullable=False)
+
+
+class SystemLog(Base, TimestampMixin):
+    __tablename__ = "system_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String(50), nullable=False)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    level = Column(String(20), default="INFO", nullable=False)
+    module = Column(String(100), nullable=False)
+    user = Column(String(100), default="demo_teacher", nullable=False)
+    related_id = Column(String(100), nullable=True)
+    duration_ms = Column(Integer, default=0, nullable=False)
+    status = Column(String(50), default="success", nullable=False)
+    error_message = Column(Text, nullable=True)
+    metadata_json = Column(Text, nullable=True)
+
+
 class LearningReport(Base, TimestampMixin):
     __tablename__ = "learning_reports"
 

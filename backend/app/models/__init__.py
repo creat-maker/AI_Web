@@ -8,6 +8,8 @@ from app.models.a3 import (
     Quiz,
     QuizSubmission,
     StudentProfile,
+    SystemLog,
+    TutorQuestionLog,
 )
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
     "Quiz",
     "QuizSubmission",
     "StudentProfile",
+    "SystemLog",
+    "TutorQuestionLog",
 ]

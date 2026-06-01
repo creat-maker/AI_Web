@@ -25,8 +25,9 @@ class Settings(BaseSettings):
         default="mock", alias="LLM_PROVIDER"
     )
     chroma_persist_dir: str = Field(default="./backend/storage/chroma", alias="CHROMA_PERSIST_DIR")
-    upload_dir: str = "./backend/storage/uploads"
-    report_dir: str = "./backend/storage/reports"
+    upload_dir: str = Field(default="./backend/storage/uploads", alias="UPLOAD_DIR")
+    report_dir: str = Field(default="./backend/storage/reports", alias="REPORT_DIR")
+    cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
 
     @property
     def resolved_database_url(self) -> str:
@@ -49,6 +50,10 @@ class Settings(BaseSettings):
     def path_from_root(self, value: str) -> Path:
         path = Path(value)
         return path if path.is_absolute() else ROOT_DIR / path
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, courses, knowledge_base, learning_paths, profiles, quizzes, reports, resources, tutor
+from app.api.routers import agent_workflow, courses, dashboard, demo_status, events, knowledge_base, learning_paths, logs, profiles, quizzes, reports, resources, system_settings, tutor
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -13,14 +13,14 @@ from app.services.llm_service import llm_service
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="EduAgent Studio API",
-    description="中国软件杯 A3 个性化学习资源生成与多智能体系统",
+    title="EduMind API",
+    description="面向三端教育智能体演示的个性化学习资源生成、学习画像、路径规划、报告生成与平台治理服务。",
     version="0.1.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,6 +36,11 @@ app.include_router(tutor.router, prefix=API_PREFIX)
 app.include_router(quizzes.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
 app.include_router(agent_workflow.router, prefix=API_PREFIX)
+app.include_router(system_settings.router, prefix=API_PREFIX)
+app.include_router(logs.router, prefix=API_PREFIX)
+app.include_router(events.router, prefix=API_PREFIX)
+app.include_router(demo_status.router, prefix=API_PREFIX)
+app.include_router(dashboard.router, prefix="/api")
 
 
 @app.get("/api/v1/runtime")
