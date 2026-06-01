@@ -1,100 +1,357 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../api/client';
+import DataCard from '../components/DataCard.vue';
 import EmptyState from '../components/EmptyState.vue';
-import { useRole } from '../composables/useRole';
+import PageHeader from '../components/PageHeader.vue';
+import ProgressBar from '../components/ProgressBar.vue';
+import StatCard from '../components/StatCard.vue';
+import StatusBadge from '../components/StatusBadge.vue';
+import type { Course } from '../types';
 
-const { currentRole } = useRole();
-const paths = ref<any[]>([]);
-const events = ref<any[]>([]);
+type TaskStatus = '未开始' | '进行中' | '待批改' | '已完成' | '逾期';
+
+interface PathItem {
+  id: number;
+  course_id?: number;
+  path_json?: {
+    course_title?: string;
+    goal?: string;
+    stages?: Array<{ name?: string; target?: string; practice?: string; mastery?: string }>;
+  };
+}
+
+interface EventItem {
+  id: number;
+  event_type: string;
+  title: string;
+  description: string;
+  status?: string;
+  metadata?: Record<string, any>;
+}
+
+interface TaskRow {
+  id: number;
+  name: string;
+  course: string;
+  due: string;
+  completed: number;
+  total: number;
+  status: TaskStatus;
+}
+
+const paths = ref<PathItem[]>([]);
+const courses = ref<Course[]>([]);
+const events = ref<EventItem[]>([]);
 const loading = ref(true);
 const error = ref('');
+const operationMessage = ref('');
+const classFilter = ref('计科大三 1 班');
+const courseFilter = ref('全部课程');
 
-const assignedTasks = computed(() => events.value.filter((item) => item.event_type === 'task_assigned'));
-const pathUpdates = computed(() => events.value.filter((item) => ['resource_added_to_path', 'path_updated', 'quiz_completed'].includes(item.event_type)));
+const classOptions = ['计科大三 1 班', '计科大三 2 班', '计科大二 1 班', '计科大二 2 班'];
+const fallbackStages = [
+  { name: '环境搭建与基础语法', target: '完成 Python 环境与基础语法复盘', status: 'done' },
+  { name: '函数与 HTTP 请求', target: '理解函数封装与 requests 基础', status: 'done' },
+  { name: '数据解析', target: '掌握正则与 BeautifulSoup', status: 'active' },
+  { name: '数据存储与管理', target: '完成 CSV / SQLite 数据保存', status: 'todo' },
+  { name: '反爬策略与应对', target: '了解请求头、频控和异常处理', status: 'todo' }
+];
+
+const fallbackTasks: TaskRow[] = [
+  { id: 1, name: 'HTTP 请求专项练习', course: 'Python 爬虫基础与实践', due: '2026-06-02', completed: 28, total: 32, status: '进行中' },
+  { id: 2, name: '数据解析章节测验', course: 'Python 爬虫基础与实践', due: '2026-06-04', completed: 12, total: 32, status: '待批改' },
+  { id: 3, name: '栈与队列课后作业', course: '数据结构与算法', due: '2026-06-01', completed: 38, total: 38, status: '已完成' },
+  { id: 4, name: 'RAG 原理阅读任务', course: '人工智能导论', due: '2026-06-05', completed: 8, total: 48, status: '未开始' },
+  { id: 5, name: '异常处理补强训练', course: 'Python 爬虫基础与实践', due: '2026-05-30', completed: 18, total: 32, status: '逾期' }
+];
+
+const courseOptions = computed(() => ['全部课程', ...Array.from(new Set([...courses.value.map((item) => item.title), ...fallbackTasks.map((item) => item.course)]))]);
+
+const selectedPath = computed(() => paths.value[0]);
+const stages = computed(() => {
+  const realStages = selectedPath.value?.path_json?.stages;
+  if (realStages?.length) {
+    return realStages.map((stage, index) => ({
+      name: stage.name || fallbackStages[index]?.name || `阶段 ${index + 1}`,
+      target: stage.target || stage.practice || stage.mastery || fallbackStages[index]?.target || '继续完成当前阶段任务',
+      status: index < 2 ? 'done' : index === 2 ? 'active' : 'todo'
+    }));
+  }
+  return fallbackStages;
+});
+
+const pathProgress = computed(() => Math.round((stages.value.filter((item) => item.status === 'done').length / Math.max(stages.value.length, 1)) * 100));
+
+const taskRows = computed<TaskRow[]>(() => {
+  const assigned = events.value.filter((item) => item.event_type === 'task_assigned').map((item, index) => {
+    const fallback = fallbackTasks[index % fallbackTasks.length];
+    return {
+      id: item.id,
+      name: item.metadata?.task?.task_type || item.title || fallback.name,
+      course: item.metadata?.course_title || fallback.course,
+      due: item.metadata?.task?.due_date || fallback.due,
+      completed: fallback.completed,
+      total: fallback.total,
+      status: fallback.status
+    } as TaskRow;
+  });
+  return assigned.length ? assigned.concat(fallbackTasks).slice(0, 8) : fallbackTasks;
+});
+
+const filteredTasks = computed(() => taskRows.value.filter((task) => courseFilter.value === '全部课程' || task.course === courseFilter.value));
+
+const statCards = computed(() => [
+  { label: '路径进度', value: pathProgress.value, unit: '%', hint: `${stages.value.length} 个节点`, icon: '路' },
+  { label: '任务总数', value: taskRows.value.length, unit: '项', hint: '当前班级任务', icon: '任', tone: 'purple' as const },
+  { label: '平均完成率', value: Math.round(taskRows.value.reduce((sum, item) => sum + (item.completed / item.total) * 100, 0) / taskRows.value.length), unit: '%', hint: '按任务人数估算', icon: '完', tone: 'green' as const },
+  { label: '待批改', value: taskRows.value.filter((item) => item.status === '待批改').length, unit: '项', hint: '需教师处理', icon: '批', tone: 'orange' as const },
+  { label: '逾期任务', value: taskRows.value.filter((item) => item.status === '逾期').length, unit: '项', hint: '需要提醒', icon: '逾', tone: 'red' as const }
+]);
+
+function statusTone(status: TaskStatus) {
+  if (status === '已完成') return 'success';
+  if (status === '进行中') return 'purple';
+  if (status === '待批改') return 'warning';
+  if (status === '逾期') return 'danger';
+  return 'neutral';
+}
 
 async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [pathData, eventData] = await Promise.all([
-      api.get<any[]>('/api/v1/learning-paths'),
-      api.get<any[]>('/api/v1/events?limit=30')
+    const [pathData, eventData, courseData] = await Promise.all([
+      api.get<PathItem[]>('/api/v1/learning-paths'),
+      api.get<EventItem[]>('/api/v1/events?limit=30').catch(() => []),
+      api.get<Course[]>('/api/v1/courses').catch(() => [])
     ]);
     paths.value = pathData;
     events.value = eventData;
+    courses.value = courseData;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '学习路径数据加载失败。';
+    error.value = err instanceof Error ? err.message : '学习路径接口暂不可用，当前显示演示数据。';
+    paths.value = [];
+    events.value = [];
   } finally {
     loading.value = false;
   }
+}
+
+function demoAction(label: string) {
+  operationMessage.value = `${label} 为演示操作，后续可接真实任务创建、批改和提醒流程。`;
 }
 
 onMounted(load);
 </script>
 
 <template>
-  <section class="page">
-    <article class="placeholder-hero">
-      <span class="status-badge info">{{ currentRole === 'student' ? '学生端 · 学习路径' : currentRole === 'teacher' ? '教师端 · 学习路径与任务布置' : '管理员端 · 路径数据概览' }}</span>
-      <h2>个性化学习路径</h2>
-      <p>展示由画像、资源包、测验结果和教师任务共同影响的学习路径。新增资源包和补强任务会通过业务事件进入这里。</p>
-    </article>
+  <section class="page path-page">
+    <PageHeader title="学习路径与任务布置" description="按班级和课程维护学习路径，跟踪任务完成率与批改状态。">
+      <template #actions>
+        <button class="secondary" @click="demoAction('路径优化')">路径优化</button>
+        <button @click="demoAction('新建任务')">新建任务</button>
+      </template>
+    </PageHeader>
 
     <p v-if="loading" class="panel muted">正在加载学习路径...</p>
-    <p v-if="error" class="panel error-text">{{ error }}</p>
+    <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
 
-    <template v-if="!loading && !error">
-      <section v-if="pathUpdates.length" class="panel">
-        <div class="panel-title">
-          <h2>最近路径调整</h2>
-          <span class="muted">来自资源包、测验和路径更新事件</span>
-        </div>
-        <div class="list">
-          <article v-for="item in pathUpdates.slice(0, 5)" :key="item.id" class="item">
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.description }}</p>
-            <small class="muted">{{ item.related_student || '演示学生' }} · {{ item.related_course || '演示课程' }}</small>
-          </article>
-        </div>
-      </section>
+    <div class="stat-grid">
+      <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
+    </div>
 
-      <section v-if="assignedTasks.length" class="panel">
-        <div class="panel-title">
-          <h2>{{ currentRole === 'student' ? '我的补强任务' : '教师布置任务记录' }}</h2>
-          <span class="muted">{{ assignedTasks.length }} 条</span>
-        </div>
-        <div class="list">
-          <article v-for="item in assignedTasks.slice(0, 6)" :key="item.id" class="item">
-            <strong>{{ item.metadata?.task?.task_type || '补强任务' }}：{{ item.metadata?.task?.weak_point || '薄弱知识点' }}</strong>
-            <p>{{ item.description }}</p>
-            <small class="muted">截止 {{ item.metadata?.task?.due_date || '待定' }} · 状态 {{ item.status }}</small>
-          </article>
-        </div>
-      </section>
+    <DataCard title="筛选范围" subtitle="选择班级与课程后查看对应路径和任务">
+      <div class="filter-grid">
+        <select v-model="classFilter">
+          <option v-for="item in classOptions" :key="item">{{ item }}</option>
+        </select>
+        <select v-model="courseFilter">
+          <option v-for="item in courseOptions" :key="item">{{ item }}</option>
+        </select>
+        <button class="secondary" @click="demoAction('应用筛选')">应用筛选</button>
+      </div>
+    </DataCard>
 
-      <section class="panel">
-        <div class="panel-title">
-          <h2>路径节点</h2>
-          <span class="muted">{{ paths.length }} 条路径</span>
+    <div class="path-layout">
+      <DataCard title="当前路径进度" :subtitle="`${classFilter} · ${courseFilter}`">
+        <template #action>
+          <StatusBadge :label="`${pathProgress}%`" tone="purple" />
+        </template>
+        <div class="path-progress">
+          <ProgressBar :value="pathProgress" />
+          <span>{{ stages.filter((item) => item.status === 'done').length }} / {{ stages.length }} 节点已完成</span>
         </div>
-        <div class="list">
-          <article v-for="path in paths" :key="path.id" class="item">
-            <strong>{{ path.path_json.course_title || `课程 #${path.course_id}` }}：{{ path.path_json.goal || path.path_json.latest_adjustment_reason || '个性化学习路径' }}</strong>
-            <div class="grid">
-              <div v-for="stage in path.path_json.stages || []" :key="`${path.id}-${stage.name}-${stage.resource_package_id}`" class="item">
-                <strong>{{ stage.name }}</strong>
-                <p>目标：{{ stage.target || '继续完成当前阶段学习目标。' }}</p>
-                <p v-if="stage.resource_package_id">资源包：{{ stage.resource_package_id }}</p>
-                <p v-if="stage.resources?.length">资源：{{ stage.resources.join('、') }}</p>
-                <p v-if="stage.practice">练习：{{ stage.practice }}</p>
-                <p v-if="stage.mastery">掌握标准：{{ stage.mastery }}</p>
-              </div>
+        <div class="path-timeline">
+          <article v-for="(stage, index) in stages" :key="`${stage.name}-${index}`" :class="['path-stage', stage.status]">
+            <span>{{ index + 1 }}</span>
+            <div>
+              <strong>{{ stage.name }}</strong>
+              <p>{{ stage.target }}</p>
             </div>
           </article>
-          <EmptyState v-if="!paths.length" title="暂无学习路径" description="生成画像、资源包或运行演示数据后会显示。" />
         </div>
-      </section>
-    </template>
+      </DataCard>
+
+      <DataCard title="节点说明" subtitle="当前阶段与后续安排">
+        <div class="list">
+          <div class="item">
+            <strong>当前节点</strong>
+            <p>{{ stages.find((item) => item.status === 'active')?.name || '数据解析' }}</p>
+          </div>
+          <div class="item">
+            <strong>推荐动作</strong>
+            <p>为未达标学生追加专项练习，并在测验后同步更新路径。</p>
+          </div>
+          <div class="item">
+            <strong>路径来源</strong>
+            <p>综合学生画像、课程资源、测验评价和教师布置任务。</p>
+          </div>
+        </div>
+      </DataCard>
+    </div>
+
+    <DataCard title="任务布置列表" :subtitle="`${filteredTasks.length} 项任务`">
+      <template #action>
+        <button class="secondary" @click="demoAction('批量提醒')">批量提醒</button>
+      </template>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>任务名称</th>
+              <th>所属课程</th>
+              <th>截止时间</th>
+              <th>完成人数</th>
+              <th>完成率</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="task in filteredTasks" :key="task.id">
+              <td><strong>{{ task.name }}</strong></td>
+              <td>{{ task.course }}</td>
+              <td>{{ task.due }}</td>
+              <td>{{ task.completed }} / {{ task.total }}</td>
+              <td>
+                <div class="task-progress">
+                  <span>{{ Math.round((task.completed / task.total) * 100) }}%</span>
+                  <ProgressBar :value="Math.round((task.completed / task.total) * 100)" :tone="task.status === '逾期' ? 'danger' : task.status === '待批改' ? 'warning' : 'primary'" />
+                </div>
+              </td>
+              <td><StatusBadge :label="task.status" :tone="statusTone(task.status)" /></td>
+              <td>
+                <div class="row-actions">
+                  <button class="ghost" @click="demoAction('查看任务')">查看</button>
+                  <button class="secondary" @click="demoAction(task.status === '待批改' ? '批改任务' : '提醒学生')">{{ task.status === '待批改' ? '批改' : '提醒' }}</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <EmptyState v-if="!filteredTasks.length" title="暂无任务" description="调整筛选或新建任务后会显示。" />
+    </DataCard>
   </section>
 </template>
+
+<style scoped>
+.filter-grid {
+  display: grid;
+  grid-template-columns: 220px 260px auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.path-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  gap: 16px;
+}
+
+.path-progress {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.path-progress span {
+  color: var(--color-text-sub);
+  font-size: 13px;
+}
+
+.path-timeline {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.path-stage {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.path-stage > span {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: var(--status-neutral-bg);
+  font-weight: 800;
+}
+
+.path-stage.done > span {
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
+}
+
+.path-stage.active {
+  border-color: rgba(47, 107, 255, 0.5);
+  background: var(--color-primary-light);
+}
+
+.path-stage.active > span {
+  color: var(--text-light);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+}
+
+.path-stage p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.task-progress {
+  display: grid;
+  grid-template-columns: 42px minmax(110px, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 160px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 1180px) {
+  .path-layout,
+  .path-timeline {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

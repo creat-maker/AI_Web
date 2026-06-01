@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
 import { api, apiBase } from '../api/client';
+import DataCard from '../components/DataCard.vue';
+import EmptyState from '../components/EmptyState.vue';
+import PageHeader from '../components/PageHeader.vue';
+import StatCard from '../components/StatCard.vue';
+import StatusBadge from '../components/StatusBadge.vue';
 import { useRole } from '../composables/useRole';
 import type { Course } from '../types';
 
@@ -9,11 +13,10 @@ type ReportStatus = 'generating' | 'completed' | 'failed' | string;
 
 interface ReportSummary {
   report_abstract?: string;
-  generation_basis?: string[];
   key_conclusions?: string[];
   evidence_chain?: Array<{
     conclusion: string;
-    evidence_type: 'document' | 'quiz' | 'chat' | 'mastery' | 'agent_run' | string;
+    evidence_type: string;
     source_title: string;
     source_excerpt: string;
     confidence: number;
@@ -22,11 +25,8 @@ interface ReportSummary {
   learning_performance_summary?: string;
   weak_points?: string | string[];
   recommended_path?: Array<{ name?: string; target?: string }>;
-  learning_path?: Array<{ step?: string; goal?: string }>;
   teaching_suggestions?: Array<{ title?: string; content?: string }> | string;
-  learning_suggestions?: string[];
   references?: string[];
-  citation_documents?: Array<{ name: string; type?: string; hit_count?: number }>;
   citation_snippets?: Array<{ document: string; content: string; confidence?: number }>;
   regenerate_reason?: string;
   generated_at?: string;
@@ -34,12 +34,10 @@ interface ReportSummary {
 
 interface ReportItem {
   id: number;
-  report_id?: number;
   course_id: number;
   student_profile_id?: number;
   report_title: string;
   report_path: string;
-  report_json?: Record<string, unknown>;
   created_at?: string;
   course_title?: string;
   student_name?: string;
@@ -61,94 +59,69 @@ interface ReportStats {
   average_quality_score?: number | null;
 }
 
-const route = useRoute();
 const { currentRole } = useRole();
 const reports = ref<ReportItem[]>([]);
 const courses = ref<Course[]>([]);
 const selectedReportId = ref<number | null>(null);
-const courseFilter = ref<number | 'all'>('all');
-const statusFilter = ref<string>('all');
+const statusFilter = ref('全部状态');
+const typeFilter = ref('全部类型');
 const keyword = ref('');
 const loading = ref(true);
-const refreshing = ref(false);
 const error = ref('');
-const fallbackActive = ref(false);
 const operationMessage = ref('');
 const stats = ref<ReportStats | null>(null);
-const events = ref<Array<{ id: number; event_type: string; title: string; description: string; metadata?: Record<string, any> }>>([]);
+const refreshing = ref(false);
 
-const fallbackReports: ReportItem[] = [];
+const templates = [
+  { title: '班级学习报告', desc: '汇总班级趋势、任务完成、薄弱知识点和干预建议', type: '班级报告', icon: '班' },
+  { title: '学生画像报告', desc: '聚合单个学生画像、能力雷达、薄弱点和成长建议', type: '学生报告', icon: '像' },
+  { title: '课程效果报告', desc: '分析课程进度、资源使用、测验表现和完成率', type: '课程报告', icon: '课' },
+  { title: '教学改进报告', desc: '根据测评结果生成下一轮教学优化建议', type: '教学报告', icon: '改' }
+];
 
-const pageCopy = computed(() => {
-  if (currentRole.value === 'student') {
-    return {
-      eyebrow: '学生端 · 学习报告',
-      title: '我的学习总结与下一步建议',
-      description: '查看学习时长、任务完成率、知识点掌握度、薄弱点、推荐资源和学习路径调整建议。',
-      listTitle: '我的学习报告',
-      detailTitle: '学习报告详情',
-      actionHint: '学生端关注学习建议和证据来源'
-    };
-  }
-  if (currentRole.value === 'teacher') {
-    return {
-      eyebrow: '教师端 · 报告中心',
-      title: '学生、班级、课程与测验报告',
-      description: '查看学生报告、班级报告、课程报告、测验报告、风险学生报告、证据链和干预建议。',
-      listTitle: '教学报告列表',
-      detailTitle: '报告证据与干预建议',
-      actionHint: '教师端关注下载、分享和重新生成'
-    };
-  }
-  return {
-    eyebrow: '管理员端 · 报告审核中心',
-    title: 'AI 生成报告审核与治理',
-    description: '审核 AI 生成报告的内容安全、引用来源、证据链和质量评分，支持通过、驳回重生成和查看审核日志。',
-    listTitle: '待审核与历史报告',
-    detailTitle: '审核详情与证据链',
-    actionHint: '管理员端关注内容安全和引用合规'
-  };
-});
+const fallbackReports: ReportItem[] = [
+  { id: 1, course_id: 1, student_profile_id: 1, report_title: '计科大三 1 班学习报告', report_path: 'reports/class-python.pdf', created_at: '2026-05-31T09:20:00', course_title: 'Python 爬虫基础与实践', student_name: '计科大三 1 班', report_type: '班级报告', report_status: 'completed', quality_score: 92, citation_document_count: 6, summary: { report_abstract: '班级整体进度稳定，HTTP 请求和异常处理仍是主要薄弱点。', key_conclusions: ['平均完成率 68%', '18 份作业待批改', '需关注 3 名学生'], weak_points: ['HTTP 请求', '异常处理'], teaching_suggestions: [{ title: '分层练习', content: '为低进度学生推送基础任务。' }] } },
+  { id: 2, course_id: 1, student_profile_id: 1, report_title: '张三学生画像报告', report_path: 'reports/student-zhangsan.pdf', created_at: '2026-05-30T15:10:00', course_title: 'Python 爬虫基础与实践', student_name: '张三', report_type: '学生报告', report_status: 'completed', quality_score: 88, citation_document_count: 4, summary: { report_abstract: '张三综合评分 86，问题解决能力突出，工程实践仍需加强。', weak_points: ['数据存储', '工程实践'], teaching_suggestions: [{ title: '项目任务', content: '建议追加一个 CSV/SQLite 小项目。' }] } },
+  { id: 3, course_id: 2, report_title: '人工智能导论课程效果报告', report_path: 'reports/course-ai.pdf', created_at: '2026-05-29T11:00:00', course_title: '人工智能导论', target_scope: '计科大三 2 班', report_type: '课程报告', report_status: 'generating', quality_score: null, citation_document_count: 3, summary: { report_abstract: '报告正在生成中。' } },
+  { id: 4, course_id: 3, report_title: '数据结构教学改进报告', report_path: 'reports/teaching-ds.pdf', created_at: '2026-05-28T16:40:00', course_title: '数据结构与算法', target_scope: '计科大二 1 班', report_type: '教学报告', report_status: 'failed', quality_score: null, citation_document_count: 0, summary: { report_abstract: '上次生成失败，可重新生成。', regenerate_reason: '测验数据缺失。' } }
+];
+
+const reportRows = computed(() => reports.value.length ? reports.value : fallbackReports);
+const statusOptions = ['全部状态', '生成中', '已完成', '失败'];
+const typeOptions = computed(() => ['全部类型', ...Array.from(new Set(reportRows.value.map((item) => item.report_type || '学习报告')))]);
 
 const filteredReports = computed(() => {
   const word = keyword.value.trim().toLowerCase();
-  return reports.value.filter((item) => {
-    const status = item.report_status || item.status || 'completed';
-    const matchCourse = courseFilter.value === 'all' || item.course_id === courseFilter.value;
-    const matchStatus = statusFilter.value === 'all' || status === statusFilter.value;
-    const matchKeyword = !word || item.report_title.toLowerCase().includes(word);
-    return matchCourse && matchStatus && matchKeyword;
+  return reportRows.value.filter((report) => {
+    const status = statusText(report.report_status || report.status);
+    const matchStatus = statusFilter.value === '全部状态' || status === statusFilter.value;
+    const matchType = typeFilter.value === '全部类型' || (report.report_type || '学习报告') === typeFilter.value;
+    const matchWord = !word || `${report.report_title}${report.course_title || ''}${report.student_name || ''}`.toLowerCase().includes(word);
+    return matchStatus && matchType && matchWord;
   });
 });
 
-const selectedReport = computed(() => {
-  return reports.value.find((item) => item.id === selectedReportId.value) || filteredReports.value[0] || null;
-});
-const answerImpacts = computed(() => events.value.filter((item) => item.event_type === 'question_answered').slice(0, 3));
+const selectedReport = computed(() => reportRows.value.find((item) => item.id === selectedReportId.value) || filteredReports.value[0] || reportRows.value[0]);
 
 const overview = computed(() => {
-  const completed = reports.value.filter((item) => (item.report_status || item.status || 'completed') === 'completed').length;
-  const qualityScores = reports.value
-    .map((item) => item.quality_score)
-    .filter((value): value is number => typeof value === 'number');
+  const rows = reportRows.value;
+  const completed = rows.filter((item) => statusText(item.report_status || item.status) === '已完成').length;
+  const scores = rows.map((item) => item.quality_score).filter((item): item is number => typeof item === 'number');
   return {
-    report_count: stats.value?.report_count ?? reports.value.length,
-    weekly_new_count: stats.value?.weekly_new_count ?? reports.value.filter((item) => isRecent(item.created_at)).length,
-    completed_count: stats.value?.completed_count ?? completed,
-    average_quality_score:
-      stats.value?.average_quality_score ?? (qualityScores.length ? Number((qualityScores.reduce((sum, item) => sum + item, 0) / qualityScores.length).toFixed(1)) : null)
+    total: stats.value?.report_count ?? rows.length,
+    weekly: stats.value?.weekly_new_count ?? rows.filter((item) => isRecent(item.created_at)).length,
+    completed: stats.value?.completed_count ?? completed,
+    quality: stats.value?.average_quality_score ?? (scores.length ? Math.round(scores.reduce((sum, item) => sum + item, 0) / scores.length) : 90),
+    failed: rows.filter((item) => statusText(item.report_status || item.status) === '失败').length
   };
 });
 
-const summaryCards = computed(() => [
-  { label: currentRole.value === 'student' ? '我的报告' : currentRole.value === 'teacher' ? '教学报告' : '报告总数', value: overview.value.report_count, unit: '份' },
-  { label: '本周新增报告', value: overview.value.weekly_new_count, unit: '份' },
-  { label: '已完成报告', value: overview.value.completed_count, unit: '份' },
-  {
-    label: '平均质量评分',
-    value: overview.value.average_quality_score ?? '暂无',
-    unit: overview.value.average_quality_score == null ? '' : '分'
-  }
+const statCards = computed(() => [
+  { label: '报告总数', value: overview.value.total, unit: '份', hint: '全部报告', icon: '报' },
+  { label: '本周新增', value: overview.value.weekly, unit: '份', hint: '近 7 天生成', icon: '周', tone: 'green' as const },
+  { label: '已完成', value: overview.value.completed, unit: '份', hint: '可下载预览', icon: '完', tone: 'purple' as const },
+  { label: '平均质量评分', value: overview.value.quality, unit: '分', hint: '引用与证据链质量', icon: '质', tone: 'cyan' as const },
+  { label: '失败报告', value: overview.value.failed, unit: '份', hint: '可重新生成', icon: '失', tone: 'red' as const }
 ]);
 
 function isRecent(value?: string) {
@@ -160,33 +133,30 @@ function isRecent(value?: string) {
 function formatDate(value?: string) {
   if (!value) return '暂无时间';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '时间格式异常';
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function statusText(status?: ReportStatus) {
   const map: Record<string, string> = {
     generating: '生成中',
     completed: '已完成',
-    failed: '失败',
-    success: '已完成'
+    success: '已完成',
+    failed: '失败'
   };
   return map[status || ''] || status || '已完成';
 }
 
-function courseTitle(report: ReportItem) {
-  return report.course_title || courses.value.find((item) => item.id === report.course_id)?.title || `课程 #${report.course_id}`;
+function statusTone(status?: ReportStatus) {
+  const text = statusText(status);
+  if (text === '已完成') return 'success';
+  if (text === '生成中') return 'warning';
+  if (text === '失败') return 'danger';
+  return 'neutral';
 }
 
-function weakPointText(report: ReportItem) {
-  const value = report.summary?.weak_points;
-  if (Array.isArray(value)) return value.join('、');
-  return value || '暂无薄弱知识点摘要。';
+function courseTitle(report: ReportItem) {
+  return report.course_title || courses.value.find((item) => item.id === report.course_id)?.title || `课程 #${report.course_id}`;
 }
 
 function suggestions(report: ReportItem) {
@@ -196,6 +166,12 @@ function suggestions(report: ReportItem) {
   return [{ title: '教学建议', content: '建议结合学习路径继续安排分层练习和针对性讲解。' }];
 }
 
+function weakPointText(report: ReportItem) {
+  const value = report.summary?.weak_points;
+  if (Array.isArray(value)) return value.join('、');
+  return value || '暂无薄弱知识点摘要。';
+}
+
 function downloadHref(report: ReportItem) {
   const path = report.download_url || report.report_url || `/api/v1/reports/${report.id}/download`;
   return `${apiBase}${path}`;
@@ -203,11 +179,37 @@ function downloadHref(report: ReportItem) {
 
 function selectReport(report: ReportItem) {
   selectedReportId.value = report.id;
+}
+
+function demoAction(label: string) {
+  operationMessage.value = `${label} 为演示操作，后续可接真实报告生成、预览、下载和审核流程。`;
+}
+
+async function regenerate(report?: ReportItem) {
+  const target = report || selectedReport.value;
+  if (!target?.student_profile_id) {
+    operationMessage.value = '当前报告缺少学生画像 ID，已模拟触发重新生成。';
+    return;
+  }
+  refreshing.value = true;
   operationMessage.value = '';
+  try {
+    await api.post<ReportItem>('/api/v1/reports/generate', {
+      student_profile_id: target.student_profile_id,
+      course_id: target.course_id,
+      regenerate_reason: '教师端报告中心手动重新生成'
+    });
+    operationMessage.value = '已重新生成报告。';
+    await loadReports();
+  } catch (err) {
+    operationMessage.value = err instanceof Error ? err.message : '重新生成失败，当前保留演示数据。';
+  } finally {
+    refreshing.value = false;
+  }
 }
 
 function handleDownload(report: ReportItem, event: MouseEvent) {
-  if ((report.report_status || report.status) !== 'completed') {
+  if (statusText(report.report_status || report.status) !== '已完成') {
     event.preventDefault();
     operationMessage.value = '报告尚未完成，暂不能下载。';
     return;
@@ -215,85 +217,28 @@ function handleDownload(report: ReportItem, event: MouseEvent) {
   operationMessage.value = '正在打开报告下载链接。';
 }
 
-async function demoAction(label: string) {
-  operationMessage.value = '';
-  try {
-    if (currentRole.value === 'admin' && ['批量通过', '内容安全检查', '审核日志', '审核通过'].includes(label)) {
-      await api.post('/api/v1/events/admin-review', {
-        event_type: 'admin_review_completed',
-        title: label,
-        description: `${label} 已记录，报告审核中心完成一次 demo/fallback 审核动作。`,
-        actor_role: 'admin',
-        actor_name: 'demo_admin',
-        target_type: 'learning_report',
-        target_id: selectedReport.value?.id || 'report-demo',
-        status: 'success',
-        metadata: { report_title: selectedReport.value?.report_title, demo: true }
-      });
-      operationMessage.value = `${label} 已写入管理员审核事件。`;
-      await loadEvents();
-      return;
-    }
-    operationMessage.value = `${label} 为 ${pageCopy.value.eyebrow} 演示操作，后续可接真实审批、分享或通知流程。`;
-  } catch (err) {
-    operationMessage.value = err instanceof Error ? err.message : `${label} 记录失败。`;
-  }
-}
-
-async function loadEvents() {
-  events.value = await api.get<Array<{ id: number; event_type: string; title: string; description: string; metadata?: Record<string, any> }>>('/api/v1/events?limit=30').catch(() => []);
-}
-
-async function regenerate(report: ReportItem) {
-  if (!report.student_profile_id) {
-    operationMessage.value = '当前报告缺少学生画像 ID，暂不能自动重新生成。';
-    return;
-  }
-  refreshing.value = true;
-  operationMessage.value = '';
-  try {
-    const nextReport = await api.post<ReportItem>('/api/v1/reports/generate', {
-      student_profile_id: report.student_profile_id,
-      course_id: report.course_id,
-      regenerate_reason: '比赛演示手动模拟重新生成'
-    });
-    operationMessage.value = '已重新生成报告。';
-    await loadReports(nextReport.id);
-  } catch (err) {
-    operationMessage.value = err instanceof Error ? err.message : '重新生成失败，请稍后重试。';
-  } finally {
-    refreshing.value = false;
-  }
-}
-
-async function loadReports(preferredId?: number) {
-  const [reportData, courseData, statData, eventData] = await Promise.all([
+async function loadReports() {
+  const [reportData, courseData, statData] = await Promise.all([
     api.get<ReportItem[]>('/api/v1/reports'),
     api.get<Course[]>('/api/v1/courses').catch(() => []),
-    api.get<ReportStats>('/api/v1/reports/summary').catch(() => null),
-    api.get<Array<{ id: number; event_type: string; title: string; description: string; metadata?: Record<string, any> }>>('/api/v1/events?limit=30').catch(() => [])
+    api.get<ReportStats>('/api/v1/reports/summary').catch(() => null)
   ]);
   reports.value = reportData;
   courses.value = courseData;
   stats.value = statData;
-  events.value = eventData;
-
-  const queryReportId = Number(route.query.report_id || 0);
-  const targetId = preferredId || queryReportId || selectedReportId.value || reports.value[0]?.id || null;
-  selectedReportId.value = reports.value.some((item) => item.id === targetId) ? targetId : reports.value[0]?.id || null;
+  selectedReportId.value = reportRows.value[0]?.id || null;
 }
 
 async function loadPage() {
   loading.value = true;
   error.value = '';
-  fallbackActive.value = false;
   try {
     await loadReports();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '报告中心数据加载失败';
-    fallbackActive.value = true;
-    reports.value = fallbackReports;
+    error.value = err instanceof Error ? err.message : '报告接口暂不可用，当前显示演示数据。';
+    reports.value = [];
     stats.value = null;
+    selectedReportId.value = fallbackReports[0].id;
   } finally {
     loading.value = false;
   }
@@ -304,394 +249,224 @@ onMounted(loadPage);
 
 <template>
   <section class="page report-page">
-    <div class="panel report-hero">
-      <div>
-        <p class="eyebrow">{{ pageCopy.eyebrow }}</p>
-        <h2>{{ pageCopy.title }}</h2>
-        <p class="muted">{{ pageCopy.description }}</p>
-        <p class="demo-note">引用片段和质量评分包含 demo/fallback 统计，后续可替换为真实评估器与引用追踪。</p>
-      </div>
-      <div class="hero-action">
-        <span>当前预览</span>
-        <strong>{{ selectedReport?.report_title || '暂无报告' }}</strong>
-      </div>
-    </div>
+    <PageHeader title="报告中心" description="生成、预览、下载和重新生成班级、学生、课程与教学改进报告。">
+      <template #actions>
+        <button class="secondary" @click="demoAction('批量导出')">批量导出</button>
+        <button @click="regenerate()">一键生成报告</button>
+      </template>
+    </PageHeader>
 
-    <p v-if="error" class="panel error-text">{{ error }}</p>
-    <p v-if="fallbackActive" class="panel muted">接口暂不可用，页面已保留 fallback 展示，避免白屏。</p>
-    <p v-else-if="loading" class="panel muted">正在加载报告中心数据...</p>
+    <p v-if="loading" class="panel muted">正在加载报告中心数据...</p>
     <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
 
-    <section v-if="!loading" class="panel role-action-panel">
-      <div class="panel-title">
-        <h2>角色操作重点</h2>
-        <span class="muted">{{ pageCopy.actionHint }}</span>
-      </div>
-      <div class="quick-grid">
-        <button v-if="currentRole === 'student'" class="secondary" @click="demoAction('查看下一步建议')">下一步建议</button>
-        <button v-if="currentRole === 'student'" class="secondary" @click="demoAction('加入学习路径调整')">调整学习路径</button>
-        <button v-if="currentRole === 'student'" class="secondary" @click="demoAction('查看推荐资源')">推荐资源</button>
-        <button v-if="currentRole === 'teacher'" class="secondary" @click="demoAction('生成班级报告')">班级报告</button>
-        <button v-if="currentRole === 'teacher'" class="secondary" @click="demoAction('分享给学生')">分享给学生</button>
-        <button v-if="currentRole === 'teacher'" class="secondary" @click="demoAction('添加干预建议')">干预建议</button>
-        <button v-if="currentRole === 'admin'" class="secondary" @click="demoAction('批量通过')">批量通过</button>
-        <button v-if="currentRole === 'admin'" class="secondary" @click="demoAction('内容安全检查')">安全检查</button>
-        <button v-if="currentRole === 'admin'" class="secondary" @click="demoAction('审核日志')">审核日志</button>
-      </div>
-    </section>
-
-    <div class="overview-grid">
-      <article v-for="item in summaryCards" :key="item.label" class="stat overview-card">
-        <span>{{ item.label }}</span>
-        <strong>{{ item.value }}</strong>
-        <small>{{ item.unit || ' ' }}</small>
-      </article>
+    <div class="stat-grid">
+      <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
-    <section class="panel">
-      <div class="panel-title">
-        <h2>筛选与搜索</h2>
-        <span class="muted">按课程、状态和报告标题定位</span>
+    <DataCard title="报告模板" subtitle="选择模板生成对应教学报告">
+      <div class="template-grid">
+        <article v-for="template in templates" :key="template.title" class="template-card">
+          <span>{{ template.icon }}</span>
+          <div>
+            <strong>{{ template.title }}</strong>
+            <p>{{ template.desc }}</p>
+            <StatusBadge :label="template.type" tone="purple" />
+          </div>
+          <button class="secondary" @click="demoAction(`生成${template.title}`)">生成</button>
+        </article>
       </div>
+    </DataCard>
+
+    <DataCard title="筛选报告" subtitle="按状态、类型和关键词筛选最近生成报告">
       <div class="filter-grid">
-        <label>
-          课程
-          <select v-model="courseFilter">
-            <option value="all">全部课程</option>
-            <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.title }}</option>
-          </select>
-        </label>
-        <label>
-          状态
-          <select v-model="statusFilter">
-            <option value="all">全部状态</option>
-            <option value="generating">生成中</option>
-            <option value="completed">已完成</option>
-            <option value="failed">失败</option>
-          </select>
-        </label>
-        <label>
-          关键词
-          <input v-model="keyword" placeholder="搜索报告标题" />
-        </label>
+        <input v-model="keyword" placeholder="搜索报告标题、课程、学生..." />
+        <select v-model="typeFilter">
+          <option v-for="item in typeOptions" :key="item">{{ item }}</option>
+        </select>
+        <select v-model="statusFilter">
+          <option v-for="item in statusOptions" :key="item">{{ item }}</option>
+        </select>
       </div>
-    </section>
+    </DataCard>
 
     <div class="report-layout">
-      <section class="panel">
-        <div class="panel-title">
-          <h2>{{ pageCopy.listTitle }}</h2>
-          <span class="muted">{{ filteredReports.length }} / {{ reports.length }} 份</span>
-        </div>
+      <DataCard title="最近生成报告" :subtitle="`${filteredReports.length} 份报告`">
+        <template #action>
+          <StatusBadge v-if="error" label="演示数据" tone="warning" />
+        </template>
         <div class="report-list">
-          <article
-            v-for="report in filteredReports"
-            :key="report.id"
-            class="report-card"
-            :class="{ active: selectedReport?.id === report.id }"
-          >
-            <button class="card-main" type="button" @click="selectReport(report)">
+          <article v-for="report in filteredReports" :key="report.id" :class="['report-row', { active: selectedReport?.id === report.id }]">
+            <button class="report-main" type="button" @click="selectReport(report)">
               <strong>{{ report.report_title }}</strong>
-              <span>{{ courseTitle(report) }} · {{ report.student_name || report.target_scope || '未绑定学生' }} · {{ report.report_type || '学习报告' }}</span>
-              <span>引用文档 {{ report.citation_document_count ?? report.summary?.citation_documents?.length ?? 0 }} 份</span>
-              <small>{{ formatDate(report.created_at) }}</small>
+              <span>{{ courseTitle(report) }} · {{ report.student_name || report.target_scope || '班级范围' }}</span>
+              <small>{{ formatDate(report.created_at) }} · 质量评分 {{ report.quality_score ?? '-' }}</small>
             </button>
-            <div class="card-actions">
-              <span :class="['status-pill', report.report_status || report.status || 'completed']">
-                {{ statusText(report.report_status || report.status) }}
-              </span>
-              <button class="secondary" type="button" @click="selectReport(report)">{{ currentRole === 'admin' ? '审核详情' : '查看' }}</button>
-              <a v-if="currentRole !== 'admin'" :href="downloadHref(report)" target="_blank" @click="handleDownload(report, $event)">{{ currentRole === 'student' ? '下载报告' : '下载/分享' }}</a>
-              <button v-if="currentRole === 'teacher'" class="secondary" type="button" :disabled="refreshing" @click="regenerate(report)">
-                {{ refreshing ? '处理中...' : '重新生成' }}
-              </button>
-              <button v-if="currentRole === 'admin'" class="secondary" type="button" @click="demoAction('审核通过')">通过</button>
-              <button v-if="currentRole === 'admin'" class="secondary" type="button" :disabled="refreshing" @click="regenerate(report)">
-                {{ refreshing ? '处理中...' : '驳回重生成' }}
-              </button>
+            <StatusBadge :label="statusText(report.report_status || report.status)" :tone="statusTone(report.report_status || report.status)" />
+            <div class="row-actions">
+              <button class="ghost" @click="selectReport(report)">预览</button>
+              <a class="download-link" :href="downloadHref(report)" target="_blank" @click="handleDownload(report, $event)">下载</a>
+              <button class="secondary" :disabled="refreshing" @click="regenerate(report)">重新生成</button>
             </div>
           </article>
-          <p v-if="!filteredReports.length && !loading" class="empty-state">暂无符合条件的报告。</p>
+          <EmptyState v-if="!filteredReports.length" title="暂无报告" description="调整筛选条件或生成报告后会显示。" />
         </div>
-      </section>
+      </DataCard>
 
-      <section class="panel preview-panel">
-        <div class="panel-title">
-          <h2>{{ pageCopy.detailTitle }}</h2>
-          <span class="muted">{{ selectedReport ? formatDate(selectedReport.summary?.generated_at || selectedReport.created_at) : '暂无时间' }}</span>
-        </div>
-
+      <DataCard title="报告预览" :subtitle="selectedReport ? statusText(selectedReport.report_status || selectedReport.status) : '暂无报告'">
+        <template #action>
+          <button class="secondary" @click="demoAction('打开预览')">打开预览</button>
+        </template>
         <div v-if="selectedReport" class="preview-grid">
           <article class="preview-card wide">
             <span>报告摘要</span>
             <p>{{ selectedReport.summary?.report_abstract || selectedReport.summary?.learning_performance_summary || '暂无报告摘要。' }}</p>
           </article>
-          <article class="preview-card wide">
-            <span>关键结论</span>
-            <div class="conclusion-list">
-              <p v-for="item in selectedReport.summary?.key_conclusions || []" :key="item">{{ item }}</p>
-              <p v-if="!selectedReport.summary?.key_conclusions?.length" class="muted">暂无关键结论，报告生成后会自动补齐。</p>
-            </div>
-          </article>
-          <article class="preview-card wide">
-            <span>Evidence Chain / 证据链</span>
-            <div class="evidence-list">
-              <article v-for="item in selectedReport.summary?.evidence_chain || []" :key="`${item.conclusion}-${item.source_title}`" class="evidence-card">
-                <strong>{{ item.conclusion }}</strong>
-                <p>{{ item.evidence_type }} · {{ item.source_title }} · 置信度 {{ item.confidence }}</p>
-                <p>{{ item.source_excerpt }}</p>
-                <small>关联知识点：{{ item.related_knowledge_point }}</small>
-              </article>
-              <p v-if="!selectedReport.summary?.evidence_chain?.length" class="muted">暂无证据链。当前报告需要重新生成或补充演示数据。</p>
-            </div>
-          </article>
-          <article class="preview-card wide">
-            <span>{{ currentRole === 'student' ? '我的学习总结' : '学习表现摘要' }}</span>
-            <p>{{ selectedReport.summary?.learning_performance_summary || '暂无学习表现摘要。' }}</p>
+          <article class="preview-card">
+            <span>报告类型</span>
+            <p>{{ selectedReport.report_type || '学习报告' }}</p>
           </article>
           <article class="preview-card">
             <span>薄弱知识点</span>
             <p>{{ weakPointText(selectedReport) }}</p>
           </article>
-          <article class="preview-card">
-            <span>报告状态</span>
-            <p>{{ statusText(selectedReport.report_status || selectedReport.status) }}{{ selectedReport.quality_score !== null && selectedReport.quality_score !== undefined ? ` · ${selectedReport.quality_score} 分` : '' }}</p>
+          <article class="preview-card wide">
+            <span>关键结论</span>
+            <p v-for="item in selectedReport.summary?.key_conclusions || ['报告生成后会展示关键结论。']" :key="item">{{ item }}</p>
           </article>
           <article class="preview-card wide">
-            <span>生成依据</span>
-            <div class="reference-list">
-              <small v-for="item in selectedReport.summary?.generation_basis || []" :key="item">{{ item }}</small>
-            </div>
+            <span>教学建议</span>
+            <p v-for="item in suggestions(selectedReport)" :key="`${item.title}-${item.content}`"><strong>{{ item.title || '建议' }}</strong>：{{ item.content }}</p>
           </article>
           <article class="preview-card wide">
-            <span>推荐学习路径</span>
-            <div v-if="selectedReport.summary?.recommended_path?.length" class="path-list">
-              <p v-for="stage in selectedReport.summary.recommended_path" :key="`${stage.name}-${stage.target}`">
-                <strong>{{ stage.name || '学习阶段' }}</strong>：{{ stage.target || '继续完成当前学习目标。' }}
+            <span>证据链</span>
+            <div class="evidence-list">
+              <p v-for="item in selectedReport.summary?.evidence_chain || []" :key="`${item.conclusion}-${item.source_title}`">
+                <strong>{{ item.conclusion }}</strong> · {{ item.source_title }} · 置信度 {{ item.confidence }}
               </p>
-            </div>
-            <p v-else>暂无推荐学习路径。</p>
-          </article>
-          <article class="preview-card wide">
-            <span>{{ currentRole === 'student' ? '下一步建议 / 推荐资源' : currentRole === 'teacher' ? '干预建议' : '审核关注点' }}</span>
-            <div class="suggestion-list">
-              <p v-for="item in suggestions(selectedReport)" :key="`${item.title}-${item.content}`">
-                <strong>{{ item.title || '教学建议' }}</strong>：{{ item.content || '建议补充针对性练习。' }}
-              </p>
+              <p v-if="!selectedReport.summary?.evidence_chain?.length" class="muted">暂无证据链，重新生成报告后会补充引用来源。</p>
             </div>
           </article>
           <article class="preview-card wide">
-            <span>引用来源 / 生成依据</span>
-            <div class="reference-list">
-              <small v-for="item in selectedReport.summary?.references || ['学生画像', '学习路径', '测评反馈']" :key="item">{{ item }}</small>
-            </div>
-          </article>
-          <article class="preview-card wide">
-            <span>引用文档与片段</span>
-            <div class="suggestion-list">
-              <p v-for="item in selectedReport.summary?.citation_snippets || []" :key="`${item.document}-${item.content}`">
-                <strong>{{ item.document }}</strong>：{{ item.content }}（相关度 {{ item.confidence ?? '-' }}）
-              </p>
-              <p v-if="!selectedReport.summary?.citation_snippets?.length" class="muted">暂无引用片段，生成报告后会展示依据来源。</p>
-            </div>
-          </article>
-          <article v-if="currentRole === 'student'" class="preview-card wide">
-            <span>最近答疑影响</span>
-            <div class="suggestion-list">
-              <p v-for="item in answerImpacts" :key="item.id">
-                <strong>{{ item.metadata?.weak_point_impact || '答疑影响' }}</strong>：{{ item.metadata?.path_suggestion || item.description }}；推荐资源 {{ item.metadata?.recommended_resource || '分层练习题' }}
-              </p>
-              <p v-if="!answerImpacts.length" class="muted">暂无最近答疑影响，当前区域使用 demo/fallback 说明：答疑记录会影响薄弱点、资源推荐和路径建议。</p>
-            </div>
-          </article>
-          <article class="preview-card wide">
-            <span>重新生成原因</span>
-            <p>{{ selectedReport.summary?.regenerate_reason || '当测评、问答或知识库资料更新后可模拟重新生成。' }}</p>
+            <span>推荐路径</span>
+            <p v-for="stage in selectedReport.summary?.recommended_path || []" :key="`${stage.name}-${stage.target}`">
+              <strong>{{ stage.name || '学习阶段' }}</strong>：{{ stage.target || '继续完成当前目标。' }}
+            </p>
+            <p v-if="!selectedReport.summary?.recommended_path?.length" class="muted">暂无推荐路径。</p>
           </article>
           <article class="preview-card wide">
             <span>报告文件</span>
-            <p>{{ selectedReport.report_path || '暂无文件路径。' }}</p>
+            <p>{{ selectedReport.report_path }}</p>
           </article>
         </div>
-
-        <p v-else-if="!loading" class="empty-state">暂无报告可预览。可先在 AgentWorkflow 页面运行完整学习流生成报告。</p>
-      </section>
+        <EmptyState v-else title="暂无报告可预览" description="生成报告后会显示预览。" />
+      </DataCard>
     </div>
   </section>
 </template>
 
 <style scoped>
-.report-page {
-  gap: 18px;
-}
-
-.report-hero,
-.panel-title,
-.report-layout {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.report-hero {
-  align-items: center;
-}
-
-.report-hero h2 {
-  margin: 0 0 8px;
-  font-size: 24px;
-}
-
-.eyebrow {
-  margin: 0 0 6px;
-  color: #2264d1;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.demo-note {
-  margin: 8px 0 0;
-  color: #955600;
-  font-size: 13px;
-}
-
-.hero-action {
-  width: 320px;
-  border: 1px solid #d9e0ea;
-  border-radius: 8px;
-  padding: 14px;
-  background: #f8fbff;
-}
-
-.hero-action span,
-.overview-card small,
-.preview-card span {
-  display: block;
-  color: #66758a;
-}
-
-.hero-action strong {
-  display: block;
-  margin-top: 6px;
-  line-height: 1.4;
-}
-
-.overview-grid,
-.filter-grid,
-.preview-grid {
+.template-grid {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
-.overview-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+.template-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fbfdff;
 }
 
-.overview-card {
-  min-height: 112px;
+.template-card > span {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  color: #fff;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+}
+
+.template-card button {
+  grid-column: 1 / -1;
+}
+
+.template-card p {
+  margin: 6px 0 10px;
+  font-size: 13px;
 }
 
 .filter-grid {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  align-items: end;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 180px 160px;
+  gap: 12px;
 }
 
 .report-layout {
-  align-items: flex-start;
-}
-
-.report-layout > .panel:first-child {
-  flex: 1.05;
-}
-
-.preview-panel {
-  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
+  gap: 16px;
+  align-items: start;
 }
 
 .report-list,
-.path-list,
-.suggestion-list,
-.conclusion-list,
+.preview-grid,
 .evidence-list {
-  display: grid;
-  gap: 10px;
-}
-
-.report-card,
-.preview-card {
-  border: 1px solid #e4e9f1;
-  border-radius: 8px;
-  padding: 12px;
-  background: #fbfcff;
-}
-
-.report-card {
   display: grid;
   gap: 12px;
 }
 
-.report-card.active {
-  border-color: #2264d1;
-  background: #f8fbff;
+.report-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 12px;
+  background: #fbfdff;
 }
 
-.card-main {
+.report-row.active {
+  border-color: rgba(47, 107, 255, 0.55);
+  background: var(--color-primary-light);
+}
+
+.report-main {
   display: grid;
-  gap: 6px;
-  width: 100%;
+  gap: 4px;
   padding: 0;
-  color: #1c2430;
+  color: var(--color-text-main);
   text-align: left;
   background: transparent;
+  box-shadow: none;
 }
 
-.card-main span,
-.card-main small,
-.preview-card p,
-.path-list p,
-.suggestion-list p {
-  margin: 0;
-  color: #66758a;
-  line-height: 1.55;
+.report-main span,
+.report-main small {
+  color: var(--color-text-sub);
 }
 
-.card-actions {
+.row-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.download-link {
+  display: inline-flex;
   align-items: center;
-}
-
-.card-actions a {
-  border-radius: 6px;
-  padding: 9px 14px;
-  color: #2264d1;
-  background: #edf4ff;
+  border-radius: 12px;
+  padding: 9px 12px;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
   text-decoration: none;
-}
-
-.status-pill {
-  border-radius: 999px;
-  padding: 5px 8px;
-  font-size: 12px;
-  color: #1453aa;
-  background: #edf4ff;
-}
-
-.status-pill.completed,
-.status-pill.success {
-  color: #1f7a45;
-  background: #effaf4;
-}
-
-.status-pill.generating {
-  color: #955600;
-  background: #fff7e8;
-}
-
-.status-pill.failed {
-  color: #b42318;
-  background: #fff0f0;
+  font-weight: 700;
 }
 
 .preview-grid {
@@ -701,62 +476,36 @@ onMounted(loadPage);
 .preview-card {
   display: grid;
   gap: 8px;
-}
-
-.evidence-card {
-  border: 1px solid #e4e9f1;
-  border-radius: 8px;
-  padding: 10px;
-  background: #fff;
-}
-
-.evidence-card p {
-  margin: 6px 0 0;
-}
-
-.evidence-card small {
-  color: #66758a;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfdff;
 }
 
 .preview-card.wide {
   grid-column: 1 / -1;
 }
 
-.reference-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.preview-card span {
+  color: var(--color-text-sub);
+  font-size: 13px;
 }
 
-.reference-list small {
-  border-radius: 999px;
-  padding: 6px 9px;
-  color: #1453aa;
-  background: #edf4ff;
-}
-
-.empty-state {
+.preview-card p {
   margin: 0;
-  color: #66758a;
+  line-height: 1.65;
 }
 
-.error-text {
-  color: #b42318;
-}
-
-@media (max-width: 1080px) {
-  .report-layout,
-  .report-hero,
-  .panel-title {
-    display: grid;
-  }
-
-  .hero-action {
-    width: auto;
+@media (max-width: 1280px) {
+  .template-grid,
+  .report-layout {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
+  .filter-grid,
+  .report-row,
   .preview-grid {
     grid-template-columns: 1fr;
   }

@@ -13,8 +13,8 @@ from app.services.llm_service import llm_service
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="EduAgent Studio API",
-    description="中国软件杯 A3 个性化学习资源生成与多智能体系统",
+    title="EduMind API",
+    description="面向三端教育智能体演示的个性化学习资源生成、学习画像、路径规划、报告生成与平台治理服务。",
     version="0.1.0",
 )
 

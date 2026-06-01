@@ -44,10 +44,10 @@ echo Services are starting. Access URLs:
 echo   Backend: http://localhost:8000
 echo   API Docs: http://localhost:8000/docs
 echo   Frontend: http://localhost:5173
+echo   Student: http://localhost:5173/student
+echo   Teacher: http://localhost:5173/teacher
 echo   Dashboard: http://localhost:5173/dashboard
-echo   TutorChat: http://localhost:5173/tutor-chat
-echo   KnowledgeBase: http://localhost:5173/knowledge-base
-echo   TeacherAnalysis: http://localhost:5173/teacher-analysis
+echo   Demo Status: http://localhost:5173/demo-status
 echo.
 echo Close this window when you are done reading these addresses.
 pause

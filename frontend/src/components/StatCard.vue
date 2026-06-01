@@ -4,14 +4,22 @@ defineProps<{
   value: string | number;
   unit?: string;
   hint?: string;
-  tone?: 'blue' | 'green' | 'orange' | 'purple';
+  icon?: string;
+  trend?: string;
+  tone?: 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'cyan';
 }>();
 </script>
 
 <template>
   <article :class="['stat-card', tone || 'blue']">
-    <span>{{ label }}</span>
-    <strong>{{ value }}<small v-if="unit">{{ unit }}</small></strong>
-    <p v-if="hint">{{ hint }}</p>
+    <div class="stat-content">
+      <span>{{ label }}</span>
+      <strong>{{ value }}<small v-if="unit">{{ unit }}</small></strong>
+      <p v-if="hint || trend">
+        <template v-if="hint">{{ hint }}</template>
+        <template v-if="trend"> {{ trend }}</template>
+      </p>
+    </div>
+    <span class="stat-icon">{{ icon || label.slice(0, 1) }}</span>
   </article>
 </template>

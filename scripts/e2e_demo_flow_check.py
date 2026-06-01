@@ -41,7 +41,6 @@ class DemoFlowChecker:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.steps: list[StepResult] = []
-        self.context: dict[str, Any] = {}
 
     def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> tuple[int, Any]:
         data = None
@@ -65,33 +64,11 @@ class DemoFlowChecker:
             return None, None, f"request failed: {exc.reason}"
         except TimeoutError:
             return None, None, "request timed out"
-        except Exception as exc:  # noqa: BLE001 - CLI report should keep going and capture unexpected failures.
+        except Exception as exc:  # noqa: BLE001
             return None, None, f"unexpected error: {exc}"
 
-    def add_step(
-        self,
-        *,
-        name: str,
-        endpoint: str,
-        method: str,
-        success: bool,
-        status_code: int | None,
-        key_fields: dict[str, Any] | None = None,
-        event_written: str = "not_applicable",
-        failure_reason: str = "",
-    ) -> None:
-        self.steps.append(
-            StepResult(
-                name=name,
-                endpoint=endpoint,
-                method=method,
-                success=success,
-                status_code=status_code,
-                key_fields=key_fields or {},
-                event_written=event_written,
-                failure_reason=failure_reason,
-            )
-        )
+    def add_step(self, **kwargs: Any) -> None:
+        self.steps.append(StepResult(**kwargs))
 
     def get_events(self) -> list[dict[str, Any]]:
         status, body, _ = self.safe_request("GET", "/api/v1/events?limit=200")
@@ -110,7 +87,6 @@ class DemoFlowChecker:
     def first_course(self) -> dict[str, Any] | None:
         status, body, reason = self.safe_request("GET", "/api/v1/courses")
         if status and status < 400 and isinstance(body, list) and body:
-            self.context["course_id"] = body[0]["id"]
             return body[0]
         self.add_step(
             name="准备课程数据",
@@ -118,7 +94,7 @@ class DemoFlowChecker:
             method="GET",
             success=False,
             status_code=status,
-            failure_reason=reason or "课程列表为空，请先运行 seed_demo_data.py。",
+            failure_reason=reason or "课程列表为空，请先运行 python scripts/seed_demo_data.py。",
         )
         return None
 
@@ -131,9 +107,9 @@ class DemoFlowChecker:
             try:
                 key_fields = key_picker(body) if key_picker else {}
                 target_id = key_fields.get("target_id")
-            except Exception as exc:  # noqa: BLE001 - report malformed response instead of crashing.
+            except Exception as exc:  # noqa: BLE001
                 success = False
-                reason = f"关键字段解析失败: {exc}"
+                reason = f"关键字段解析失败：{exc}"
         event_written = "not_applicable"
         if expected_event:
             event_written = "yes" if self.event_exists(expected_event, target_id) or self.event_exists(expected_event) else "no"
@@ -163,9 +139,9 @@ class DemoFlowChecker:
             "/api/v1/profiles/generate",
             {
                 "course_id": course_id,
-                "student_name": f"端到端验收学生{stamp}",
+                "student_name": "张三",
                 "current_level": "基础薄弱",
-                "learning_goal": "完成可信 RAG 与教学闭环演示",
+                "learning_goal": "完成 Python 爬虫基础与实践学习闭环演示",
                 "weak_points": ["HTTP 请求", "引用来源", "学习路径规划"],
                 "learning_preference": "案例驱动",
             },
@@ -173,7 +149,7 @@ class DemoFlowChecker:
             lambda body: {"profile_id": body.get("id"), "student_name": body.get("student_name"), "target_id": body.get("id")},
         )
         profile_id = profile.get("id") if isinstance(profile, dict) else None
-        student_name = profile.get("student_name") if isinstance(profile, dict) else "端到端验收学生"
+        student_name = profile.get("student_name") if isinstance(profile, dict) else "张三"
 
         package = self.run_step(
             "B. 个性化资源包生成",
@@ -198,14 +174,7 @@ class DemoFlowChecker:
             "D. 教师布置补强任务",
             "POST",
             "/api/v1/events/assign-task",
-            {
-                "course_id": course_id,
-                "student_profile_id": profile_id,
-                "weak_point": "HTTP 请求",
-                "task_type": "完成练习",
-                "actor_role": "teacher",
-                "actor_name": "demo_teacher",
-            },
+            {"course_id": course_id, "student_profile_id": profile_id, "weak_point": "HTTP 请求", "task_type": "完成分层练习", "actor_role": "teacher", "actor_name": "王老师"},
             "task_assigned",
             lambda body: {"task_id": body.get("task", {}).get("task_id"), "target_id": body.get("task", {}).get("task_id")},
         )
@@ -220,17 +189,10 @@ class DemoFlowChecker:
         )
 
         self.run_step(
-            "F. TutorChat 提问答疑",
+            "F. 智能答疑",
             "POST",
             "/api/v1/tutor/ask",
-            {
-                "course_id": course_id,
-                "question": "如何判断一次回答是否有可靠引用来源？",
-                "top_k": 3,
-                "heuristic_mode": True,
-                "no_direct_answer": False,
-                "hint_level": "medium",
-            },
+            {"course_id": course_id, "question": "如何判断一次回答是否有可靠引用来源？", "top_k": 3, "heuristic_mode": True, "no_direct_answer": False, "hint_level": "medium"},
             "question_answered",
             lambda body: {"citation_count": len(body.get("citation_sources", [])), "confidence": body.get("confidence")},
         )
@@ -244,7 +206,7 @@ class DemoFlowChecker:
                 "title": "端到端验收报告审核通过",
                 "description": "管理员完成一次 demo/fallback 报告审核。",
                 "actor_role": "admin",
-                "actor_name": "demo_admin",
+                "actor_name": "管理员",
                 "target_type": "learning_report",
                 "target_id": f"e2e-report-{stamp}",
                 "metadata": {"demo": True},
@@ -254,15 +216,8 @@ class DemoFlowChecker:
         )
 
         self.run_step("H. 查询业务事件", "GET", "/api/v1/events?limit=200", None, None, lambda body: {"event_count": len(body or [])})
-        self.run_step("I. 查询业务事件日志", "GET", "/api/v1/logs?type=business_event", None, None, lambda body: {"log_count": len(body.get("items", body) if isinstance(body, dict) else body or [])})
-        self.run_step(
-            "J. 查询 Agent 工作流",
-            "GET",
-            "/api/v1/agent-workflow",
-            None,
-            None,
-            lambda body: {"template_count": len(body.get("workflow_templates", [])), "event_run_count": len(body.get("business_event_records", []))},
-        )
+        self.run_step("I. 查询业务日志", "GET", "/api/v1/logs?type=business_event", None, None, lambda body: {"log_count": len(body.get("items", body) if isinstance(body, dict) else body or [])})
+        self.run_step("J. 查询 Agent 工作流", "GET", "/api/v1/agent-workflow", None, None, lambda body: {"template_count": len(body.get("workflow_templates", [])), "event_run_count": len(body.get("business_event_records", []))})
         self.run_step("K. 查询学习路径", "GET", "/api/v1/learning-paths", None, None, lambda body: {"path_count": len(body or []), "package_id_checked": package_id})
 
     def event_summary(self) -> dict[str, bool]:
@@ -298,26 +253,18 @@ class DemoFlowChecker:
         lines.extend(
             [
                 "",
-                "## 真实能力说明",
+                "## 能力边界说明",
                 "",
-                "- 业务事件真实写入 SQLite fallback 的 `system_logs` 表。",
-                "- 资源包生成会真实写入 `generated_resources`。",
-                "- 资源包加入学习路径会真实更新或创建 `learning_paths`。",
-                "- demo 测验会真实写入 `quiz_submissions`。",
-                "- TutorChat 问答和引用来源会真实保存到问答日志。",
+                "- 业务事件写入 system_logs 表，用于 EduMind 三端演示闭环。",
+                "- 资源包、学习路径、测验、问答和报告记录会沉淀到后端数据表。",
+                "- 当前真实登录鉴权、真实 LangGraph、真实 RAGFlow/Dify/FastGPT 为后续扩展项。",
                 "",
-                "## demo/mock/fallback 能力说明",
-                "",
-                "- 资源内容、教师任务执行状态、管理员审核流程和 Agent 节点运行仍是 demo/fallback。",
-                "- 当前未接真实登录鉴权、真实 LangGraph、真实 RAGFlow/Dify/FastGPT。",
-                "- 该报告用于比赛演示前验收，不等价于生产压测或安全审计。",
-                "",
-                "## 比赛演示建议路线",
+                "## 推荐演示路线",
                 "",
                 "```text",
-                "学生端：/student → /profiles 生成画像 → /resource-generation 生成资源包 → 加入学习路径 → /learning-path 查看路径 → /tutor-chat 提问 → /evaluation 完成测验 → /reports 查看报告",
-                "教师端：/teacher → /profiles 查看学生画像 → 布置补强任务 → /teacher-analysis 查看干预建议 → /reports 查看报告",
-                "管理员端：/dashboard → /agent-workflow 查看流程 → /resource-generation 查看资源任务 → /reports 审核报告 → /logs 查看事件日志",
+                "学生端：/student -> /student/courses -> /student/learning-path -> /student/assistant -> /student/exams -> /student/reports",
+                "教师端：/teacher -> /courses -> /profiles -> /learning-path -> /teacher-analysis -> /reports",
+                "管理员端：/dashboard -> /admin/users -> /admin/courses -> /resource-generation -> /agent-workflow -> /logs -> /settings",
                 "```",
                 "",
             ]

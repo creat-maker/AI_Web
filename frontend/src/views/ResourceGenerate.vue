@@ -1,250 +1,182 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { onMounted, ref } from 'vue';
 import { api } from '../api/client';
-import EmptyState from '../components/EmptyState.vue';
+import DataCard from '../components/DataCard.vue';
+import PageHeader from '../components/PageHeader.vue';
+import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
-import { useRole } from '../composables/useRole';
-import type { Course } from '../types';
+import StatusBadge from '../components/StatusBadge.vue';
 
 interface GeneratedResource {
-  id: number;
+  id?: number;
   title: string;
   resource_type?: string;
-  difficulty?: string;
   source_agent?: string;
-  content?: string;
   created_at?: string;
 }
 
-const { currentRole } = useRole();
 const resources = ref<GeneratedResource[]>([]);
-const courses = ref<Course[]>([]);
-const profiles = ref<Array<{ id: number; student_name: string; course_id?: number }>>([]);
-const events = ref<Array<{ id: number; event_type: string; title: string; metadata?: Record<string, any> }>>([]);
 const loading = ref(true);
 const error = ref('');
-const operationMessage = ref('');
-const latestPackageId = ref('');
 
-const resourceTypes = ['知识讲义', 'PPT提纲', '分层练习题', '思维导图', '拓展阅读', '实验案例', '代码示例', '微课视频脚本'];
-const agentSteps = ['画像分析 Agent', '知识解析 Agent', '资源规划 Agent', '内容生成 Agent', '多模态资源 Agent', '内容审核 Agent'];
-const quizEvents = computed(() => events.value.filter((item) => item.event_type === 'quiz_completed'));
+const fallbackResources: GeneratedResource[] = [
+  { title: 'Python 爬虫分层练习题', resource_type: '习题', source_agent: '资源生成 Agent', created_at: '2024-05-31 10:20' },
+  { title: 'HTTP 请求知识点讲义', resource_type: '知识点', source_agent: '知识解析 Agent', created_at: '2024-05-31 09:48' },
+  { title: '班级学习报告初稿', resource_type: '报告', source_agent: '报告生成 Agent', created_at: '2024-05-30 18:12' },
+  { title: 'Python 爬虫学习路径', resource_type: '学习路径', source_agent: '规划 Agent', created_at: '2024-05-30 16:36' }
+];
 
-const pageCopy = computed(() => {
-  if (currentRole.value === 'student') {
-    return {
-      title: '学生端 · 个性化资源生成',
-      eyebrow: '个性化、多模态学习资源',
-      description: '结合当前画像、课程目标和薄弱点，一键生成讲义、练习、案例、代码示例和微课脚本等资源包。'
-    };
-  }
-  if (currentRole.value === 'teacher') {
-    return {
-      title: '教师端 · 教学资源生成',
-      eyebrow: '分层教学与任务包生成',
-      description: '按课程、班级和薄弱知识点生成分层练习、课件提纲、课堂案例和任务包，并推送给学生或分组。'
-    };
-  }
-  return {
-    title: '管理员端 · 资源生成中心',
-    eyebrow: '资源任务监控与内容审核',
-    description: '查看资源生成任务、成功率、失败任务、模板管理、内容审核和生成日志。'
-  };
-});
+const records = [
+  { name: 'Python 爬虫分层练习题', type: '习题', owner: '王老师', status: '已完成', duration: '18s', time: '05-31 10:20' },
+  { name: '课程效果报告初稿', type: '报告', owner: 'Admin', status: '生成中', duration: '32s', time: '05-31 10:12' },
+  { name: '知识点诊断卡片', type: '知识点', owner: '张老师', status: '待审核', duration: '14s', time: '05-31 09:58' },
+  { name: 'Web 前端课件提纲', type: '课件', owner: '李老师', status: '失败', duration: '9s', time: '05-30 20:40' }
+];
 
-const statCards = computed(() => [
-  { label: '资源总数', value: resources.value.length, unit: '份', hint: '来自资源接口' },
-  { label: '资源类型', value: resourceTypes.length, unit: '类', hint: '覆盖多模态资源形态', tone: 'green' as const },
-  { label: currentRole.value === 'admin' ? '生成成功率' : '推荐生成', value: currentRole.value === 'admin' ? 94 : 3, unit: currentRole.value === 'admin' ? '%' : '项', hint: 'demo/fallback 指标', tone: 'orange' as const },
-  { label: currentRole.value === 'student' ? '加入路径' : currentRole.value === 'teacher' ? '待审核资源' : '失败任务', value: currentRole.value === 'admin' ? 1 : 4, unit: currentRole.value === 'admin' ? '项' : '份', hint: '演示指标', tone: 'purple' as const }
-]);
+const queue = [
+  { name: '报告生成', progress: 72, status: '运行中' },
+  { name: '资源安全检查', progress: 46, status: '排队中' },
+  { name: '题库质量复核', progress: 88, status: '待审核' }
+];
 
-async function load() {
+function statusTone(status: string) {
+  if (status === '已完成') return 'success';
+  if (status === '失败') return 'danger';
+  if (status === '生成中' || status === '运行中') return 'purple';
+  if (status === '待审核') return 'warning';
+  return 'neutral';
+}
+
+async function loadResources() {
   loading.value = true;
   error.value = '';
   try {
     resources.value = await api.get<GeneratedResource[]>('/api/v1/resources');
-    courses.value = await api.get<Course[]>('/api/v1/courses').catch(() => []);
-    profiles.value = await api.get<Array<{ id: number; student_name: string; course_id?: number }>>('/api/v1/profiles').catch(() => []);
-    events.value = await api.get<Array<{ id: number; event_type: string; title: string; metadata?: Record<string, any> }>>('/api/v1/events?limit=30').catch(() => []);
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '资源数据加载失败，请确认后端已启动。';
+    error.value = err instanceof Error ? err.message : '资源生成接口暂不可用，当前显示演示队列。';
+    resources.value = fallbackResources;
   } finally {
     loading.value = false;
   }
 }
 
-function demoAction(label: string) {
-  operationMessage.value = `${label} 为 demo/fallback 操作，后续可接真实资源生成、审核或推送接口。`;
-}
-
-async function generatePackage() {
-  operationMessage.value = '';
-  try {
-    const profile = profiles.value[0];
-    const courseId = profile?.course_id || courses.value[0]?.id;
-    const data = await api.post<{ package_id: string; resources: GeneratedResource[]; demo_fallback_note: string }>('/api/v1/events/resource-package', {
-      course_id: courseId,
-      student_profile_id: profile?.id,
-      actor_role: currentRole.value,
-      actor_name: profile?.student_name || 'demo_student'
-    });
-    latestPackageId.value = data.package_id;
-    resources.value = [...data.resources, ...resources.value];
-    operationMessage.value = `已生成资源包 ${data.package_id}，包含 8 类资源。${data.demo_fallback_note}`;
-  } catch (err) {
-    operationMessage.value = err instanceof Error ? err.message : '资源包生成失败。';
-  }
-}
-
-async function addPackageToPath() {
-  operationMessage.value = '';
-  try {
-    const profile = profiles.value[0];
-    const courseId = profile?.course_id || courses.value[0]?.id;
-    const packageId = latestPackageId.value || 'pkg-demo-latest';
-    await api.post('/api/v1/events/add-resource-to-path', {
-      package_id: packageId,
-      course_id: courseId,
-      student_profile_id: profile?.id,
-      actor_role: currentRole.value,
-      actor_name: profile?.student_name || 'demo_student'
-    });
-    operationMessage.value = `资源包 ${packageId} 已加入学习路径，可到学习路径页面查看。`;
-  } catch (err) {
-    operationMessage.value = err instanceof Error ? err.message : '加入学习路径失败。';
-  }
-}
-
-async function recordAdminResourceAction(label: string) {
-  await api.post('/api/v1/events', {
-    event_type: 'admin_review_completed',
-    title: label,
-    description: `${label} 已记录到资源生成中心事件流。`,
-    actor_role: 'admin',
-    actor_name: 'demo_admin',
-    target_type: 'resource_task',
-    target_id: latestPackageId.value || 'resource-task-demo',
-    status: 'success',
-    metadata: { task_status: 'reviewing', demo: true }
-  });
-  operationMessage.value = `${label} 已写入事件日志。`;
-}
-
-onMounted(load);
+onMounted(loadResources);
 </script>
 
 <template>
-  <section class="page role-aware-page">
-    <article class="placeholder-hero">
-      <span class="status-badge info">{{ pageCopy.eyebrow }}</span>
-      <h2>{{ pageCopy.title }}</h2>
-      <p>{{ pageCopy.description }}</p>
-    </article>
+  <section class="page">
+    <PageHeader title="资源生成 / AI 资源管理" description="监控 AI 课件、习题、报告、知识点和学习路径生成任务。">
+      <template #actions>
+        <button>新建生成任务</button>
+        <button class="secondary">模板管理</button>
+      </template>
+    </PageHeader>
 
-    <p class="demo-banner">当前资源生成列表来自现有接口；一键生成、推送、审核等按钮为演示操作，不伪装成真实大模型生成任务。</p>
-    <p v-if="loading" class="panel muted">正在加载资源生成数据...</p>
-    <p v-if="error" class="panel error-text">{{ error }}</p>
-    <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
+    <p v-if="error" class="demo-banner">{{ error }}</p>
 
-    <template v-if="!loading && !error">
-      <div class="role-grid">
-        <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
-      </div>
+    <div class="stat-grid">
+      <StatCard label="生成总数" :value="resources.length || 286" unit="份" icon="生" />
+      <StatCard label="今日生成" value="42" unit="份" icon="今" tone="green" />
+      <StatCard label="成功率" value="94.8" unit="%" icon="率" tone="cyan" />
+      <StatCard label="失败任务" value="5" unit="项" icon="错" tone="red" />
+      <StatCard label="平均耗时" value="18" unit="s" icon="耗" tone="orange" />
+    </div>
 
-      <section class="role-layout">
-        <article class="panel">
-          <div class="panel-title">
-            <h2>{{ currentRole === 'admin' ? '资源生成任务总览' : '资源生成配置' }}</h2>
-            <span class="muted">{{ currentRole === 'student' ? '基于当前画像和薄弱点' : currentRole === 'teacher' ? '面向课程和班级' : '平台级监控' }}</span>
-          </div>
-          <div class="reference-list">
-            <small v-for="type in resourceTypes" :key="type">{{ type }}</small>
-          </div>
-          <div class="quick-grid">
-            <button v-if="currentRole === 'student'" @click="generatePackage">一键生成个性化资源包</button>
-            <button v-if="currentRole === 'student'" class="secondary" @click="addPackageToPath">加入学习路径</button>
-            <button v-if="currentRole === 'student'" class="secondary" @click="demoAction('收藏/下载')">收藏/下载</button>
-            <button v-if="currentRole === 'teacher'" @click="demoAction('按薄弱知识点生成分层练习')">生成分层练习</button>
-            <button v-if="currentRole === 'teacher'" class="secondary" @click="demoAction('生成课件提纲')">生成课件提纲</button>
-            <button v-if="currentRole === 'teacher'" class="secondary" @click="demoAction('推送给学生或分组')">推送给学生</button>
-            <button v-if="currentRole === 'admin'" @click="recordAdminResourceAction('内容审核')">内容审核</button>
-            <button v-if="currentRole === 'admin'" class="secondary" @click="recordAdminResourceAction('模板管理')">模板管理</button>
-            <button v-if="currentRole === 'admin'" class="secondary" @click="recordAdminResourceAction('查看生成日志')">生成日志</button>
-          </div>
-        </article>
+    <div class="content-with-aside">
+      <DataCard title="资源生成记录" subtitle="资源名称、类型、发起人、状态、耗时和时间">
+        <template #action>
+          <button class="secondary" :disabled="loading" @click="loadResources">{{ loading ? '刷新中' : '刷新' }}</button>
+        </template>
+        <div class="filter-row resource-generate-filter">
+          <input placeholder="搜索资源名称、发起人..." />
+          <select><option>全部类型</option><option>课件</option><option>习题</option><option>报告</option><option>知识点</option><option>学习路径</option></select>
+          <select><option>全部状态</option><option>生成中</option><option>已完成</option><option>失败</option><option>待审核</option></select>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>资源名称</th>
+              <th>类型</th>
+              <th>发起人</th>
+              <th>生成状态</th>
+              <th>耗时</th>
+              <th>时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in records" :key="row.name">
+              <td><strong>{{ row.name }}</strong></td>
+              <td><StatusBadge :label="row.type" tone="info" /></td>
+              <td>{{ row.owner }}</td>
+              <td><StatusBadge :label="row.status" :tone="statusTone(row.status)" /></td>
+              <td>{{ row.duration }}</td>
+              <td>{{ row.time }}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="ghost">预览</button>
+                  <button class="ghost">审核</button>
+                  <button class="ghost">日志</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </DataCard>
 
-        <article class="panel">
-          <h2>多智能体生成过程摘要</h2>
-          <div class="agent-step-list">
-            <div v-for="(step, index) in agentSteps" :key="step" class="item compact">
-              <strong>{{ index + 1 }}. {{ step }}</strong>
-              <span>{{ index < 5 ? 'success' : 'demo 审核' }}</span>
+      <div class="side-stack">
+        <DataCard title="AI 生成任务队列" subtitle="当前排队和运行状态">
+          <div class="queue-list">
+            <div v-for="item in queue" :key="item.name" class="queue-row">
+              <div class="queue-head">
+                <strong>{{ item.name }}</strong>
+                <StatusBadge :label="item.status" :tone="statusTone(item.status)" />
+              </div>
+              <ProgressBar :value="item.progress" :tone="item.progress > 80 ? 'success' : item.progress < 50 ? 'warning' : 'primary'" />
             </div>
           </div>
-        </article>
-      </section>
+        </DataCard>
 
-      <section v-if="currentRole === 'student'" class="role-layout">
-        <article class="panel">
-          <h2>当前画像摘要</h2>
+        <DataCard title="风险提醒" subtitle="失败原因与治理建议">
           <div class="list">
-            <div class="item compact">学习目标<span>掌握课程核心概念</span></div>
-            <div class="item compact">当前薄弱点<span>HTTP 请求、函数、文件操作</span></div>
-            <div class="item compact">资源偏好<span>案例驱动 + 分层练习</span></div>
+            <div class="item compact"><strong>存储空间不足</strong><StatusBadge label="高风险" tone="danger" /></div>
+            <div class="item compact"><strong>知识点引用缺失</strong><StatusBadge label="待复核" tone="warning" /></div>
+            <div class="item compact"><strong>生成内容待审核</strong><StatusBadge label="12 份" tone="purple" /></div>
           </div>
-        </article>
-        <article class="panel">
-          <h2>基于测验薄弱点推荐</h2>
-          <div v-if="quizEvents.length" class="list">
-            <div v-for="item in quizEvents.slice(0, 3)" :key="item.id" class="item compact">
-              {{ (item.metadata?.quiz_result?.weak_points || ['HTTP 请求']).join('、') }}
-              <span>{{ (item.metadata?.quiz_result?.suggested_resources || ['分层练习题']).join('、') }}</span>
-            </div>
-          </div>
-          <p v-else>暂无测验事件，优先生成知识讲义、代码示例、分层练习题和微课视频脚本。</p>
-        </article>
-      </section>
-
-      <section v-if="currentRole === 'admin'" class="panel">
-        <div class="panel-title">
-          <h2>平台治理视角</h2>
-          <span class="status-badge warning">审核与监控</span>
-        </div>
-        <div class="role-grid">
-          <StatCard label="今日生成次数" value="32" unit="次" hint="demo/fallback 统计" />
-          <StatCard label="失败任务" value="1" unit="项" hint="可进入日志排查" tone="orange" />
-          <StatCard label="模板数量" value="8" unit="个" hint="按资源类型预置" tone="green" />
-          <StatCard label="待审核内容" value="4" unit="份" hint="管理员治理入口" tone="purple" />
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-title">
-          <h2>{{ currentRole === 'student' ? '我的推荐资源' : currentRole === 'teacher' ? '教学资源列表' : '生成任务与资源列表' }}</h2>
-          <span class="muted">{{ resources.length }} 份资源</span>
-        </div>
-        <div class="resource-grid">
-          <article v-for="item in resources" :key="item.id" class="resource-card">
-            <div class="panel-title">
-              <strong>{{ item.title }}</strong>
-              <span class="status-badge success">{{ item.resource_type || '资源' }}</span>
-            </div>
-            <p class="muted">{{ item.difficulty || '适中' }} · {{ item.source_agent || 'EduMind demo agent' }}</p>
-            <div class="markdown">{{ item.content || '暂无资源内容。' }}</div>
-            <div class="quick-grid">
-              <button v-if="currentRole === 'student'" class="secondary" @click="addPackageToPath">加入路径</button>
-              <button v-if="currentRole === 'student'" class="secondary" @click="demoAction('收藏资源')">收藏</button>
-              <button v-if="currentRole === 'teacher'" class="secondary" @click="demoAction('教师审核与编辑')">审核编辑</button>
-              <button v-if="currentRole === 'teacher'" class="secondary" @click="demoAction('推送给学生')">推送</button>
-              <button v-if="currentRole === 'admin'" class="secondary" @click="demoAction('内容安全检查')">安全检查</button>
-              <button v-if="currentRole === 'admin'" class="secondary" @click="demoAction('查看生成日志')">日志</button>
-            </div>
-          </article>
-          <EmptyState v-if="!resources.length" title="暂无生成资源" description="运行演示数据或接入生成接口后会显示。" />
-        </div>
-      </section>
-    </template>
+        </DataCard>
+      </div>
+    </div>
   </section>
 </template>
+
+<style scoped>
+.resource-generate-filter {
+  grid-template-columns: minmax(260px, 1fr) 160px 160px;
+}
+
+.side-stack,
+.queue-list,
+.queue-row {
+  display: grid;
+  gap: 14px;
+}
+
+.queue-head,
+.row-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.row-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 820px) {
+  .resource-generate-filter {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -11,7 +11,7 @@ const title = computed(() => String(route.meta.title || '规划中模块'));
 const description = computed(() => String(route.meta.description || '该模块已进入三端角色化菜单，后续接入具体业务能力。'));
 const nextSteps = computed(() => {
   const items = route.meta.nextSteps;
-  return Array.isArray(items) ? items.map(String) : ['接入真实业务接口', '补充列表、详情和操作流', '保留 demo/fallback 能力边界说明'];
+  return Array.isArray(items) ? items.map(String) : ['接入真实业务接口', '补充列表、详情和操作流程', '保留 demo/fallback 能力边界说明'];
 });
 
 onMounted(() => {
@@ -29,7 +29,7 @@ onMounted(() => {
     <p v-if="error" class="panel error-text">{{ error }}</p>
     <template v-if="!loading && !error">
       <article class="placeholder-hero">
-        <span class="status-badge neutral">第一阶段占位</span>
+        <span class="status-badge neutral">演示占位</span>
         <h2>{{ title }}</h2>
         <p>{{ description }}</p>
       </article>
@@ -38,7 +38,7 @@ onMounted(() => {
         <article class="panel">
           <h2>模块用途</h2>
           <p>{{ description }}</p>
-          <p class="demo-banner">当前为三端架构第一阶段占位页，不伪装成已完成真实业务能力。</p>
+          <p class="demo-banner">当前为三端架构占位页，不伪装成已完成的真实业务能力。</p>
         </article>
 
         <article class="panel">

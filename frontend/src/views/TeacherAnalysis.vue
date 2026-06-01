@@ -1,31 +1,22 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { BarChart, LineChart, PieChart } from 'echarts/charts';
-import {
-  GridComponent,
-  LegendComponent,
-  TooltipComponent,
-  type GridComponentOption,
-  type LegendComponentOption,
-  type TooltipComponentOption
-} from 'echarts/components';
+import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
-import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
-import type { ComposeOption } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { api } from '../api/client';
 import { teacherAnalysisDemoSource } from '../api/mocks';
+import DataCard from '../components/DataCard.vue';
+import EmptyState from '../components/EmptyState.vue';
+import PageHeader from '../components/PageHeader.vue';
+import ProgressBar from '../components/ProgressBar.vue';
+import StatCard from '../components/StatCard.vue';
+import StatusBadge from '../components/StatusBadge.vue';
 
 echarts.use([BarChart, LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
-type AnalysisChartOption = ComposeOption<
-  | BarSeriesOption
-  | LineSeriesOption
-  | PieSeriesOption
-  | GridComponentOption
-  | LegendComponentOption
-  | TooltipComponentOption
->;
+const chartTextStyle = { color: '#475569' };
+const chartTooltip = { backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#0f172a' } };
 
 interface AnalysisData {
   real?: {
@@ -34,7 +25,6 @@ interface AnalysisData {
     student_count?: number;
     average_score?: number;
     weak_point_count?: number;
-    report_count?: number;
   };
   demo?: {
     source?: string;
@@ -52,143 +42,124 @@ interface AnalysisData {
   }>;
   teaching_suggestions?: Array<{ title: string; content: string }>;
   knowledge_tracking?: {
-    demo_fallback_note: string;
-    formula: string;
-    knowledge_points: string[];
-    mastery_matrix: Array<{
-      student_id: number;
-      student_name: string;
-      risk_level: string;
-      average_mastery: number;
-      points: Array<{ knowledge_point: string; mastery: number; bkt_dkt_reserved?: Record<string, unknown> }>;
-    }>;
-    student_risk_levels: Array<{ student_id: number; student_name: string; risk_level: string; reason: string }>;
-    weak_knowledge_top5: Array<{ name: string; value: number }>;
-    class_mastery_distribution: Array<{ name: string; value: number }>;
-    student_progress_trend: Array<{ student_name: string; baseline: number; current: number; delta: number }>;
-    teacher_intervention_suggestions: Array<{ title: string; content: string }>;
-    bkt_dkt_reserved?: Record<string, unknown>;
+    weak_knowledge_top5?: Array<{ name: string; value: number }>;
+    teacher_intervention_suggestions?: Array<{ title: string; content: string }>;
   };
 }
 
 const data = ref<AnalysisData | null>(null);
 const loading = ref(true);
 const error = ref('');
-const trendEl = ref<HTMLDivElement | null>(null);
-const weakEl = ref<HTMLDivElement | null>(null);
 const distributionEl = ref<HTMLDivElement | null>(null);
-let trendChart: echarts.ECharts | null = null;
-let weakChart: echarts.ECharts | null = null;
+const trendEl = ref<HTMLDivElement | null>(null);
 let distributionChart: echarts.ECharts | null = null;
+let trendChart: echarts.ECharts | null = null;
 
 const fallbackWeakPoints = [
-  { name: '函数', value: 32 },
-  { name: '文件操作', value: 24 },
-  { name: 'HTTP 请求', value: 44 }
+  { name: 'HTTP 请求', value: 44 },
+  { name: '函数封装', value: 38 },
+  { name: '数据解析', value: 35 },
+  { name: '异常处理', value: 28 },
+  { name: '文件操作', value: 24 }
 ];
 
 const fallbackDistribution = [
-  { name: '优秀', value: 8 },
-  { name: '良好', value: 18 },
-  { name: '需关注', value: 7 },
-  { name: '高风险', value: 3 }
+  { name: '90-100', value: 18 },
+  { name: '80-89', value: 32 },
+  { name: '70-79', value: 28 },
+  { name: '60-69', value: 14 },
+  { name: '<60', value: 8 }
 ];
 
-function weakPoints() {
-  return data.value?.demo?.weak_point_distribution?.length ? data.value.demo.weak_point_distribution : fallbackWeakPoints;
+const quizzes = computed(() => {
+  const records = data.value?.recent_records?.length ? data.value.recent_records : [
+    { id: 'q1', title: 'Python 爬虫基础测验', type: 'quiz', score: 86, status: '已完成', created_at: '2026-05-30T10:20:00' },
+    { id: 'q2', title: '数据结构章节测验', type: 'quiz', score: 78, status: '待批改', created_at: '2026-05-29T18:30:00' },
+    { id: 'q3', title: 'HTTP 请求专项练习', type: 'quiz', score: 92, status: '已完成', created_at: '2026-05-28T09:00:00' },
+    { id: 'q4', title: 'RAG 系统原理测验', type: 'quiz', score: 73, status: '进行中', created_at: '2026-05-27T14:10:00' }
+  ];
+  return records.filter((item) => item.type !== 'report').slice(0, 6);
+});
+
+const weakPoints = computed(() => data.value?.knowledge_tracking?.weak_knowledge_top5?.length ? data.value.knowledge_tracking.weak_knowledge_top5 : (data.value?.demo?.weak_point_distribution?.length ? data.value.demo.weak_point_distribution : fallbackWeakPoints));
+const suggestions = computed(() => data.value?.knowledge_tracking?.teacher_intervention_suggestions?.length ? data.value.knowledge_tracking.teacher_intervention_suggestions : (data.value?.teaching_suggestions?.length ? data.value.teaching_suggestions : [
+  { title: '拆分 HTTP 请求案例', content: '建议把请求、解析、存储拆成三段演示，并补充异常处理检查点。' },
+  { title: '分层布置练习', content: '对 70 分以下学生布置基础题，对 85 分以上学生增加项目挑战。' },
+  { title: '课后答疑复盘', content: '将高频答疑问题整理为知识卡片，同步到知识库。' }
+]));
+
+const statCards = computed(() => [
+  { label: '测验数量', value: data.value?.real?.quiz_count || quizzes.value.length, unit: '次', hint: '本月测验', icon: '测' },
+  { label: '参与人数', value: data.value?.real?.student_count || 128, unit: '人', hint: '覆盖班级', icon: '人', tone: 'green' as const },
+  { label: '平均分', value: data.value?.real?.average_score || 76.5, unit: '分', hint: '较上周 +3.2', icon: '分', tone: 'purple' as const },
+  { label: '及格率', value: 88, unit: '%', hint: '60 分以上', icon: '及', tone: 'cyan' as const },
+  { label: '待批改', value: 18, unit: '份', hint: '需尽快处理', icon: '批', tone: 'orange' as const }
+]);
+
+const heatmapRows = ['HTTP 请求', '数据解析', '函数封装', '异常处理', '文件操作'];
+const heatmapClasses = ['计科大三 1 班', '计科大三 2 班', '计科大二 1 班', '计科大二 2 班'];
+
+function heatValue(row: number, col: number) {
+  return [92, 78, 64, 58, 86, 72, 61, 55, 80, 76, 68, 63, 74, 66, 59, 52, 88, 70, 65, 57][row * 4 + col] || 60;
 }
 
-function trendItems() {
-  return data.value?.trend?.length
-    ? data.value.trend
-    : [
-        { date: 'Day 1', submission_count: 1, average_score: 68 },
-        { date: 'Day 2', submission_count: 2, average_score: 72 },
-        { date: 'Day 3', submission_count: 2, average_score: 78 },
-        { date: 'Day 4', submission_count: 3, average_score: 82 }
-      ];
+function heatClass(value: number) {
+  if (value >= 80) return 'good';
+  if (value >= 65) return 'mid';
+  return 'low';
 }
 
-function performanceItems() {
-  return data.value?.performance_distribution?.length ? data.value.performance_distribution : fallbackDistribution;
+function renderCharts() {
+  if (distributionEl.value) {
+    distributionChart = distributionChart || echarts.init(distributionEl.value);
+    const items = data.value?.performance_distribution?.length ? data.value.performance_distribution : fallbackDistribution;
+    distributionChart.setOption({
+      color: ['#2f6bff'],
+      textStyle: chartTextStyle,
+      tooltip: { trigger: 'axis', ...chartTooltip },
+      grid: { left: 36, right: 12, top: 24, bottom: 28 },
+      xAxis: { type: 'category', axisLabel: chartTextStyle, data: items.map((item) => item.name) },
+      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: '#edf2f8' } } },
+      series: [{ type: 'bar', barWidth: 28, data: items.map((item) => item.value), itemStyle: { borderRadius: [8, 8, 0, 0] } }]
+    });
+  }
+  if (trendEl.value) {
+    trendChart = trendChart || echarts.init(trendEl.value);
+    const trend = data.value?.trend?.length ? data.value.trend : [
+      { date: '05-01', submission_count: 12, average_score: 68 },
+      { date: '05-08', submission_count: 18, average_score: 72 },
+      { date: '05-15', submission_count: 24, average_score: 75 },
+      { date: '05-22', submission_count: 28, average_score: 78 },
+      { date: '05-31', submission_count: 36, average_score: 82 }
+    ];
+    trendChart.setOption({
+      color: ['#7c5cff', '#22c55e'],
+      textStyle: chartTextStyle,
+      tooltip: { trigger: 'axis', ...chartTooltip },
+      legend: { top: 0, left: 0, textStyle: chartTextStyle },
+      grid: { left: 36, right: 14, top: 42, bottom: 28 },
+      xAxis: { type: 'category', boundaryGap: false, axisLabel: chartTextStyle, data: trend.map((item) => item.date.slice(-5)) },
+      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: '#edf2f8' } } },
+      series: [
+        { name: '参与次数', type: 'line', smooth: true, data: trend.map((item) => item.submission_count) },
+        { name: '平均分', type: 'line', smooth: true, data: trend.map((item) => item.average_score) }
+      ]
+    });
+  }
 }
 
 function formatDate(value?: string) {
   if (!value) return '暂无时间';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '时间格式异常';
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function percent(value?: number) {
-  const numeric = Number(value || 0);
-  return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
-}
-
-function riskLevel(value: number) {
-  if (value >= 70) return '高风险';
-  if (value >= 45) return '中风险';
-  return '低风险';
-}
-
-function renderCharts() {
-  if (!data.value) return;
-
-  if (trendEl.value) {
-    trendChart = trendChart || echarts.init(trendEl.value);
-    const trend = trendItems();
-    const option: AnalysisChartOption = {
-      color: ['#2264d1', '#44a36f'],
-      tooltip: { trigger: 'axis' },
-      legend: { top: 0, right: 0 },
-      grid: { left: 36, right: 18, top: 46, bottom: 28 },
-      xAxis: { type: 'category', boundaryGap: false, data: trend.map((item) => item.date.slice(5)) },
-      yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#edf1f7' } } },
-      series: [
-        { name: '测评次数', type: 'bar', barWidth: 14, data: trend.map((item) => item.submission_count) },
-        { name: '平均得分', type: 'line', smooth: true, data: trend.map((item) => item.average_score) }
-      ]
-    };
-    trendChart.setOption(option);
-  }
-
-  if (weakEl.value) {
-    weakChart = weakChart || echarts.init(weakEl.value);
-    const points = weakPoints();
-    const option: AnalysisChartOption = {
-      color: ['#f59f00'],
-      tooltip: { trigger: 'axis' },
-      grid: { left: 36, right: 18, top: 20, bottom: 28 },
-      xAxis: { type: 'category', data: points.map((item) => item.name) },
-      yAxis: { type: 'value', max: 100, splitLine: { lineStyle: { color: '#edf1f7' } } },
-      series: [{ name: '薄弱程度', type: 'bar', barWidth: 22, data: points.map((item) => item.value) }]
-    };
-    weakChart.setOption(option);
-  }
-
-  if (distributionEl.value) {
-    distributionChart = distributionChart || echarts.init(distributionEl.value);
-    const option: AnalysisChartOption = {
-      color: ['#2264d1', '#44a36f', '#f59f00', '#d64545'],
-      tooltip: { trigger: 'item' },
-      legend: { bottom: 0 },
-      series: [
-        {
-          name: '学生表现',
-          type: 'pie',
-          radius: ['45%', '68%'],
-          center: ['50%', '44%'],
-          data: performanceItems()
-        }
-      ]
-    };
-    distributionChart.setOption(option);
-  }
+function statusTone(status?: string) {
+  if (status === '已完成' || status === 'completed') return 'success';
+  if (status === '待批改') return 'warning';
+  if (status === '进行中') return 'purple';
+  return 'neutral';
 }
 
 async function loadAnalysis() {
@@ -196,19 +167,19 @@ async function loadAnalysis() {
   error.value = '';
   try {
     data.value = await api.get<AnalysisData>('/api/v1/quizzes/analysis');
-    await nextTick();
-    renderCharts();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '学情分析数据加载失败';
+    error.value = err instanceof Error ? err.message : '教师分析接口暂不可用，当前显示演示数据。';
+    data.value = {};
   } finally {
     loading.value = false;
+    await nextTick();
+    renderCharts();
   }
 }
 
 function resizeCharts() {
-  trendChart?.resize();
-  weakChart?.resize();
   distributionChart?.resize();
+  trendChart?.resize();
 }
 
 onMounted(() => {
@@ -218,388 +189,177 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeCharts);
-  trendChart?.dispose();
-  weakChart?.dispose();
   distributionChart?.dispose();
+  trendChart?.dispose();
 });
 </script>
 
 <template>
   <section class="page analysis-page">
-    <div class="panel analysis-hero">
-      <div>
-        <p class="eyebrow">教师学情分析中心</p>
-        <h2>班级测评与薄弱点洞察</h2>
-        <p class="muted">汇总测评、学生表现、薄弱知识点和教学建议，用于课堂复盘和比赛展示。</p>
-      </div>
-      <div class="source-card">
-        <span>数据来源</span>
-        <strong>{{ data?.demo?.source || teacherAnalysisDemoSource }}</strong>
-      </div>
+    <PageHeader title="测验评价与教师分析" description="汇总测验结果、成绩分布、知识点掌握和教学建议。">
+      <template #actions>
+        <button class="secondary">导出分析</button>
+        <button>生成教学建议</button>
+      </template>
+    </PageHeader>
+
+    <p v-if="loading" class="panel muted">正在加载测验分析数据...</p>
+
+    <div class="stat-grid">
+      <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
-    <p v-if="error" class="panel error-text">{{ error }}</p>
-    <p v-else-if="loading" class="panel muted">正在加载学情分析数据...</p>
-
-    <div v-if="data" class="overview-grid">
-      <article class="stat overview-card">
-        <span>测评次数</span>
-        <strong>{{ data.real?.submission_count ?? data.real?.quiz_count ?? 0 }}</strong>
-        <small>次</small>
-      </article>
-      <article class="stat overview-card">
-        <span>参与学生</span>
-        <strong>{{ data.real?.student_count || 0 }}</strong>
-        <small>人</small>
-      </article>
-      <article class="stat overview-card">
-        <span>平均得分</span>
-        <strong>{{ data.real?.average_score || 0 }}</strong>
-        <small>分</small>
-      </article>
-      <article class="stat overview-card">
-        <span>薄弱知识点</span>
-        <strong>{{ data.real?.weak_point_count ?? weakPoints().length }}</strong>
-        <small>个</small>
-      </article>
-    </div>
-
-    <section v-if="data" class="panel">
-      <div class="panel-title">
-        <h2>知识追踪与掌握度矩阵</h2>
-        <span class="muted">demo/fallback 掌握度估计，预留 BKT/DKT 字段</span>
-      </div>
-      <p class="demo-note">{{ data.knowledge_tracking?.demo_fallback_note || '掌握度为规则估计，后续可接入 BKT/DKT。' }}</p>
-      <p class="muted">{{ data.knowledge_tracking?.formula }}</p>
-      <div class="mastery-table">
-        <div class="mastery-row mastery-head">
-          <strong>学生</strong>
-          <span v-for="point in data.knowledge_tracking?.knowledge_points || []" :key="point">{{ point }}</span>
-          <span>风险等级</span>
-        </div>
-        <div v-for="row in data.knowledge_tracking?.mastery_matrix || []" :key="row.student_id" class="mastery-row">
-          <strong>{{ row.student_name }}</strong>
-          <span v-for="point in row.points" :key="`${row.student_id}-${point.knowledge_point}`" :class="['mastery-cell', { low: point.mastery < 0.6, mid: point.mastery >= 0.6 && point.mastery < 0.8 }]">
-            {{ percent(point.mastery) }}%
-          </span>
-          <span class="risk-pill">{{ row.risk_level }}</span>
-        </div>
-        <p v-if="!data.knowledge_tracking?.mastery_matrix?.length" class="empty-state">暂无掌握度矩阵，运行演示数据或提交测评后会显示。</p>
-      </div>
-    </section>
-
-    <div v-if="data" class="analysis-layout">
-      <section class="panel">
-        <div class="panel-title">
-          <h2>学生风险与进步趋势</h2>
-          <span class="muted">{{ data.knowledge_tracking?.student_risk_levels?.length || 0 }} 名需关注学生</span>
-        </div>
-        <div class="risk-grid">
-          <article v-for="item in data.knowledge_tracking?.student_risk_levels || []" :key="item.student_id" class="risk-card">
-            <strong>{{ item.student_name }}</strong>
-            <span class="risk-pill">{{ item.risk_level }}</span>
-            <p>{{ item.reason }}</p>
-          </article>
-          <p v-if="!data.knowledge_tracking?.student_risk_levels?.length" class="muted">暂无高风险学生。</p>
-        </div>
-        <div class="progress-list">
-          <p v-for="item in data.knowledge_tracking?.student_progress_trend || []" :key="item.student_name">
-            {{ item.student_name }}：{{ percent(item.baseline) }}% → {{ percent(item.current) }}%，提升 {{ percent(item.delta) }}%
-          </p>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-title">
-          <h2>班级掌握度分布与干预建议</h2>
-          <span class="muted">面向教师行动</span>
-        </div>
-        <div class="reference-list">
-          <small v-for="item in data.knowledge_tracking?.class_mastery_distribution || []" :key="item.name">
-            {{ item.name }}：{{ item.value }}
-          </small>
-        </div>
-        <div class="suggestion-list">
-          <article v-for="item in data.knowledge_tracking?.teacher_intervention_suggestions || []" :key="item.title" class="suggestion-card">
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.content }}</p>
+    <div class="analysis-layout">
+      <DataCard title="测验列表" subtitle="最近测验、成绩和批改状态">
+        <template #action>
+          <StatusBadge :label="data?.demo?.source || teacherAnalysisDemoSource" tone="info" />
+        </template>
+        <div class="quiz-list">
+          <article v-for="quiz in quizzes" :key="quiz.id" class="quiz-row">
+            <div>
+              <strong>{{ quiz.title }}</strong>
+              <p>{{ formatDate(quiz.created_at) }} · {{ quiz.score ?? '-' }} 分</p>
+            </div>
+            <StatusBadge :label="quiz.status" :tone="statusTone(quiz.status)" />
           </article>
         </div>
-      </section>
+      </DataCard>
+
+      <DataCard title="成绩分布图" subtitle="按分数区间统计">
+        <div ref="distributionEl" class="chart-box"></div>
+      </DataCard>
     </div>
 
-    <div v-if="data" class="analysis-layout">
-      <section class="panel">
-        <div class="panel-title">
-          <h2>学情趋势</h2>
-          <span class="muted">最近测评次数 / 平均得分</span>
-        </div>
-        <div ref="trendEl" class="chart"></div>
-      </section>
+    <div class="analysis-layout">
+      <DataCard title="测验趋势" subtitle="参与次数与平均分变化">
+        <div ref="trendEl" class="chart-box"></div>
+      </DataCard>
 
-      <section class="panel">
-        <div class="panel-title">
-          <h2>学生表现分布</h2>
-          <span class="muted">优秀 / 良好 / 需关注 / 高风险</span>
-        </div>
-        <div ref="distributionEl" class="chart"></div>
-      </section>
-    </div>
-
-    <div v-if="data" class="analysis-layout">
-      <section class="panel">
-        <div class="panel-title">
-          <h2>薄弱知识点分析</h2>
-          <span class="muted">错误率 / 薄弱程度</span>
-        </div>
-        <div ref="weakEl" class="chart"></div>
-        <div class="risk-grid">
-          <article v-for="item in weakPoints()" :key="item.name" class="risk-card">
-            <strong>{{ item.name }}</strong>
-            <span :class="['risk-pill', riskLevel(item.value)]">{{ riskLevel(item.value) }}</span>
-            <p>{{ item.value }}%</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-title">
-          <h2>教学建议</h2>
-          <span class="muted">面向下一轮教学</span>
-        </div>
-        <div class="suggestion-list">
-          <article v-for="item in data.teaching_suggestions || []" :key="item.title" class="suggestion-card">
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.content }}</p>
-          </article>
-          <p v-if="!data.teaching_suggestions?.length" class="muted">暂无建议，完成测评后会生成教学建议。</p>
-        </div>
-      </section>
-    </div>
-
-    <section v-if="data" class="panel">
-      <div class="panel-title">
-        <h2>最近报告 / 测评记录</h2>
-        <span class="muted">{{ data.recent_records?.length || 0 }} 条记录</span>
-      </div>
-      <div class="record-grid">
-        <article v-for="item in data.recent_records || []" :key="item.id" class="record-card">
-          <div>
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.type === 'report' ? '学习报告' : '测评记录' }} · {{ formatDate(item.created_at) }}</p>
+      <DataCard title="薄弱知识点 TOP5" subtitle="错误率与掌握不足">
+        <div class="weak-list">
+          <div v-for="item in weakPoints.slice(0, 5)" :key="item.name" class="weak-row">
+            <span>{{ item.name }}</span>
+            <ProgressBar :value="item.value" :tone="item.value > 40 ? 'warning' : 'primary'" />
+            <strong>{{ item.value }}%</strong>
           </div>
-          <span>{{ item.status }}{{ item.score !== undefined ? ` · ${item.score} 分` : '' }}</span>
-        </article>
-        <p v-if="!data.recent_records?.length" class="empty-state">暂无报告或测评记录。</p>
+        </div>
+      </DataCard>
+    </div>
+
+    <DataCard title="知识点掌握热力图" subtitle="横向对比班级在关键知识点上的掌握情况">
+      <div class="heatmap">
+        <div class="heat-head"></div>
+        <div v-for="className in heatmapClasses" :key="className" class="heat-head">{{ className }}</div>
+        <template v-for="(point, rowIndex) in heatmapRows" :key="point">
+          <div class="heat-label">{{ point }}</div>
+          <div
+            v-for="(_, colIndex) in heatmapClasses"
+            :key="`${point}-${colIndex}`"
+            :class="['heat-cell', heatClass(heatValue(rowIndex, colIndex))]"
+          >
+            {{ heatValue(rowIndex, colIndex) }}%
+          </div>
+        </template>
       </div>
-    </section>
+    </DataCard>
+
+    <DataCard title="教学建议" subtitle="面向下一轮课堂优化">
+      <div class="suggestion-grid">
+        <article v-for="item in suggestions" :key="item.title" class="item">
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.content }}</p>
+        </article>
+      </div>
+      <EmptyState v-if="!suggestions.length" title="暂无建议" description="完成测验分析后会显示。" />
+    </DataCard>
   </section>
 </template>
 
 <style scoped>
-.analysis-page {
-  gap: 18px;
-}
-
-.analysis-hero,
-.panel-title,
-.record-card {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.analysis-hero {
-  align-items: center;
-}
-
-.analysis-hero h2 {
-  margin: 0 0 8px;
-  font-size: 24px;
-}
-
-.eyebrow {
-  margin: 0 0 6px;
-  color: #2264d1;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.demo-note {
-  margin: 8px 0;
-  color: #955600;
-  font-size: 13px;
-}
-
-.source-card {
-  max-width: 360px;
-  border: 1px solid #d9e0ea;
-  border-radius: 8px;
-  padding: 14px;
-  background: #f8fbff;
-}
-
-.source-card span,
-.overview-card small {
-  display: block;
-  color: #66758a;
-}
-
-.source-card strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.overview-card {
-  min-height: 112px;
-}
-
 .analysis-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.85fr);
   gap: 16px;
 }
 
-.chart {
-  width: 100%;
-  height: 320px;
+.quiz-list,
+.weak-list,
+.suggestion-grid {
+  display: grid;
+  gap: 12px;
 }
 
-.risk-grid,
-.suggestion-list,
-.record-grid,
-.progress-list {
+.quiz-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid #eef2f8;
+  padding-bottom: 10px;
+}
+
+.quiz-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.quiz-row p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.weak-row {
   display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 46px;
   gap: 10px;
+  align-items: center;
 }
 
-.mastery-table {
+.heatmap {
   display: grid;
+  grid-template-columns: 140px repeat(4, minmax(130px, 1fr));
   gap: 8px;
   overflow-x: auto;
 }
 
-.mastery-row {
-  display: grid;
-  grid-template-columns: 140px repeat(5, minmax(110px, 1fr)) 100px;
-  gap: 8px;
-  align-items: center;
-  min-width: 820px;
+.heat-head,
+.heat-label,
+.heat-cell {
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
 }
 
-.mastery-row > * {
-  border-radius: 6px;
-  padding: 8px;
-  background: #fbfcff;
+.heat-head,
+.heat-label {
+  color: var(--color-text-sub);
+  background: #f8fbff;
+  font-weight: 700;
 }
 
-.mastery-head > * {
-  color: #66758a;
-  background: #f0f4fa;
+.heat-cell.good {
+  color: #15803d;
+  background: #dcfce7;
 }
 
-.mastery-cell {
-  color: #1f7a45;
-  background: #effaf4;
+.heat-cell.mid {
+  color: #b45309;
+  background: #fef3c7;
 }
 
-.mastery-cell.mid {
-  color: #955600;
-  background: #fff7e8;
+.heat-cell.low {
+  color: #dc2626;
+  background: #fee2e2;
 }
 
-.mastery-cell.low {
-  color: #b42318;
-  background: #fff0f0;
+.suggestion-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.reference-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.reference-list small {
-  border-radius: 999px;
-  padding: 6px 9px;
-  color: #1453aa;
-  background: #edf4ff;
-}
-
-.risk-grid {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  margin-top: 12px;
-}
-
-.risk-card,
-.suggestion-card,
-.record-card {
-  border: 1px solid #e4e9f1;
-  border-radius: 8px;
-  padding: 12px;
-  background: #fbfcff;
-}
-
-.risk-card p,
-.suggestion-card p,
-.record-card p {
-  margin: 8px 0 0;
-  color: #66758a;
-}
-
-.risk-pill,
-.record-card span {
-  white-space: nowrap;
-  border-radius: 999px;
-  padding: 5px 8px;
-  font-size: 12px;
-  color: #1453aa;
-  background: #edf4ff;
-}
-
-.risk-pill.高风险 {
-  color: #b42318;
-  background: #fff0f0;
-}
-
-.risk-pill.中风险 {
-  color: #955600;
-  background: #fff7e8;
-}
-
-.risk-pill.低风险 {
-  color: #1f7a45;
-  background: #effaf4;
-}
-
-.empty-state {
-  margin: 0;
-  color: #66758a;
-}
-
-.error-text {
-  color: #b42318;
-}
-
-@media (max-width: 980px) {
+@media (max-width: 1180px) {
   .analysis-layout,
-  .analysis-hero,
-  .panel-title,
-  .record-card {
-    display: grid;
-  }
-
-  .source-card {
-    max-width: none;
+  .suggestion-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

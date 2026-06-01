@@ -7,23 +7,48 @@ const placeholder = (title: string, description: string, nextSteps?: string[]) =
 });
 
 const routes = [
-  { path: '/', redirect: '/student' },
+  { path: '/', redirect: '/login' },
+  { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { title: '登录' } },
   { path: '/student', name: 'StudentHome', component: () => import('../views/StudentHome.vue'), meta: { title: '学习总览' } },
+  { path: '/student/courses', name: 'StudentCourses', component: () => import('../views/StudentCourses.vue'), meta: { title: '我的课程' } },
+  { path: '/student/learning-path', name: 'StudentLearningPath', component: () => import('../views/StudentLearningPath.vue'), meta: { title: '学习路径' } },
+  { path: '/student/tasks', name: 'StudentTasks', component: () => import('../views/StudentTasks.vue'), meta: { title: '今日任务 / 日历' } },
+  { path: '/student/assistant', name: 'StudentAssistant', component: () => import('../views/StudentAssistant.vue'), meta: { title: '智能答疑' } },
+  { path: '/student/knowledge', name: 'StudentKnowledge', component: () => import('../views/StudentKnowledge.vue'), meta: { title: '知识库 / 课程资料' } },
+  { path: '/student/exams', name: 'StudentExamResult', component: () => import('../views/StudentExamResult.vue'), meta: { title: '测验成绩' } },
+  { path: '/student/reports', name: 'StudentReport', component: () => import('../views/StudentReport.vue'), meta: { title: '学习报告' } },
+  { path: '/student/achievements', name: 'StudentAchievements', component: () => import('../views/StudentAchievements.vue'), meta: { title: '成就徽章' } },
+  { path: '/student/points', name: 'StudentPoints', component: () => import('../views/StudentPoints.vue'), meta: { title: '积分等级' } },
+  { path: '/student/notes', name: 'StudentNotes', component: () => import('../views/StudentNotes.vue'), meta: { title: '笔记本' } },
+  { path: '/student/group', name: 'StudentGroup', component: () => import('../views/StudentGroup.vue'), meta: { title: '学习小组' } },
+
   { path: '/teacher', name: 'TeacherHome', component: () => import('../views/TeacherHome.vue'), meta: { title: '班级概览' } },
   { path: '/admin', redirect: '/dashboard' },
   { path: '/dashboard', name: 'Dashboard', component: () => import('../views/Dashboard.vue'), meta: { title: '平台总览' } },
+  { path: '/admin/courses', name: 'AdminCourses', component: () => import('../views/AdminCourses.vue'), meta: { title: '课程治理' } },
+  { path: '/admin/reports', name: 'AdminReports', component: () => import('../views/AdminReports.vue'), meta: { title: '报告审核中心' } },
+  { path: '/admin/knowledge', name: 'AdminKnowledge', component: () => import('../views/AdminKnowledge.vue'), meta: { title: '知识库运营 / 文档解析' } },
+  { path: '/admin/users', name: 'UserRoleManage', component: () => import('../views/UserRoleManage.vue'), meta: { title: '用户与角色' } },
+  { path: '/users', redirect: '/admin/users' },
+  { path: '/users-roles', redirect: '/admin/users' },
+  { path: '/admin/resources', redirect: '/resource-generation' },
+
   { path: '/courses', name: 'CourseManage', component: () => import('../views/CourseManage.vue'), meta: { title: '课程管理' } },
   { path: '/knowledge-base', name: 'KnowledgeBase', component: () => import('../views/KnowledgeBase.vue'), meta: { title: '知识库 / 课程资料' } },
   { path: '/profiles', name: 'StudentProfile', component: () => import('../views/StudentProfile.vue'), meta: { title: '学生画像' } },
   { path: '/learning-paths', redirect: '/learning-path' },
-  { path: '/learning-path', name: 'LearningPath', component: () => import('../views/LearningPath.vue'), meta: { title: '学习路径与任务' } },
+  { path: '/student/learning-paths', redirect: '/student/learning-path' },
+  { path: '/learning-path', name: 'LearningPath', component: () => import('../views/LearningPath.vue'), meta: { title: '学习路径与任务布置' } },
   { path: '/resources', redirect: '/resource-generation' },
-  { path: '/resource-generation', name: 'ResourceGenerate', component: () => import('../views/ResourceGenerate.vue'), meta: { title: '资源生成' } },
+  { path: '/resource-generation', name: 'ResourceGenerate', component: () => import('../views/ResourceGenerate.vue'), meta: { title: 'AI 资源生成' } },
   { path: '/agent-workflow', name: 'AgentWorkflow', component: () => import('../views/AgentWorkflow.vue'), meta: { title: 'Agent 工作流' } },
   { path: '/tutor-chat', name: 'TutorChat', component: () => import('../views/TutorChat.vue'), meta: { title: '智能答疑' } },
+  { path: '/student/tutor-chat', redirect: '/student/assistant' },
   { path: '/quiz-evaluate', redirect: '/evaluation' },
+  { path: '/student/evaluation', redirect: '/student/exams' },
+  { path: '/student/quiz-evaluate', redirect: '/student/exams' },
   { path: '/evaluation', name: 'QuizEvaluate', component: () => import('../views/QuizEvaluate.vue'), meta: { title: '测验评价' } },
-  { path: '/teacher-analysis', name: 'TeacherAnalysis', component: () => import('../views/TeacherAnalysis.vue'), meta: { title: '教师分析' } },
+  { path: '/teacher-analysis', name: 'TeacherAnalysis', component: () => import('../views/TeacherAnalysis.vue'), meta: { title: '测评分析' } },
   { path: '/reports', name: 'ReportCenter', component: () => import('../views/ReportCenter.vue'), meta: { title: '报告中心' } },
   { path: '/logs', name: 'LogManagement', component: () => import('../views/LogManagement.vue'), meta: { title: '日志管理' } },
   { path: '/log-management', redirect: '/logs' },
@@ -39,13 +64,13 @@ const routes = [
     path: '/demo-status',
     name: 'DemoStatus',
     component: () => import('../views/DemoStatus.vue'),
-    meta: { title: '比赛演示模式' }
+    meta: { title: '比赛演示状态' }
   },
   {
     path: '/notebook',
     name: 'NotebookPlaceholder',
     component: () => import('../views/PlaceholderPage.vue'),
-    meta: placeholder('笔记本', '用于整理学习笔记、资料摘录、引用片段和个人复盘记录。', ['接入笔记列表与编辑器', '关联 TutorChat 引用片段', '支持按课程和知识点检索'])
+    meta: placeholder('笔记本', '用于整理学习笔记、资料摘录、引用片段和个人复盘记录。', ['接入笔记列表与编辑器', '关联智能答疑引用片段', '支持按课程和知识点检索'])
   },
   {
     path: '/study-groups',
@@ -76,12 +101,6 @@ const routes = [
     name: 'TeachingCalendarPlaceholder',
     component: () => import('../views/PlaceholderPage.vue'),
     meta: placeholder('教学日历 / 待办', '用于教师安排教学节奏、待批改任务和班级干预事项。', ['接入日历视图', '同步测验和报告任务', '生成本周教学待办'])
-  },
-  {
-    path: '/users-roles',
-    name: 'UsersRolesPlaceholder',
-    component: () => import('../views/PlaceholderPage.vue'),
-    meta: placeholder('用户与角色', '用于平台管理员管理学生、教师、管理员和组织关系。', ['接入用户列表', '设计角色权限模型', '对接真实登录鉴权'])
   },
   {
     path: '/permissions',

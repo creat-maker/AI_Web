@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 import type { RuntimeInfo } from '../types';
-import { findMenuItem, roleDescriptions } from '../config/roles';
-import { useRole } from '../composables/useRole';
-import StatusBadge from './StatusBadge.vue';
+import { findMenuItem, roleDescriptions, roleFromPath, roleLabels } from '../config/roles';
 
 defineProps<{
   runtime: RuntimeInfo | null;
@@ -12,25 +10,38 @@ defineProps<{
 }>();
 
 const route = useRoute();
-const { currentRole, currentRoleLabel } = useRole();
+const currentRole = computed(() => roleFromPath(route.path) || 'student');
+const currentRoleLabel = computed(() => roleLabels[currentRole.value]);
 
 const currentMenu = computed(() => findMenuItem(currentRole.value, route.path));
 const title = computed(() => currentMenu.value?.label || String(route.meta.title || 'EduMind 三端工作台'));
 const subtitle = computed(() => currentMenu.value?.description || roleDescriptions[currentRole.value]);
+const userName = computed(() => {
+  if (currentRole.value === 'teacher') return '王老师';
+  if (currentRole.value === 'admin') return '管理员';
+  return '张三';
+});
 </script>
 
 <template>
   <header class="app-header">
     <div class="header-copy">
-      <p class="eyebrow">当前身份：{{ currentRoleLabel }}</p>
       <h1>{{ title }}</h1>
       <p>{{ subtitle }}</p>
     </div>
+    <label class="header-search" aria-label="全局搜索">
+      <input placeholder="搜索学生、课程、资源、报告..." />
+    </label>
     <div class="header-actions">
-      <StatusBadge :label="runtime?.mock_mode ? '当前模式：演示模式' : '当前模式：真实 AI 配置'" :tone="runtime?.mock_mode ? 'warning' : 'success'" />
-      <StatusBadge label="数据来源：SQLite fallback / demo 数据" tone="info" />
-      <RouterLink class="text-link" to="/capability-boundary">能力边界说明</RouterLink>
-      <span v-if="runtimeLoading" class="muted">运行信息加载中...</span>
+      <button class="icon-button" type="button" title="通知">铃</button>
+      <button class="icon-button" type="button" title="帮助">?</button>
+      <div class="user-chip">
+        <span class="avatar">{{ userName.slice(0, 1) }}</span>
+        <div>
+          <strong>{{ userName }}</strong>
+          <span>{{ currentRoleLabel }} · {{ runtimeLoading ? '加载中' : runtime?.mock_mode ? '演示模式' : '在线' }}</span>
+        </div>
+      </div>
     </div>
   </header>
 </template>
