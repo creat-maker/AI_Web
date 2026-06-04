@@ -1,0 +1,68 @@
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter
+from pydantic import BaseModel, Field
+
+from app.services.competition_mock_service import (
+    QUIZ,
+    generate_teacher_workbench,
+    get_content_review_items,
+    get_knowledge_graph,
+    get_learning_tasks,
+    get_platform_quality,
+    submit_quiz_answers,
+)
+
+
+router = APIRouter(tags=["competition-closed-loop"])
+
+
+class QuizSubmitPayload(BaseModel):
+    quiz_id: str = "python-chapter-1"
+    student_id: str = "demo-student-zhangsan"
+    answers: dict[str, str] = Field(default_factory=dict)
+
+
+class TeacherWorkbenchPayload(BaseModel):
+    type: str = "lesson_plan"
+    course: str = "Python 程序设计"
+    chapter: str = "循环结构与函数"
+    student_foundation: str = "基础差异较大"
+    teaching_goal: str = "掌握核心语法并能完成小任务"
+
+
+@router.get("/knowledge-graph")
+def knowledge_graph():
+    return get_knowledge_graph()
+
+
+@router.get("/student/learning-tasks")
+def student_learning_tasks(profile_type: str | None = None):
+    return get_learning_tasks(profile_type)
+
+
+@router.get("/quiz/chapter")
+def quiz_chapter():
+    return QUIZ
+
+
+@router.post("/quiz/submit")
+def quiz_submit(payload: QuizSubmitPayload):
+    return submit_quiz_answers(payload.answers)
+
+
+@router.post("/teacher/ai-workbench/generate")
+def teacher_ai_workbench_generate(payload: TeacherWorkbenchPayload):
+    return generate_teacher_workbench(payload.model_dump())
+
+
+@router.get("/admin/content-review")
+def admin_content_review():
+    return get_content_review_items()
+
+
+@router.get("/admin/platform-quality")
+def admin_platform_quality() -> dict[str, Any]:
+    return get_platform_quality()

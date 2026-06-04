@@ -233,6 +233,34 @@ onBeforeUnmount(() => {
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
+    <DataCard title="AI 平台治理总览" subtitle="新增 AI 问答次数、资源生成次数、测验完成次数和内容审核通过率，支撑平台可治理演示。">
+      <div class="ai-governance-grid">
+        <article>
+          <span>AI 问答次数</span>
+          <strong>18,620</strong>
+          <small>答疑记录进入日志审计</small>
+        </article>
+        <article>
+          <span>资源生成次数</span>
+          <strong>1,324</strong>
+          <small>生成资源进入审核中心</small>
+        </article>
+        <article>
+          <span>测验完成次数</span>
+          <strong>4,286</strong>
+          <small>结果用于诊断和推荐</small>
+        </article>
+        <article>
+          <span>内容审核通过率</span>
+          <strong>91.2%</strong>
+          <small>关键内容审核后发布</small>
+        </article>
+      </div>
+      <div class="ai-boundary-note">
+        AI 生成内容仅作为教学辅助，关键教学资源、测评结论和学生干预建议必须经教师或管理员审核后使用。
+      </div>
+    </DataCard>
+
     <div class="admin-layout">
       <DataCard title="课程管理" subtitle="平台课程数据、进度与审核状态">
         <template #action>
@@ -417,9 +445,46 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.ai-governance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-governance-grid article {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+}
+
+.ai-governance-grid span,
+.ai-governance-grid small {
+  display: block;
+  color: var(--color-text-sub);
+  font-size: 13px;
+}
+
+.ai-governance-grid strong {
+  display: block;
+  margin: 8px 0;
+  font-size: 26px;
+}
+
+.ai-boundary-note {
+  margin-top: 14px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 12px;
+  color: var(--status-warning-text);
+  background: #fff7ed;
+  font-weight: 700;
+}
+
 @media (max-width: 1280px) {
   .admin-layout,
-  .admin-bottom-grid {
+  .admin-bottom-grid,
+  .ai-governance-grid {
     grid-template-columns: 1fr;
   }
 }

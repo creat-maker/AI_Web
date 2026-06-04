@@ -5,3 +5,10 @@
   font-weight: 800;
   line-height: 1.45;
 }
+
+.point-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-bottom: 16rpx;
+}

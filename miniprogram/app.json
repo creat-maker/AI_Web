@@ -20,26 +20,11 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
-      {
-        "pagePath": "pages/home/index",
-        "text": "首页"
-      },
-      {
-        "pagePath": "pages/path/index",
-        "text": "路径"
-      },
-      {
-        "pagePath": "pages/resources/index",
-        "text": "资源"
-      },
-      {
-        "pagePath": "pages/tutor/index",
-        "text": "辅导"
-      },
-      {
-        "pagePath": "pages/report/index",
-        "text": "报告"
-      }
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/path/index", "text": "路径" },
+      { "pagePath": "pages/resources/index", "text": "资源" },
+      { "pagePath": "pages/tutor/index", "text": "辅导" },
+      { "pagePath": "pages/report/index", "text": "报告" }
     ]
   },
   "style": "v2",

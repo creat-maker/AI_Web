@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero">
     <text class="hero-title">学习报告</text>
-    <text class="hero-subtitle">{{student.name}} 的阶段学习画像与下一步建议。</text>
+    <text class="hero-subtitle">{{student.name}} 的知识点掌握情况、错因诊断和下一步建议。</text>
   </view>
 
   <view class="section grid">
@@ -21,7 +21,21 @@
   </view>
 
   <view class="section">
-    <view class="section-title">改进建议</view>
+    <view class="section-title">知识点掌握情况</view>
+    <view class="card" wx:for="{{mastery}}" wx:key="name">
+      <view class="split">
+        <text class="strong">{{item.name}}</text>
+        <text class="tag {{item.status === '已掌握' ? 'success' : item.status === '薄弱' ? 'warning' : 'purple'}}">{{item.status}}</text>
+      </view>
+      <view class="progress">
+        <view class="progress-bar" style="width: {{item.value}}%;"></view>
+      </view>
+      <text class="muted">掌握率 {{item.value}}%</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">学习建议</view>
     <view class="card" wx:for="{{report.suggestions}}" wx:key="*this">
       <view class="list-item">
         <text class="icon-box">{{index + 1}}</text>
@@ -31,11 +45,11 @@
   </view>
 
   <view class="section">
-    <view class="section-title">薄弱点</view>
+    <view class="section-title">薄弱点提醒</view>
     <view class="card" wx:for="{{weakPoints}}" wx:key="*this">
       <text class="muted">{{item}}</text>
     </view>
   </view>
 
-  <view class="button-primary" bindtap="goQuiz">查看练习错题</view>
+  <view class="button-primary" bindtap="goQuiz">查看练习错因</view>
 </view>

@@ -1,7 +1,8 @@
-const { wrongQuestions } = require('../../utils/demoData');
+const { wrongQuestions, quizAnalysis } = require('../../utils/demoData');
 
 Page({
   data: {
-    wrongQuestions
+    wrongQuestions,
+    quizAnalysis
   }
 });

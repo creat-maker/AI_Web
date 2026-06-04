@@ -301,6 +301,47 @@ onBeforeUnmount(() => {
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
+    <DataCard title="学生画像闭环摘要" subtitle="面向教师干预展示基础水平、学习目标、学习偏好、课程进度、薄弱知识点、错题分布和风险等级。">
+      <div class="profile-loop-grid">
+        <section class="profile-loop-main">
+          <article>
+            <span>基础水平</span>
+            <strong>中等偏弱</strong>
+          </article>
+          <article>
+            <span>学习目标</span>
+            <strong>两周内补齐循环、函数和文件操作</strong>
+          </article>
+          <article>
+            <span>学习偏好</span>
+            <strong>案例驱动、短视频讲解、可运行 Notebook</strong>
+          </article>
+          <article>
+            <span>风险等级</span>
+            <StatusBadge label="需关注" tone="warning" />
+          </article>
+        </section>
+        <section class="profile-loop-side">
+          <div>
+            <span>课程进度 68%</span>
+            <ProgressBar :value="68" tone="primary" />
+          </div>
+          <div class="chip-row">
+            <span>文件操作</span>
+            <span>循环结构</span>
+            <span>异常处理</span>
+          </div>
+          <div class="wrong-grid">
+            <article><strong>38%</strong><span>概念混淆</span></article>
+            <article><strong>31%</strong><span>边界遗漏</span></article>
+            <article><strong>18%</strong><span>代码规范</span></article>
+            <article><strong>13%</strong><span>审题偏差</span></article>
+          </div>
+          <div class="intervention-note">教师干预建议：推送文件读写资源包，布置循环边界补救任务，并用“先画变量变化表再写代码”的提醒话术进行一对一跟进。</div>
+        </section>
+      </div>
+    </DataCard>
+
     <div class="profile-layout">
       <DataCard title="学生列表" subtitle="按姓名、班级、学号搜索">
         <input v-model="keyword" placeholder="搜索学生..." />
@@ -509,8 +550,73 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.profile-loop-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 14px;
+}
+
+.profile-loop-main,
+.profile-loop-side {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-loop-main article,
+.wrong-grid article,
+.intervention-note {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.profile-loop-main span,
+.profile-loop-side span,
+.wrong-grid span {
+  color: var(--color-text-sub);
+  font-size: 13px;
+}
+
+.profile-loop-main strong,
+.wrong-grid strong {
+  display: block;
+  margin-top: 6px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-row span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
+  font-weight: 700;
+}
+
+.wrong-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wrong-grid strong {
+  color: var(--color-primary-dark);
+  font-size: 22px;
+}
+
+.intervention-note {
+  border-color: #bfdbfe;
+  background: var(--color-primary-light);
+}
+
 @media (max-width: 1180px) {
-  .profile-layout {
+  .profile-layout,
+  .profile-loop-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -519,8 +625,10 @@ onBeforeUnmount(() => {
   .student-detail-head,
   .suggestion-grid,
   .ability-row,
-  .weak-item {
+  .weak-item,
+  .wrong-grid {
     display: grid;
+    grid-template-columns: 1fr;
   }
 
   .score-card {

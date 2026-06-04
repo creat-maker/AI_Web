@@ -220,6 +220,56 @@ onBeforeUnmount(() => {
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
+    <DataCard title="班级学情闭环看板" subtitle="新增班级完成率、平均正确率、学习活跃度、薄弱知识点排行和风险学生干预建议。">
+      <div class="insight-grid">
+        <article class="insight-card">
+          <span>班级完成率</span>
+          <strong>78%</strong>
+          <ProgressBar :value="78" tone="success" />
+        </article>
+        <article class="insight-card">
+          <span>平均正确率</span>
+          <strong>82%</strong>
+          <ProgressBar :value="82" tone="primary" />
+        </article>
+        <article class="insight-card">
+          <span>学习活跃度</span>
+          <strong>91%</strong>
+          <ProgressBar :value="91" tone="success" />
+        </article>
+      </div>
+      <div class="intervention-grid">
+        <section>
+          <h3>薄弱知识点排行</h3>
+          <article v-for="item in [
+            { name: '文件操作', value: 42 },
+            { name: '循环结构', value: 37 },
+            { name: '函数返回值', value: 31 },
+            { name: '异常处理', value: 28 }
+          ]" :key="item.name" class="rank-row">
+            <span>{{ item.name }}</span>
+            <ProgressBar :value="item.value" tone="warning" />
+            <strong>{{ item.value }}</strong>
+          </article>
+        </section>
+        <section>
+          <h3>风险学生与干预建议</h3>
+          <article v-for="student in [
+            { name: '王五', risk: '高风险', weak: '文件操作 / 异常处理', suggestion: '推送文件读写分步讲义，布置 15 分钟补救任务，提醒话术：先完成最小可运行代码，再补异常。' },
+            { name: '赵六', risk: '需关注', weak: '循环结构', suggestion: '安排循环边界二刷，课堂中点名讲解一次变量变化表。' },
+            { name: '孙七', risk: '需关注', weak: '函数', suggestion: '推荐函数封装案例包，要求提交参数和返回值说明。' }
+          ]" :key="student.name" class="risk-row">
+            <div>
+              <strong>{{ student.name }}</strong>
+              <p>{{ student.weak }}</p>
+              <p>{{ student.suggestion }}</p>
+            </div>
+            <StatusBadge :label="student.risk" :tone="student.risk === '高风险' ? 'danger' : 'warning'" />
+          </article>
+        </section>
+      </div>
+    </DataCard>
+
     <div class="teacher-main-grid">
       <DataCard title="课程管理" subtitle="课程、班级、学生数与学习进度">
         <template #action>
@@ -456,17 +506,82 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.insight-card,
+.intervention-grid section,
+.risk-row {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.insight-card {
+  display: grid;
+  gap: 8px;
+}
+
+.insight-card span,
+.rank-row span,
+.risk-row p {
+  color: var(--color-text-sub);
+  font-size: 13px;
+}
+
+.insight-card strong {
+  font-size: 24px;
+}
+
+.intervention-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 14px;
+}
+
+.intervention-grid h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.rank-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 44px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.risk-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.risk-row p {
+  margin: 5px 0 0;
+}
+
 @media (max-width: 1280px) {
   .teacher-main-grid,
-  .three-panel-grid {
+  .three-panel-grid,
+  .intervention-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 720px) {
   .profile-analysis-grid,
-  .student-head {
+  .student-head,
+  .insight-grid {
     display: grid;
+    grid-template-columns: 1fr;
   }
 
   .student-score {

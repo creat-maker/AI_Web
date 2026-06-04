@@ -1,20 +1,25 @@
 <view class="page">
   <view class="hero">
-    <text class="hero-title">个性化学习路径</text>
+    <text class="hero-title">任务式学习路径</text>
     <text class="hero-subtitle">{{student.goal}}</text>
   </view>
 
   <view class="section">
-    <view class="section-title">阶段进度</view>
+    <view class="section-title">画像驱动路径</view>
     <view class="path-card card" wx:for="{{learningPath}}" wx:key="title">
       <view class="list-item">
         <text class="path-index">{{index + 1}}</text>
         <view class="path-content">
           <view class="split">
             <text class="strong">{{item.title}}</text>
-            <text class="tag {{item.status === '已完成' ? 'success' : item.status === '进行中' ? 'purple' : ''}}">{{item.status}}</text>
+            <text class="tag {{item.status === '进行中' ? 'purple' : item.status === '推荐' ? 'success' : 'warning'}}">{{item.status}}</text>
           </view>
-          <text class="muted">{{item.desc}}</text>
+          <text class="muted">{{item.profileType}} · {{item.goal}}</text>
+          <text class="muted">知识点：{{item.knowledge}}</text>
+          <text class="muted">推荐资源：{{item.resource}}</text>
+          <text class="muted">练习任务：{{item.practice}}</text>
+          <text class="muted">完成条件：{{item.completion}}</text>
+          <view class="advice">AI 建议：{{item.aiAdvice}}</view>
           <view class="progress">
             <view class="progress-bar" style="width: {{item.percent}}%;"></view>
           </view>

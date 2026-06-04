@@ -1,7 +1,26 @@
 <view class="page">
   <view class="hero">
-    <text class="hero-title">练习错题</text>
-    <text class="hero-subtitle">聚合本周薄弱题型，帮助张三完成针对性复盘。</text>
+    <text class="hero-title">练习与错因分析</text>
+    <text class="hero-subtitle">展示测验得分、薄弱知识点、错因标签和下一步推荐。</text>
+  </view>
+
+  <view class="section grid">
+    <view class="stat">
+      <text class="muted">本次得分</text>
+      <text class="stat-value">{{quizAnalysis.score}}</text>
+    </view>
+    <view class="stat">
+      <text class="muted">薄弱知识点</text>
+      <text class="stat-value">{{quizAnalysis.weakPoints.length}}</text>
+    </view>
+  </view>
+
+  <view class="section card">
+    <view class="section-title">错因分析</view>
+    <view class="point-row">
+      <text class="tag warning" wx:for="{{quizAnalysis.causes}}" wx:key="*this">{{item}}</text>
+    </view>
+    <text class="muted">{{quizAnalysis.nextStep}}</text>
   </view>
 
   <view class="section">
@@ -12,6 +31,7 @@
         <text class="tag {{item.status === '已订正' ? 'success' : 'warning'}}">{{item.status}}</text>
       </view>
       <view class="question-title">{{item.title}}</view>
+      <text class="muted">错因：{{item.cause}}</text>
       <text class="muted">{{item.answer}}</text>
     </view>
   </view>

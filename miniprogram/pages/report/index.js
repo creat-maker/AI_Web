@@ -1,10 +1,11 @@
-const { student, report, weakPoints } = require('../../utils/demoData');
+const { student, report, weakPoints, mastery } = require('../../utils/demoData');
 
 Page({
   data: {
     student,
     report,
-    weakPoints
+    weakPoints,
+    mastery
   },
   goQuiz() {
     wx.navigateTo({ url: '/pages/quiz/index' });

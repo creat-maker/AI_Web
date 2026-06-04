@@ -10,7 +10,7 @@
       <text class="stat-value">{{report.score}}</text>
     </view>
     <view class="stat">
-      <text class="muted">学习进度</text>
+      <text class="muted">课程进度</text>
       <text class="stat-value">{{report.progress}}%</text>
     </view>
     <view class="stat">
@@ -24,14 +24,27 @@
   </view>
 
   <view class="section">
-    <view class="section-title">我的课程</view>
+    <view class="section-title">今日任务</view>
+    <view class="card" wx:for="{{todayTasks}}" wx:key="title">
+      <view class="split">
+        <view>
+          <text class="strong">{{item.title}}</text>
+          <text class="muted">知识点：{{item.knowledge}} · 预计 {{item.time}}</text>
+        </view>
+        <text class="tag {{item.status === '进行中' ? 'purple' : 'warning'}}">{{item.status}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">课程进度</view>
     <view class="card" wx:for="{{courses}}" wx:key="name">
       <view class="split">
         <view class="list-item">
           <text class="icon-box">{{item.icon}}</text>
           <view>
             <text class="strong">{{item.name}}</text>
-            <text class="muted">{{item.teacher}} · {{item.weakPoint}}</text>
+            <text class="muted">{{item.teacher}} · 薄弱点：{{item.weakPoint}}</text>
           </view>
         </view>
         <text class="tag">{{item.status}}</text>
@@ -43,20 +56,7 @@
   </view>
 
   <view class="section">
-    <view class="section-title">今日任务</view>
-    <view class="card" wx:for="{{todayTasks}}" wx:key="title">
-      <view class="split">
-        <view>
-          <text class="strong">{{item.title}}</text>
-          <text class="muted">预计 {{item.time}}</text>
-        </view>
-        <text class="tag {{item.status === '进行中' ? 'purple' : 'warning'}}">{{item.status}}</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-title">薄弱点提醒</view>
+    <view class="section-title">薄弱知识点</view>
     <view class="card" wx:for="{{weakPoints}}" wx:key="*this">
       <text class="muted">{{item}}</text>
     </view>

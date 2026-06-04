@@ -21,3 +21,13 @@
 .progress {
   margin-top: 18rpx;
 }
+
+.advice {
+  margin-top: 14rpx;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  color: #1e40af;
+  background: #eff6ff;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
