@@ -4,7 +4,7 @@
 >
 > 适用项目：EduMind / 中国软件杯 A3 方向 / 个性化学习资源与智能学习智能体系统
 >
-> 审计日期：2026-06-02（v3 更新 - 基于代码实际审查）
+> 审计日期：2026-06-06（v4 更新 - 基于全量代码逐文件审查）
 
 ---
 
@@ -13,21 +13,26 @@
 当前 EduMind 已具备 **Web 三端演示系统**（学生端 / 教师端 / 管理员端）、登录入口与角色路由、LangGraph 多智能体工作流（6 Agent 顺序编排）、Chroma RAG 检索（HashEmbedding + JSON fallback）、Mock/真实 LLM 双模式（DeepSeek/通义千问）、Word 报告导出、Demo 状态页、一键验收脚本、学习行为采集、日志管理和系统设置等核心闭环能力。
 
 **代码审查确认的核心实现：**
-- ✅ LangGraph 多智能体：ProfileAgent → PlannerAgent → ResourceAgent → TutorAgent → EvaluatorAgent → ReporterAgent
-- ✅ RAG 检索：Chroma 向量检索 + HashEmbedding + JSON fallback 双模式
-- ✅ Mock/真实 LLM：DeepSeek / 通义千问 / Mock 三模式自动切换
+- ✅ LangGraph 多智能体：ProfileAgent → PlannerAgent → ResourceAgent → TutorAgent → EvaluatorAgent → ReporterAgent（[graph.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/graph.py)）
+- ✅ RAG 检索：Chroma 向量检索 + HashEmbedding + JSON fallback 双模式（[vector_store.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/vector_store.py)）
+- ✅ Mock/真实 LLM：DeepSeek / 通义千问 / Mock 三模式自动切换，系统提示含防幻觉指令"不要编造不存在的课程资料引用"（[llm_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/llm_service.py)）
 - ✅ Agent 执行链路：`agent_workflow.py` 已实现步骤日志、耗时统计、状态追踪
-- ✅ 知识库：支持 PDF/PPT/TXT/MD 上传、解析、分块、向量化
-- ✅ 报告生成：python-docx 生成 Word 学习报告
+- ✅ 知识库：支持 PDF/PPT/TXT/MD 上传、解析、分块、向量化（[knowledge_base.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/knowledge_base.py)）
+- ✅ 报告生成：python-docx 生成 Word 学习报告，API 层已实现证据链（evidence_chain）、引用文档（citation_documents）、引用片段（citation_snippets）含 confidence 字段、质量评分（quality_score）（[reports.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/reports.py)）
+- ✅ 智能答疑引用：TutorAgent 返回 source_file + content 引用，MockLLM 生成 citations 列表（[mock_llm.py](file:///Users/xing/Desktop/EduMind/backend/app/services/mock_llm.py)）
+- ✅ Demo 状态与验收：`demo_status.py` 提供能力清单、就绪检查、关键事件追踪、通过率统计（[demo_status.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/demo_status.py)）
+- ✅ 演示数据：`seed_demo_data.py` 覆盖课程/画像/文档/路径/资源/测验/报告/Agent运行/答疑/日志全模型（[seed_demo_data.py](file:///Users/xing/Desktop/EduMind/scripts/seed_demo_data.py)）
 
 对照软件杯方案，仍缺少或需要核验以下关键项：
 
 - ❌ 微信小程序体验版（代码库无 `miniprogram` 目录）
-- ❌ 对话式画像构建（当前仅问卷式输入 `profile_service.py`）
-- ❌ 5 类资源生成（当前仅 4 类：讲义、案例、测验、任务）
+- ❌ 对话式画像构建（当前仅问卷式输入，ProfileAgent 直接调用 `llm_service.generate_json("profile", dict(state))`，无多轮对话）
+- ❌ 5 类资源生成（MockLLM 仅生成 4 类：handout/example/quiz/task，缺少第 5 类如思维导图或代码案例）
 - ⚠️ 课程知识库完整资料集（上传入口已有，需补完整课程文档）
-- ⚠️ RAG 可信度评分（TutorAgent 返回 `source_file`，需增强可信度评分）
-- ⚠️ 防幻觉审核中心（AdminReports.vue 有基础框架，需增加可信度评分和风险等级）
+- ⚠️ RAG 可信度评分（TutorAgent 返回 `source_file`+`content`，但无可信度/reliability 评分；报告 API 层有 confidence 字段但 Agent 层无）
+- ⚠️ 防幻觉审核中心（报告 API 已有 evidence_chain + quality_score + citation_snippets，但前端 AdminReports.vue 未展示可信度评分和风险等级，无审核状态机）
+- ⚠️ 文本分块质量（[text_splitter.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/text_splitter.py) 仅按字符数切分，无语义分块）
+- ⚠️ Embedding 质量（HashEmbedding 基于 MD5 哈希，非语义向量，检索质量有限）
 - ❌ 正式提交材料（PPT、视频、开发说明等）
 
 ---
@@ -74,16 +79,16 @@
 | 能力边界说明 | `/capability-boundary` 页面，说明 AI 资源正文可由 fallback 模板生成等 | [CapabilityBoundary.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/CapabilityBoundary.vue) | ✅ 已完成 | — |
 | 课程管理 CRUD | 创建、编辑、删除课程 | [courses.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/courses.py) | ✅ 已完成 | — |
 | 知识库上传与解析 | 支持 PDF/PPT/TXT/MD 上传、解析、分块、Chroma 向量化 | [knowledge_base.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/knowledge_base.py) | ✅ 已完成 | 补完整课程资料集 |
-| RAG 检索 | Chroma 向量检索 + HashEmbedding + JSON fallback 双模式 | [vector_store.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/vector_store.py) | ✅ 已完成 | embedding 质量待提升 |
-| 学生画像生成 | 问卷式输入 → LLM/Mock 生成画像 | [profile_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/profile_service.py) | ⚠️ 部分实现 | 缺少对话式画像 |
-| 学习路径规划 | LLM/Mock 生成 3 阶段学习路径 | [planner_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/planner_agent.py) | ⚠️ 部分实现 | 缺少动态调整 |
-| 资源生成 | 4 类资源：讲义、案例、测验、任务 | [resource_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/resource_agent.py) | ⚠️ 部分实现 | 需补至 5 类 |
-| 智能答疑 | 基于 RAG 的问答，返回引用来源 | [tutor_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/tutor_agent.py) | ⚠️ 部分实现 | 需增强可信度 |
-| 测验评价 | 生成测验 → 提交答案 → 评分反馈 | [quiz_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/quiz_service.py) | ✅ 已完成 | — |
-| Word 报告导出 | python-docx 生成学习报告 | [report_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/report_service.py) | ✅ 已完成 | — |
+| RAG 检索 | Chroma 向量检索 + HashEmbedding（MD5 哈希 64 维向量）+ JSON fallback 双模式；检索返回 content/source_file/document_id/score | [vector_store.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/vector_store.py) + [retriever.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/retriever.py) | ⚠️ 部分实现 | HashEmbedding 非语义向量，检索质量有限；文本分块仅按字符数切分（[text_splitter.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/text_splitter.py)），无语义分块 |
+| 学生画像生成 | 问卷式输入 → LLM/Mock 生成画像；ProfileAgent 仅 `generate_json("profile", dict(state))` 单次调用 | [profile_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/profile_agent.py) + [profile_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/profile_service.py) | ⚠️ 部分实现 | 缺少对话式画像；画像维度已有 current_level/learning_goal/weak_points/learning_preference/diagnosis/strategy 共 6 维 |
+| 学习路径规划 | LLM/Mock 生成 3 阶段学习路径（基础补齐→案例迁移→综合应用），每阶段含 resources/practice/mastery | [planner_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/planner_agent.py) + [learning_paths.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/learning_paths.py) | ⚠️ 部分实现 | 缺少动态调整；路径生成后无后续触发更新机制 |
+| 资源生成 | 4 类资源：handout（讲义）、example（案例）、quiz（测验）、task（任务） | [resource_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/resource_agent.py) + [mock_llm.py](file:///Users/xing/Desktop/EduMind/backend/app/services/mock_llm.py) | ⚠️ 部分实现 | 需补至 5 类；建议增加 mindmap（思维导图）或 code_example（代码案例） |
+| 智能答疑 | 基于 RAG 的问答，返回 answer + citations（source_file + content）；MockLLM 自动拼接引用 | [tutor_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/tutor_agent.py) + [retriever.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/retriever.py) | ⚠️ 部分实现 | citations 无 confidence/reliability 评分；需增强可信度 |
+| 测验评价 | 生成测验（3 题：概念/流程/任务）→ 提交答案 → 评分反馈（score + mistake_analysis + weak_points + next_steps） | [evaluator_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/evaluator_agent.py) + [quiz_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/quiz_service.py) | ✅ 已完成 | — |
+| Word 报告导出 | python-docx 生成学习报告；API 层含证据链（evidence_chain 含 conclusion/evidence_type/source_title/confidence/demo_fallback_note）、引用文档（citation_documents）、引用片段（citation_snippets 含 confidence）、质量评分（quality_score） | [reporter_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/reporter_agent.py) + [reports.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/reports.py) | ⚠️ 部分实现 | 后端 API 已有证据链和可信度字段；前端 AdminReports.vue 未展示；无审核状态机 |
 | LangGraph 多智能体 | 6 Agent 顺序工作流：Profile→Planner→Resource→Tutor→Evaluator→Reporter | [graph.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/graph.py) | ✅ 已完成 | — |
 | Agent 执行链路 | 步骤日志、耗时统计、状态追踪、输入输出摘要 | [agent_workflow.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/agent_workflow.py) | ✅ 已完成 | — |
-| Mock/真实 LLM 双模式 | DeepSeek / 通义千问 / Mock 三模式自动切换 | [llm_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/llm_service.py) | ✅ 已完成 | — |
+| Mock/真实 LLM 双模式 | DeepSeek / 通义千问 / Mock 三模式自动切换；系统提示含防幻觉指令"不要编造不存在的课程资料引用" | [llm_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/llm_service.py) + [mock_llm.py](file:///Users/xing/Desktop/EduMind/backend/app/services/mock_llm.py) | ✅ 已完成 | — |
 | Dashboard 统计 | 课程/画像/资源/测验/报告/Agent 运行数 + 7 天趋势 | [Dashboard.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/Dashboard.vue) | ✅ 已完成 | — |
 | .env.example | 环境变量样例文件 | [.env.example](file:///Users/xing/Desktop/EduMind/.env.example) | ✅ 已完成 | — |
 
@@ -98,18 +103,18 @@
 | # | 缺少项 | 判断依据 | 当前状态 | 建议补法 |
 |---|--------|----------|----------|----------|
 | 1 | **微信小程序学生端体验版** | 方案明确建议 Web 主系统 + 微信小程序体验版；代码库中无 `miniprogram` 目录 | ❌ 不存在 | 新增 `miniprogram`：今日学习、路径、资源、AI 辅导、练习/错题、报告；先 mock，预留 API |
-| 2 | **对话式学习画像构建** | 赛题要求自然语言对话构建不少于 6 维画像；当前仅有问卷式输入（`profile_service.py` 使用 `llm_service.generate_json("profile", data)`） | ❌ 不存在 | 新增 `/student/profile-dialog` 或在画像页加入对话式生成流程、画像 JSON、手动修正 |
-| 3 | **至少 5 类个性化资源生成** | 赛题硬要求；当前 ResourceAgent 仅生成 4 类（讲义、案例、测验、任务） | ⚠️ 仅 4 类 | 增加第 5 类资源（如思维导图/代码案例/视频脚本），实现演示级接口与页面输出 |
+| 2 | **对话式学习画像构建** | 赛题要求自然语言对话构建不少于 6 维画像；当前 ProfileAgent 仅单次调用 `llm_service.generate_json("profile", dict(state))`，无多轮对话机制；画像维度已有 6 维（current_level/learning_goal/weak_points/learning_preference/diagnosis/strategy） | ❌ 不存在 | 新增 `/student/profile-dialog` 或在画像页加入对话式生成流程：多轮问答 → 抽取维度 → 画像 JSON → 手动修正 |
+| 3 | **至少 5 类个性化资源生成** | 赛题硬要求；MockLLM `generate_resources` 仅生成 4 类：handout/example/quiz/task | ⚠️ 仅 4 类 | 增加 MockLLM 第 5 类资源（建议 mindmap 思维导图或 code_example 代码案例），ResourceAgent 同步输出 |
 | 4 | **课程知识库与样例课程资料集** | 赛题要求自行构造至少一门完整高校专业课程知识库/文档集 | ⚠️ 仅有上传入口 | 准备一门完整课程：章节、知识点、讲义、题库、实验/项目材料；放入 `dataset` 或 `docs/course_kb` |
-| 5 | **RAG 引用溯源与可信度评分** | 防幻觉和课程资料约束需要引用片段、来源文件、可信度；当前 TutorAgent 返回 `source_file` 但无可信度评分 | ⚠️ 有基础引用 | 增强 TutorAgent 返回：引用资料、可信度评分、推荐练习 |
-| 6 | **防幻觉审核中心/审核记录** | 赛题非功能需求明确要求防幻觉与内容安全过滤；当前 AdminReports.vue 有基础框架 | ⚠️ 有基础框架 | 增加可信度评分、风险等级、审核状态、通过/退回/重生成 |
+| 5 | **RAG 引用溯源与可信度评分** | 防幻觉和课程资料约束需要引用片段、来源文件、可信度；TutorAgent 返回 `source_file`+`content` 但无 confidence 评分；报告 API 层已有 confidence 字段但 Agent 层和前端均未使用 | ⚠️ 有基础引用 | 增强 TutorAgent/MockLLM 返回 confidence 评分；前端答疑页展示引用来源和可信度 |
+| 6 | **防幻觉审核中心/审核记录** | 赛题非功能需求明确要求防幻觉与内容安全过滤；后端 reports API 已有 evidence_chain + quality_score + citation_snippets（含 confidence），但前端 AdminReports.vue 未展示这些字段，无审核状态机 | ⚠️ 后端已实现，前端未对接 | 前端 AdminReports.vue 展示可信度评分、风险等级、证据链；增加审核状态（待审核/通过/退回）和操作按钮 |
 
 ### P1 — 重要但非硬性截止
 
 | # | 缺少项 | 判断依据 | 当前状态 | 建议补法 |
 |---|--------|----------|----------|----------|
-| 7 | **资源推荐理由** | 个性化系统必须能解释"为什么推荐" | ❌ 不存在 | 在学生课程/路径/资源/报告页加入推荐原因：薄弱点、测验证据、目标匹配 |
-| 8 | **学习路径动态调整** | 当前有路径展示，但测验/答疑后不会自动调整 | ❌ 不存在 | 用规则演示：错题薄弱点变化后更新下一任务与推荐资源 |
+| 7 | **资源推荐理由** | 个性化系统必须能解释"为什么推荐"；当前资源生成无推荐原因字段 | ❌ 不存在 | 在学生课程/路径/资源/报告页加入推荐原因：薄弱点、测验证据、目标匹配 |
+| 8 | **学习路径动态调整** | 当前 PlannerAgent 生成静态 3 阶段路径，测验/答疑后不会自动触发路径更新 | ❌ 不存在 | 用规则演示：错题薄弱点变化后更新下一任务与推荐资源；可在 EvaluatorAgent 后触发 PlannerAgent 重新规划 |
 | 9 | **正式文档包** | 赛题要求系统开发说明、测试说明、部署说明等 | ⚠️ 部分文档已有 | 补齐 docx：系统开发说明、测试说明、部署说明、AI 工具说明、开源协议说明、用户手册 |
 | 10 | **演示 PPT 与 7 分钟视频** | 赛题明确提交 PPT 和 7 分钟以内演示视频 | ❌ 不存在 | 制作 PPT；录制固定三端路线 + demo-status + 资源生成/Agent |
 | 11 | **提交包目录** | 方案建议整理完整提交目录 | ❌ 不存在 | 整理 `EduMind_Submission` 目录 |
@@ -124,20 +129,22 @@
 |---|-----------|----------|-------------|----------|
 | 1 | **真实登录鉴权与权限控制** | 当前为 Demo 角色入口，无 JWT/auth 中间件 | ⚠️ Demo 级 | 初赛可接受 Demo 登录；后续扩展真实鉴权 |
 | 2 | **三角色路由拆分** | 已有 `/student/*` `/teacher` `/admin/*` 完整路由 | ✅ 已实现 | 确认各角色菜单不再跨角色切换 |
-| 3 | **Demo 状态页** | `/demo-status` 前后端已实现 | ✅ 已实现 | 保持为答辩入口 |
+| 3 | **Demo 状态页** | `/demo-status` 前后端已实现，含能力清单、就绪检查、关键事件追踪、通过率统计 | ✅ 已实现 | 保持为答辩入口 |
 | 4 | **一键验收脚本** | `seed-demo-data` `check-demo-ready` `e2e_demo_flow_check` 已实现 | ✅ 已实现 | 每次提交后必须重跑 |
 | 5 | **生成进度追踪/流式输出** | 赛题建议流式输出或生成进度追踪；AgentWorkflow 页面已有步骤条 | ⚠️ 部分实现 | 可在资源生成/Agent 页面用步骤条模拟进度；真实 SSE 后续做 |
-| 6 | **学习行为数据采集** | `events.py` 已实现业务事件记录 | ✅ 已实现 | — |
+| 6 | **学习行为数据采集** | `events.py` 已实现业务事件记录（9 类事件：画像生成、资源生成、路径更新、教师干预、任务布置、测验完成、智能答疑、管理员审核等） | ✅ 已实现 | — |
 | 7 | **测验在线作答与错题本** | `QuizEvaluate` + `StudentExamResult` 已有在线作答 | ✅ 已实现 | 可增加错题本功能 |
 | 8 | **知识点图谱/前置关系** | 学习路径页面有节点，但无知识图谱数据结构 | ❌ 不存在 | 用 JSON 表示知识点和 `prereq_ids` 即可 |
 | 9 | **教师资源审核权限** | `AdminReports.vue` 报告审核中心已实现 | ✅ 已实现 | 可增加防幻觉审核到教师端核心菜单 |
-| 10 | **开源协议与 AI Coding 使用说明** | `CapabilityBoundary.vue` 已实现能力边界说明 | ✅ 已实现 | 可补充独立文档 |
+| 10 | **开源协议与 AI Coding 使用说明** | `CapabilityBoundary.vue` 已实现能力边界说明；`demo_status.py` 已声明 `DEMO_FALLBACK_CAPABILITIES` | ✅ 已实现 | 可补充独立文档 |
 | 11 | **部署说明** | `.env.example` + `start-dev.bat` + `stop-dev.bat` 已有 | ✅ 已实现 | 可补充生产部署说明 |
 | 12 | **截图与演示素材** | 未整理 screenshots 文件夹 | ❌ 不存在 | 导出关键页面截图 |
 | 13 | **旧页面/未跟踪文件清理** | `legacy/` 目录存在大量旧代码 | ⚠️ 已隔离 | 确认 `.gitignore` 覆盖，提交时排除 |
 | 14 | **移动端响应式** | Web 页面多为桌面布局 | ⚠️ 桌面优先 | Web 保持桌面演示；小程序负责移动端 |
 | 15 | **接口契约一致性** | 前端 mock 与后端可能字段不一致 | ⚠️ 需核验 | 做 API schema 文档或字段映射表 |
 | 16 | **测试覆盖** | `check-demo-ready` 验收脚本已有，但无单元测试 | ⚠️ 部分覆盖 | 保留 check-demo-ready 作为核心验收 |
+| 17 | **Embedding 与文本分块质量** | HashEmbedding 基于 MD5 哈希（64 维），非语义向量；text_splitter 仅按 800 字符切分 + 120 字符重叠 | ⚠️ 演示级 | 后续可替换为真实 embedding 模型（如 bge-m3）和语义分块 |
+| 18 | **LLM 防幻觉系统提示** | `llm_service.py` 系统提示含"不要编造不存在的课程资料引用" | ✅ 已实现 | 可增强为更细粒度的约束（如必须引用检索结果） |
 
 ---
 
@@ -145,12 +152,13 @@
 
 | 事项 | 不建议现在做的原因 | 推荐表述 |
 |------|-------------------|----------|
-| 完整 LangChain / LangGraph 接入 | 已接入 LangGraph，但复杂状态图调试和现场稳定性有风险 | 当前已接入 LangGraph，后续可优化状态图 |
-| 真实向量数据库全量接入 | Chroma 已接入，但 embedding 质量待提升 | 当前使用 HashEmbedding，后续可替换为真实 embedding 模型 |
+| 完整 LangChain / LangGraph 接入 | 已接入 LangGraph，6 Agent 顺序编排已实现；复杂状态图调试和现场稳定性有风险 | 当前已接入 LangGraph，后续可优化为条件分支和循环状态图 |
+| 真实向量数据库全量接入 | Chroma 已接入，但 HashEmbedding 为演示级（MD5 哈希 64 维），检索质量有限 | 当前使用 HashEmbedding + JSON fallback，后续可替换为 bge-m3 等语义 embedding 模型 |
 | 正式上线微信小程序 | 注册/审核/备案不确定，初赛不要求正式上线 | 提供开发版/体验版源码、运行说明和二维码 |
 | 复杂权限系统 | RBAC、后端鉴权、权限矩阵会拖慢演示版本 | 当前 Demo 角色入口，后续生产化补强 |
 | 真实多模态视频生成 | 生成视频成本高、时间不稳定、依赖外部模型 | 先生成视频脚本、分镜、旁白和画面提示词 |
 | 完整 Docker/云部署 | 部署很加分但不是当前代码闭环的第一问题 | 若时间充足再补 `docker-compose` 和服务器演示地址 |
+| 语义文本分块 | 当前 text_splitter 按 800 字符切分，对结构化文档（PDF/Markdown）效果不佳 | 后续可引入 markdown header splitting 或递归字符分块 |
 
 ---
 
@@ -215,8 +223,8 @@
 | 维度 | 当前判断 | 说明 |
 |------|----------|------|
 | 产品形态 | ✅ 较好 | Web 三端完整；登录入口、角色路由、Demo 状态页、验收脚本均已就位；小程序学生端缺失 |
-| 赛题核心功能 | ⚠️ 部分符合 | 页面与演示路线完整，但画像、5 类资源、RAG 可信度、防幻觉还不够真实 |
-| 工程完整性 | ✅ 较好 | 有前后端、统一数据、演示数据脚本、验收脚本、LangGraph Agent、Chroma RAG、Mock/真实双模式 |
+| 赛题核心功能 | ⚠️ 部分符合 | 页面与演示路线完整；画像维度已有 6 维但缺对话式构建；资源仅 4 类缺第 5 类；RAG 有基础引用但缺可信度评分；防幻觉后端 API 已有证据链/可信度字段但前端未对接 |
+| 工程完整性 | ✅ 较好 | 有前后端、统一数据、演示数据脚本（覆盖全模型）、验收脚本、LangGraph Agent、Chroma RAG、Mock/真实双模式、.gitignore 完善 |
 | 比赛展示效果 | ✅ 较好 | 登录页、三端路由、Demo 状态页、Agent 工作流已能支撑讲解；还需 PPT/视频/截图 |
-| 技术深度 | ⚠️ 中等偏上 | Agent/RAG 已有基础实现；embedding 质量和防幻觉需加强 |
+| 技术深度 | ⚠️ 中等偏上 | Agent/RAG 已有基础实现；HashEmbedding 为演示级；报告 API 证据链设计较完善但前端未展示；LLM 系统提示含防幻觉指令 |
 | 提交准备度 | ⚠️ 部分完成 | 正式文档、小程序、PPT、视频、提交包还需整理 |
