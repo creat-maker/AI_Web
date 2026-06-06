@@ -4,6 +4,7 @@ import sqlite3
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
 
@@ -13,8 +14,10 @@ if settings.resolved_database_url.startswith("sqlite"):
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(
         "sqlite://",
+        connect_args={"check_same_thread": False, "timeout": 30},
         pool_pre_ping=True,
-        creator=lambda: sqlite3.connect(str(sqlite_path), check_same_thread=False),
+        poolclass=StaticPool,
+        creator=lambda: sqlite3.connect(str(sqlite_path), timeout=30),
     )
 else:
     engine = create_engine(settings.resolved_database_url, pool_pre_ping=True)

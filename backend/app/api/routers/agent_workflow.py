@@ -358,15 +358,15 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
     db.flush()
     record_event(
         db,
-        event_type="agent_workflow_rerun",
-        title="Agent 工作流模拟重跑",
-        description=f"{seed.workflow_name} 已完成 demo/fallback 重跑。",
+        event_type="agent_workflow_run",
+        title="Agent 工作流启动",
+        description=f"full-learning-flow 已启动，课程 {course.title}。",
         actor_role="admin",
         actor_name="demo_admin",
         target_type="agent_run",
         target_id=run.id,
-        status="success",
-        metadata={"run_id": f"run-{run.id:06d}", "rerun_from": seed.id, "demo_fallback": True},
+        status="running",
+        metadata={"run_id": f"run-{run.id:06d}", "course_id": payload.course_id},
         commit=False,
     )
     db.commit()
