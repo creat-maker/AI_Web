@@ -50,9 +50,7 @@ body {
   margin: 0;
   min-width: 320px;
   color: var(--text-main);
-  background:
-    radial-gradient(circle at top right, rgba(124, 58, 237, 0.08), transparent 32rem),
-    linear-gradient(180deg, #f8fbff 0%, var(--color-bg) 38%, #f7f9fe 100%);
+  background: var(--color-bg);
 }
 
 button,
@@ -73,8 +71,8 @@ button,
   border-radius: 10px;
   padding: 9px 15px;
   color: var(--text-light);
-  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-purple));
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+  background: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.12);
   cursor: pointer;
   text-decoration: none;
   transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
@@ -83,7 +81,7 @@ button,
 button:hover,
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(47, 107, 255, 0.22);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.18);
 }
 
 button.secondary,
@@ -151,8 +149,7 @@ textarea {
   height: 100vh;
   overflow-y: auto;
   border-right: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.97);
   padding: 18px 14px;
 }
 
@@ -188,8 +185,8 @@ textarea {
   border-radius: 12px;
   color: var(--text-light);
   font-weight: 800;
-  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-purple));
-  box-shadow: var(--soft-shadow);
+  background: var(--color-primary);
+  box-shadow: none;
 }
 
 .brand strong {
@@ -213,8 +210,8 @@ textarea {
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 12px;
-  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+  background: var(--bg-card);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .role-card span,
@@ -248,7 +245,7 @@ textarea {
 
 .role-switcher button.active {
   color: var(--text-light);
-  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-purple));
+  background: var(--color-primary);
 }
 
 .side-nav {
@@ -279,8 +276,8 @@ textarea {
 .side-nav a.router-link-exact-active {
   color: var(--color-primary-dark);
   background: #dbeafe;
-  box-shadow: inset 3px 0 0 var(--color-primary);
-  font-weight: 800;
+  border-left: 2px solid var(--color-primary);
+  font-weight: 700;
 }
 
 .sidebar-footer {
@@ -288,7 +285,7 @@ textarea {
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 12px;
-  background: linear-gradient(135deg, #f8fbff, #f3efff);
+  background: var(--status-neutral-bg);
 }
 
 .sidebar-footer strong {
@@ -334,8 +331,7 @@ textarea {
   min-height: 72px;
   border-bottom: 1px solid var(--color-border);
   padding: 14px 24px;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.97);
 }
 
 .header-copy {
@@ -428,8 +424,7 @@ textarea {
   display: flex;
   justify-content: center;
   padding-top: 15vh;
-  background: rgba(15, 23, 42, 0.35);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.4);
 }
 
 .search-modal {
@@ -516,8 +511,8 @@ textarea {
   border: none;
   border-radius: 10px;
   color: #fff;
-  background: linear-gradient(135deg, #059669, #10b981);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  background: #059669;
+  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.15);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -527,7 +522,7 @@ textarea {
 
 .quick-create-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.3);
+  box-shadow: 0 4px 8px rgba(5, 150, 105, 0.2);
 }
 
 /* === Student: Shortcut Button === */
@@ -634,7 +629,7 @@ textarea {
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #dc2626, #ef4444);
+  background: #dc2626;
   color: #fff;
   font-size: 11px;
   font-weight: 800;
@@ -703,7 +698,7 @@ textarea {
   border-radius: 50%;
   color: var(--text-light);
   font-weight: 800;
-  background: linear-gradient(135deg, #1e40af, var(--color-primary));
+  background: var(--color-primary);
 }
 
 .avatar-sm {
@@ -757,7 +752,7 @@ textarea {
   gap: 3px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  background: #fde68a;
   color: #92400e;
   font-size: 11px;
   font-weight: 800;
@@ -824,7 +819,7 @@ textarea {
   font-size: 18px;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: #6366f1;
   flex-shrink: 0;
 }
 
@@ -1417,27 +1412,27 @@ textarea {
   border-radius: 16px;
   color: var(--text-light);
   font-weight: 800;
-  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-purple));
+  background: var(--color-primary);
 }
 
 .stat-card.green .stat-icon {
-  background: linear-gradient(135deg, #15803d, #16a34a);
+  background: #16a34a;
 }
 
 .stat-card.orange .stat-icon {
-  background: linear-gradient(135deg, #c2410c, #ea580c);
+  background: #ea580c;
 }
 
 .stat-card.purple .stat-icon {
-  background: linear-gradient(135deg, #6d28d9, #7c3aed);
+  background: #7c3aed;
 }
 
 .stat-card.red .stat-icon {
-  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  background: #dc2626;
 }
 
 .stat-card.cyan .stat-icon {
-  background: linear-gradient(135deg, #0369a1, #0284c7);
+  background: #0284c7;
 }
 
 .progress-label {
@@ -1462,19 +1457,19 @@ textarea {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-purple));
+  background: var(--color-primary);
 }
 
 .progress-track.success span {
-  background: linear-gradient(90deg, #15803d, #16a34a);
+  background: #16a34a;
 }
 
 .progress-track.warning span {
-  background: linear-gradient(90deg, #b45309, #f59e0b);
+  background: #f59e0b;
 }
 
 .progress-track.danger span {
-  background: linear-gradient(90deg, #b91c1c, #dc2626);
+  background: #dc2626;
 }
 
 .role-layout,
@@ -1591,7 +1586,7 @@ textarea {
   border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 24px;
-  background: linear-gradient(135deg, #fff 0%, #f3f7ff 100%);
+  background: var(--bg-card);
   box-shadow: var(--card-shadow);
 }
 
@@ -1677,21 +1672,21 @@ pre,
 .student-avatar,
 .achievement-badge span,
 .path-stage.active > span {
-  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-purple));
+  background: var(--color-primary);
   color: var(--text-light);
   font-weight: 800;
 }
 
 .achievement-badge.orange span {
-  background: linear-gradient(135deg, #c2410c, #ea580c);
+  background: #ea580c;
 }
 
 .achievement-badge.red span {
-  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  background: #dc2626;
 }
 
 .achievement-badge.purple span {
-  background: linear-gradient(135deg, #6d28d9, #7c3aed);
+  background: #7c3aed;
 }
 
 .achievement-badge.gray span {
@@ -1702,7 +1697,7 @@ pre,
 
 .chat-bubble.user,
 .message.user {
-  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-purple));
+  background: var(--color-primary);
   color: var(--text-light);
 }
 
