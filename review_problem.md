@@ -4,23 +4,30 @@
 >
 > 适用项目：EduMind / 中国软件杯 A3 方向 / 个性化学习资源与智能学习智能体系统
 >
-> 审计日期：2026-06-01（v2 更新）
+> 审计日期：2026-06-02（v3 更新 - 基于代码实际审查）
 
 ---
 
 ## 审计结论
 
-当前 EduMind 已具备 **Web 三端演示系统**（学生端 / 教师端 / 管理员端）、登录入口与角色路由、LangGraph 多智能体工作流、Chroma RAG 检索、Mock/真实 LLM 双模式、Word 报告导出、Demo 状态页、一键验收脚本、学习行为采集、日志管理和系统设置等核心闭环能力。
+当前 EduMind 已具备 **Web 三端演示系统**（学生端 / 教师端 / 管理员端）、登录入口与角色路由、LangGraph 多智能体工作流（6 Agent 顺序编排）、Chroma RAG 检索（HashEmbedding + JSON fallback）、Mock/真实 LLM 双模式（DeepSeek/通义千问）、Word 报告导出、Demo 状态页、一键验收脚本、学习行为采集、日志管理和系统设置等核心闭环能力。
+
+**代码审查确认的核心实现：**
+- ✅ LangGraph 多智能体：ProfileAgent → PlannerAgent → ResourceAgent → TutorAgent → EvaluatorAgent → ReporterAgent
+- ✅ RAG 检索：Chroma 向量检索 + HashEmbedding + JSON fallback 双模式
+- ✅ Mock/真实 LLM：DeepSeek / 通义千问 / Mock 三模式自动切换
+- ✅ Agent 执行链路：`agent_workflow.py` 已实现步骤日志、耗时统计、状态追踪
+- ✅ 知识库：支持 PDF/PPT/TXT/MD 上传、解析、分块、向量化
+- ✅ 报告生成：python-docx 生成 Word 学习报告
 
 对照软件杯方案，仍缺少或需要核验以下关键项：
 
-- ❌ 微信小程序体验版
-- ❌ 对话式画像构建
-- ❌ 5 类资源生成（当前仅 4 类）
-- ⚠️ 课程知识库 / RAG（已有基础，需补完整课程资料集）
-- ⚠️ 引用溯源（TutorAgent 已有 source_file，需增强可信度评分）
-- ❌ 防幻觉审核中心（教师端报告审核中心已有，但缺少可信度评分和风险等级）
-- ⚠️ 真实 Agent 执行链路（LangGraph 已接入，但缺少步骤日志/耗时/状态追踪）
+- ❌ 微信小程序体验版（代码库无 `miniprogram` 目录）
+- ❌ 对话式画像构建（当前仅问卷式输入 `profile_service.py`）
+- ❌ 5 类资源生成（当前仅 4 类：讲义、案例、测验、任务）
+- ⚠️ 课程知识库完整资料集（上传入口已有，需补完整课程文档）
+- ⚠️ RAG 可信度评分（TutorAgent 返回 `source_file`，需增强可信度评分）
+- ⚠️ 防幻觉审核中心（AdminReports.vue 有基础框架，需增加可信度评分和风险等级）
 - ❌ 正式提交材料（PPT、视频、开发说明等）
 
 ---
@@ -47,37 +54,38 @@
 
 ## 2. 当前已实现项清单
 
-> **总体判断**：已实现部分主要集中在 Web 三端产品化展示、三角色路由拆分、登录入口、Demo 状态页、一键验收脚本、LangGraph 多智能体工作流、Chroma RAG 检索和 Mock/真实 LLM 双模式。部分核心 AI 能力在 mock 模式下可用，但真实 LLM 模式下的输出质量需进一步验证。
+> **总体判断**：已实现部分主要集中在 Web 三端产品化展示、三角色路由拆分、登录入口、Demo 状态页、一键验收脚本、LangGraph 多智能体工作流、Chroma RAG 检索和 Mock/真实 LLM 双模式。核心 AI 能力在 mock 模式下可用，真实 LLM 模式需配置 API Key。
 
 | 模块 | 已实现内容 | 代码位置 | 状态 | 后续建议 |
 |------|-----------|----------|------|----------|
-| 统一 UI 与布局 | AppLayout、AppSidebar、AppHeader、DataCard、StatCard、StatusBadge 等公共组件 | [AppLayout.vue](file:///e:/EduMind/frontend/src/components/AppLayout.vue) | ✅ 已完成 | 继续只做小修 |
-| 登录页与三角色入口 | `/login` 页面，学员/教师/管理员入口分别进入 `/student` `/teacher` `/dashboard` | [Login.vue](file:///e:/EduMind/frontend/src/views/Login.vue) | ✅ 已完成 | — |
-| 三角色路由拆分 | 学生端 `/student/*`，教师端 `/teacher`，管理员端 `/dashboard` `/admin/*` | [router/index.ts](file:///e:/EduMind/frontend/src/router/index.ts) | ✅ 已完成 | — |
-| 角色权限配置 | `useRole` composable + `roles.ts` 角色菜单、路由权限 | [useRole.ts](file:///e:/EduMind/frontend/src/composables/useRole.ts) | ✅ 已完成 | — |
-| 学生端 Web 页面 | 学习总览、我的课程、学习路径、智能答疑、知识库、测验成绩、学习报告、任务、徽章、积分、笔记、小组 | [StudentHome.vue](file:///e:/EduMind/frontend/src/views/StudentHome.vue) 等 12 个页面 | ✅ 已完成 | 部分页面为占位，需补真实闭环 |
-| 教师端 Web 页面 | 班级概览、课程管理、学生画像、学习路径与任务布置、测评分析、报告中心 | [TeacherHome.vue](file:///e:/EduMind/frontend/src/views/TeacherHome.vue) | ✅ 已完成 | — |
-| 管理员端 Web 页面 | 平台总览、用户与角色、课程治理、资源生成、Agent 工作流、报告、知识库、日志、系统设置 | [AdminCourses.vue](file:///e:/EduMind/frontend/src/views/AdminCourses.vue) 等 | ✅ 已完成 | — |
-| Demo 状态页 | `/demo-status` 前后端，展示 Ready、通过率、三端路线和关键能力 | [DemoStatus.vue](file:///e:/EduMind/frontend/src/views/DemoStatus.vue) + [demo_status.py](file:///e:/EduMind/backend/app/api/routers/demo_status.py) | ✅ 已完成 | — |
-| 统一演示数据 | 张三、李四、王五；王老师、陈老师、张老师；四门课程；两个班级 | [seed_demo_data.py](file:///e:/EduMind/scripts/seed_demo_data.py) | ✅ 已完成 | — |
-| 一键验收脚本 | `seed-demo-data`、`check-demo-ready`、`e2e_demo_flow_check` | [scripts/](file:///e:/EduMind/scripts/) | ✅ 已完成 | — |
-| 学习行为数据采集 | 业务事件记录、资源包生成、路径更新、测验完成等事件 | [events.py](file:///e:/EduMind/backend/app/api/routers/events.py) | ✅ 已完成 | — |
-| 日志管理 | QA、文档上传、Agent、报告、错误等多类型日志 | [logs.py](file:///e:/EduMind/backend/app/api/routers/logs.py) | ✅ 已完成 | — |
-| 系统设置 | 运行模式、fallback 数据源和能力边界 | [system_settings.py](file:///e:/EduMind/backend/app/api/routers/system_settings.py) | ✅ 已完成 | — |
-| 能力边界说明 | `/capability-boundary` 页面，说明 AI 资源正文可由 fallback 模板生成等 | [CapabilityBoundary.vue](file:///e:/EduMind/frontend/src/views/CapabilityBoundary.vue) | ✅ 已完成 | — |
-| 课程管理 CRUD | 创建、编辑、删除课程 | [courses.py](file:///e:/EduMind/backend/app/api/routers/courses.py) | ✅ 已完成 | — |
-| 知识库上传与解析 | 支持 PDF/PPT/TXT/MD 上传、解析、分块、Chroma 向量化 | [knowledge_base.py](file:///e:/EduMind/backend/app/api/routers/knowledge_base.py) | ✅ 已完成 | 补完整课程资料集 |
-| RAG 检索 | Chroma 向量检索 + HashEmbedding + JSON fallback | [vector_store.py](file:///e:/EduMind/backend/app/rag/vector_store.py) | ⚠️ 部分实现 | embedding 质量待提升 |
-| 学生画像生成 | 问卷式输入 → LLM/Mock 生成画像 | [profile_service.py](file:///e:/EduMind/backend/app/services/profile_service.py) | ⚠️ 部分实现 | 缺少对话式画像 |
-| 学习路径规划 | LLM/Mock 生成 3 阶段学习路径 | [planner_agent.py](file:///e:/EduMind/backend/app/agents/planner_agent.py) | ⚠️ 部分实现 | 缺少动态调整 |
-| 资源生成 | 4 类资源：讲义、案例、测验、任务 | [resource_agent.py](file:///e:/EduMind/backend/app/agents/resource_agent.py) | ⚠️ 部分实现 | 需补至 5 类 |
-| 智能答疑 | 基于 RAG 的问答，返回引用来源 | [tutor_agent.py](file:///e:/EduMind/backend/app/agents/tutor_agent.py) | ⚠️ 部分实现 | 需增强可信度 |
-| 测验评价 | 生成测验 → 提交答案 → 评分反馈 | [quiz_service.py](file:///e:/EduMind/backend/app/services/quiz_service.py) | ✅ 已完成 | — |
-| Word 报告导出 | python-docx 生成学习报告 | [report_service.py](file:///e:/EduMind/backend/app/services/report_service.py) | ✅ 已完成 | — |
-| LangGraph 多智能体 | 6 Agent 顺序工作流 + fallback | [graph.py](file:///e:/EduMind/backend/app/agents/graph.py) | ✅ 已完成 | 补执行日志 |
-| Mock/真实 LLM 双模式 | DeepSeek / 通义千问 / Mock 三模式 | [llm_service.py](file:///e:/EduMind/backend/app/services/llm_service.py) | ✅ 已完成 | — |
-| Dashboard 统计 | 课程/画像/资源/测验/报告/Agent 运行数 + 7 天趋势 | [Dashboard.vue](file:///e:/EduMind/frontend/src/views/Dashboard.vue) | ✅ 已完成 | — |
-| .env.example | 环境变量样例文件 | [.env.example](file:///e:/EduMind/.env.example) | ✅ 已完成 | — |
+| 统一 UI 与布局 | AppLayout、AppSidebar、AppHeader、DataCard、StatCard、StatusBadge 等公共组件 | [AppLayout.vue](file:///Users/xing/Desktop/EduMind/frontend/src/components/AppLayout.vue) | ✅ 已完成 | 继续只做小修 |
+| 登录页与三角色入口 | `/login` 页面，学员/教师/管理员入口分别进入 `/student` `/teacher` `/dashboard` | [Login.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/Login.vue) | ✅ 已完成 | — |
+| 三角色路由拆分 | 学生端 `/student/*`，教师端 `/teacher`，管理员端 `/dashboard` `/admin/*` | [router/index.ts](file:///Users/xing/Desktop/EduMind/frontend/src/router/index.ts) | ✅ 已完成 | — |
+| 角色权限配置 | `useRole` composable + `roles.ts` 角色菜单、路由权限 | [useRole.ts](file:///Users/xing/Desktop/EduMind/frontend/src/composables/useRole.ts) | ✅ 已完成 | — |
+| 学生端 Web 页面 | 学习总览、我的课程、学习路径、智能答疑、知识库、测验成绩、学习报告、任务、徽章、积分、笔记、小组 | [StudentHome.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/StudentHome.vue) 等 12 个页面 | ✅ 已完成 | 部分页面为占位，需补真实闭环 |
+| 教师端 Web 页面 | 班级概览、课程管理、学生画像、学习路径与任务布置、测评分析、报告中心 | [TeacherHome.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/TeacherHome.vue) | ✅ 已完成 | — |
+| 管理员端 Web 页面 | 平台总览、用户与角色、课程治理、资源生成、Agent 工作流、报告、知识库、日志、系统设置 | [AdminCourses.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/AdminCourses.vue) 等 | ✅ 已完成 | — |
+| Demo 状态页 | `/demo-status` 前后端，展示 Ready、通过率、三端路线和关键能力 | [DemoStatus.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/DemoStatus.vue) + [demo_status.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/demo_status.py) | ✅ 已完成 | — |
+| 统一演示数据 | 张三、李四、王五；王老师、陈老师、张老师；四门课程；两个班级 | [seed_demo_data.py](file:///Users/xing/Desktop/EduMind/scripts/seed_demo_data.py) | ✅ 已完成 | — |
+| 一键验收脚本 | `seed-demo-data`、`check-demo-ready`、`e2e_demo_flow_check` | [scripts/](file:///Users/xing/Desktop/EduMind/scripts/) | ✅ 已完成 | — |
+| 学习行为数据采集 | 业务事件记录、资源包生成、路径更新、测验完成等事件 | [events.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/events.py) | ✅ 已完成 | — |
+| 日志管理 | QA、文档上传、Agent、报告、错误等多类型日志 | [logs.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/logs.py) | ✅ 已完成 | — |
+| 系统设置 | 运行模式、fallback 数据源和能力边界 | [system_settings.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/system_settings.py) | ✅ 已完成 | — |
+| 能力边界说明 | `/capability-boundary` 页面，说明 AI 资源正文可由 fallback 模板生成等 | [CapabilityBoundary.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/CapabilityBoundary.vue) | ✅ 已完成 | — |
+| 课程管理 CRUD | 创建、编辑、删除课程 | [courses.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/courses.py) | ✅ 已完成 | — |
+| 知识库上传与解析 | 支持 PDF/PPT/TXT/MD 上传、解析、分块、Chroma 向量化 | [knowledge_base.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/knowledge_base.py) | ✅ 已完成 | 补完整课程资料集 |
+| RAG 检索 | Chroma 向量检索 + HashEmbedding + JSON fallback 双模式 | [vector_store.py](file:///Users/xing/Desktop/EduMind/backend/app/rag/vector_store.py) | ✅ 已完成 | embedding 质量待提升 |
+| 学生画像生成 | 问卷式输入 → LLM/Mock 生成画像 | [profile_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/profile_service.py) | ⚠️ 部分实现 | 缺少对话式画像 |
+| 学习路径规划 | LLM/Mock 生成 3 阶段学习路径 | [planner_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/planner_agent.py) | ⚠️ 部分实现 | 缺少动态调整 |
+| 资源生成 | 4 类资源：讲义、案例、测验、任务 | [resource_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/resource_agent.py) | ⚠️ 部分实现 | 需补至 5 类 |
+| 智能答疑 | 基于 RAG 的问答，返回引用来源 | [tutor_agent.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/tutor_agent.py) | ⚠️ 部分实现 | 需增强可信度 |
+| 测验评价 | 生成测验 → 提交答案 → 评分反馈 | [quiz_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/quiz_service.py) | ✅ 已完成 | — |
+| Word 报告导出 | python-docx 生成学习报告 | [report_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/report_service.py) | ✅ 已完成 | — |
+| LangGraph 多智能体 | 6 Agent 顺序工作流：Profile→Planner→Resource→Tutor→Evaluator→Reporter | [graph.py](file:///Users/xing/Desktop/EduMind/backend/app/agents/graph.py) | ✅ 已完成 | — |
+| Agent 执行链路 | 步骤日志、耗时统计、状态追踪、输入输出摘要 | [agent_workflow.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/agent_workflow.py) | ✅ 已完成 | — |
+| Mock/真实 LLM 双模式 | DeepSeek / 通义千问 / Mock 三模式自动切换 | [llm_service.py](file:///Users/xing/Desktop/EduMind/backend/app/services/llm_service.py) | ✅ 已完成 | — |
+| Dashboard 统计 | 课程/画像/资源/测验/报告/Agent 运行数 + 7 天趋势 | [Dashboard.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/Dashboard.vue) | ✅ 已完成 | — |
+| .env.example | 环境变量样例文件 | [.env.example](file:///Users/xing/Desktop/EduMind/.env.example) | ✅ 已完成 | — |
 
 ---
 
@@ -90,22 +98,21 @@
 | # | 缺少项 | 判断依据 | 当前状态 | 建议补法 |
 |---|--------|----------|----------|----------|
 | 1 | **微信小程序学生端体验版** | 方案明确建议 Web 主系统 + 微信小程序体验版；代码库中无 `miniprogram` 目录 | ❌ 不存在 | 新增 `miniprogram`：今日学习、路径、资源、AI 辅导、练习/错题、报告；先 mock，预留 API |
-| 2 | **对话式学习画像构建** | 赛题要求自然语言对话构建不少于 6 维画像；当前仅有问卷式输入 | ❌ 不存在 | 新增 `/student/profile-dialog` 或在画像页加入对话式生成流程、画像 JSON、手动修正 |
+| 2 | **对话式学习画像构建** | 赛题要求自然语言对话构建不少于 6 维画像；当前仅有问卷式输入（`profile_service.py` 使用 `llm_service.generate_json("profile", data)`） | ❌ 不存在 | 新增 `/student/profile-dialog` 或在画像页加入对话式生成流程、画像 JSON、手动修正 |
 | 3 | **至少 5 类个性化资源生成** | 赛题硬要求；当前 ResourceAgent 仅生成 4 类（讲义、案例、测验、任务） | ⚠️ 仅 4 类 | 增加第 5 类资源（如思维导图/代码案例/视频脚本），实现演示级接口与页面输出 |
 | 4 | **课程知识库与样例课程资料集** | 赛题要求自行构造至少一门完整高校专业课程知识库/文档集 | ⚠️ 仅有上传入口 | 准备一门完整课程：章节、知识点、讲义、题库、实验/项目材料；放入 `dataset` 或 `docs/course_kb` |
-| 5 | **RAG 引用溯源与可信度评分** | 防幻觉和课程资料约束需要引用片段、来源文件、可信度 | ⚠️ 有基础引用 | 增强 TutorAgent 返回：引用资料、可信度评分、推荐练习 |
-| 6 | **防幻觉审核中心/审核记录** | 赛题非功能需求明确要求防幻觉与内容安全过滤；当前报告审核中心已有基础 | ⚠️ 有基础框架 | 增加可信度评分、风险等级、审核状态、通过/退回/重生成 |
+| 5 | **RAG 引用溯源与可信度评分** | 防幻觉和课程资料约束需要引用片段、来源文件、可信度；当前 TutorAgent 返回 `source_file` 但无可信度评分 | ⚠️ 有基础引用 | 增强 TutorAgent 返回：引用资料、可信度评分、推荐练习 |
+| 6 | **防幻觉审核中心/审核记录** | 赛题非功能需求明确要求防幻觉与内容安全过滤；当前 AdminReports.vue 有基础框架 | ⚠️ 有基础框架 | 增加可信度评分、风险等级、审核状态、通过/退回/重生成 |
 
 ### P1 — 重要但非硬性截止
 
 | # | 缺少项 | 判断依据 | 当前状态 | 建议补法 |
 |---|--------|----------|----------|----------|
-| 7 | **Agent 执行步骤日志** | AgentWorkflow 页面已有，但缺少每步输入/输出/耗时/状态追踪 | ⚠️ 仅记录 AgentRun | 实现 `run_demo_agent_flow`：画像→检索→规划→资源→审核→报告，每步有日志 |
-| 8 | **资源推荐理由** | 个性化系统必须能解释"为什么推荐" | ❌ 不存在 | 在学生课程/路径/资源/报告页加入推荐原因：薄弱点、测验证据、目标匹配 |
-| 9 | **学习路径动态调整** | 当前有路径展示，但测验/答疑后不会自动调整 | ❌ 不存在 | 用规则演示：错题薄弱点变化后更新下一任务与推荐资源 |
-| 10 | **正式文档包** | 赛题要求系统开发说明、测试说明、部署说明等 | ⚠️ 部分文档已有 | 补齐 docx：系统开发说明、测试说明、部署说明、AI 工具说明、开源协议说明、用户手册 |
-| 11 | **演示 PPT 与 7 分钟视频** | 赛题明确提交 PPT 和 7 分钟以内演示视频 | ❌ 不存在 | 制作 PPT；录制固定三端路线 + demo-status + 资源生成/Agent |
-| 12 | **提交包目录** | 方案建议整理完整提交目录 | ❌ 不存在 | 整理 `EduMind_Submission` 目录 |
+| 7 | **资源推荐理由** | 个性化系统必须能解释"为什么推荐" | ❌ 不存在 | 在学生课程/路径/资源/报告页加入推荐原因：薄弱点、测验证据、目标匹配 |
+| 8 | **学习路径动态调整** | 当前有路径展示，但测验/答疑后不会自动调整 | ❌ 不存在 | 用规则演示：错题薄弱点变化后更新下一任务与推荐资源 |
+| 9 | **正式文档包** | 赛题要求系统开发说明、测试说明、部署说明等 | ⚠️ 部分文档已有 | 补齐 docx：系统开发说明、测试说明、部署说明、AI 工具说明、开源协议说明、用户手册 |
+| 10 | **演示 PPT 与 7 分钟视频** | 赛题明确提交 PPT 和 7 分钟以内演示视频 | ❌ 不存在 | 制作 PPT；录制固定三端路线 + demo-status + 资源生成/Agent |
+| 11 | **提交包目录** | 方案建议整理完整提交目录 | ❌ 不存在 | 整理 `EduMind_Submission` 目录 |
 
 ---
 
@@ -119,7 +126,7 @@
 | 2 | **三角色路由拆分** | 已有 `/student/*` `/teacher` `/admin/*` 完整路由 | ✅ 已实现 | 确认各角色菜单不再跨角色切换 |
 | 3 | **Demo 状态页** | `/demo-status` 前后端已实现 | ✅ 已实现 | 保持为答辩入口 |
 | 4 | **一键验收脚本** | `seed-demo-data` `check-demo-ready` `e2e_demo_flow_check` 已实现 | ✅ 已实现 | 每次提交后必须重跑 |
-| 5 | **生成进度追踪/流式输出** | 赛题建议流式输出或生成进度追踪 | ❌ 不存在 | 可在资源生成/Agent 页面用步骤条模拟进度；真实 SSE 后续做 |
+| 5 | **生成进度追踪/流式输出** | 赛题建议流式输出或生成进度追踪；AgentWorkflow 页面已有步骤条 | ⚠️ 部分实现 | 可在资源生成/Agent 页面用步骤条模拟进度；真实 SSE 后续做 |
 | 6 | **学习行为数据采集** | `events.py` 已实现业务事件记录 | ✅ 已实现 | — |
 | 7 | **测验在线作答与错题本** | `QuizEvaluate` + `StudentExamResult` 已有在线作答 | ✅ 已实现 | 可增加错题本功能 |
 | 8 | **知识点图谱/前置关系** | 学习路径页面有节点，但无知识图谱数据结构 | ❌ 不存在 | 用 JSON 表示知识点和 `prereq_ids` 即可 |
@@ -154,8 +161,7 @@
 | 第七阶段 | P0 | 小程序学生端体验版 | 补齐 Web + 小程序协同方案 | `miniprogram` 可用微信开发者工具打开；6 个页面可点击；README 完整 |
 | 第八阶段 | P0 | 对话式画像 + 5 类资源生成 | 补齐赛题核心硬要求 | 输入张三画像/薄弱点，输出画像 JSON 和 5 类资源包 |
 | 第九阶段 | P0 | 轻量 RAG + 引用 + 防幻觉审核 | 把智能答疑、资源生成和可信机制讲通 | 问答有引用来源；资源有可信度；审核记录可查看 |
-| 第十阶段 | P1 | Agent 执行链路与数据闭环 | 让多智能体不是静态图 | `run_demo_agent_flow` 生成步骤日志，并在 AgentWorkflow 展示 |
-| 第十一阶段 | P1 | 正式文档、PPT、视频、提交包 | 完成初赛提交材料 | PPT、7 分钟视频、开发/测试/部署/AI 工具说明、提交目录齐全 |
+| 第十阶段 | P1 | 正式文档、PPT、视频、提交包 | 完成初赛提交材料 | PPT、7 分钟视频、开发/测试/部署/AI 工具说明、提交目录齐全 |
 
 ---
 
