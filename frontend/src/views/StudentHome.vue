@@ -301,8 +301,8 @@ onBeforeUnmount(() => {
         </DataCard>
       </main>
 
-      <aside class="ai-panel data-card">
-        <div class="card-title">
+      <aside class="ai-panel">
+        <div class="ai-panel-header">
           <div>
             <h2>智能答疑</h2>
             <p class="muted">在线 · 基于课程资料回答</p>
@@ -375,8 +375,8 @@ onBeforeUnmount(() => {
   height: 44px;
   border-radius: 12px;
   color: #fff;
-  font-weight: 800;
-  background: linear-gradient(135deg, #0f4c81, #2f6bff);
+  font-weight: 600;
+  background: #2f6bff;
 }
 
 .task-item {
@@ -492,20 +492,20 @@ onBeforeUnmount(() => {
   height: 52px;
   border-radius: 16px;
   color: #fff;
-  font-weight: 800;
-  background: linear-gradient(135deg, #2f6bff, #7c5cff);
+  font-weight: 600;
+  background: #2f6bff;
 }
 
 .achievement-badge.orange span {
-  background: linear-gradient(135deg, #f97316, #facc15);
+  background: #f97316;
 }
 
 .achievement-badge.red span {
-  background: linear-gradient(135deg, #ef4444, #fb7185);
+  background: #ef4444;
 }
 
 .achievement-badge.purple span {
-  background: linear-gradient(135deg, #7c3aed, #c4b5fd);
+  background: #7c3aed;
 }
 
 .achievement-badge.gray span {
@@ -567,6 +567,23 @@ onBeforeUnmount(() => {
   top: 90px;
   display: grid;
   gap: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  padding: 16px;
+  background: var(--bg-card);
+}
+
+.ai-panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.ai-panel-header h2 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-text-main);
 }
 
 .chat-window {
@@ -584,7 +601,7 @@ onBeforeUnmount(() => {
 .message.user {
   margin-left: 42px;
   color: #fff;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+  background: var(--color-primary);
 }
 
 .message.assistant {

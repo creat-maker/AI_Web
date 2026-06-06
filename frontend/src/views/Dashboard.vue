@@ -286,7 +286,11 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="admin-bottom-grid">
-      <DataCard title="最近工作流运行" subtitle="Agent 执行记录">
+      <div class="bottom-section">
+        <div class="section-header">
+          <h2>最近工作流运行</h2>
+          <p class="muted">Agent 执行记录</p>
+        </div>
         <div class="list">
           <div v-for="item in activity?.recent_activity?.slice(0, 4) || []" :key="`${item.title}-${item.created_at}`" class="workflow-row">
             <div>
@@ -303,9 +307,13 @@ onBeforeUnmount(() => {
             <StatusBadge label="成功" tone="success" />
           </div>
         </div>
-      </DataCard>
+      </div>
 
-      <DataCard title="系统日志与告警" subtitle="错误、警告与信息流">
+      <div class="bottom-section">
+        <div class="section-header">
+          <h2>系统日志与告警</h2>
+          <p class="muted">错误、警告与信息流</p>
+        </div>
         <div class="list">
           <div v-for="item in summary?.warning_items?.slice(0, 4) || []" :key="`${item.module}-${item.message}`" class="workflow-row">
             <div>
@@ -320,9 +328,13 @@ onBeforeUnmount(() => {
             <div class="workflow-row"><strong>用户登录成功：张老师</strong><StatusBadge label="信息" tone="info" /></div>
           </template>
         </div>
-      </DataCard>
+      </div>
 
-      <DataCard title="系统能量状态" subtitle="服务健康与可用性">
+      <div class="bottom-section">
+        <div class="section-header">
+          <h2>系统能量状态</h2>
+          <p class="muted">服务健康与可用性</p>
+        </div>
         <div class="service-list">
           <div v-for="item in serviceStatus" :key="item.name" class="service-item">
             <div>
@@ -336,7 +348,7 @@ onBeforeUnmount(() => {
           <strong>验收状态：{{ demoStatus.passed }}/{{ demoStatus.total }}</strong>
           <span>{{ demoStatus.message }}</span>
         </div>
-      </DataCard>
+      </div>
     </div>
   </section>
 </template>
@@ -373,6 +385,28 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+.bottom-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  padding: 16px;
+  background: var(--bg-card);
+}
+
+.section-header {
+  margin-bottom: 12px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-text-main);
+}
+
+.section-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
 }
 
 .workflow-row,

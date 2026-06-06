@@ -1262,9 +1262,9 @@ textarea {
 
 .eyebrow {
   margin: 0 0 6px;
-  color: var(--color-primary);
+  color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .muted {
@@ -1360,17 +1360,16 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  min-height: 112px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 16px 18px;
+  min-height: 88px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 14px 16px;
   background: #fff;
-  box-shadow: var(--card-shadow);
+  box-shadow: none;
 }
 
 .stat-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .stat-card .stat-content {
@@ -1384,9 +1383,10 @@ textarea {
 
 .stat-card strong {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--color-text-main);
   font-size: 28px;
+  font-weight: 600;
   line-height: 1.1;
 }
 
@@ -1407,32 +1407,32 @@ textarea {
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
-  color: var(--text-light);
-  font-weight: 800;
-  background: var(--color-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  background: var(--status-neutral-bg);
 }
 
 .stat-card.green .stat-icon {
-  background: #16a34a;
+  color: #16a34a;
 }
 
 .stat-card.orange .stat-icon {
-  background: #ea580c;
+  color: #ea580c;
 }
 
 .stat-card.purple .stat-icon {
-  background: #7c3aed;
+  color: #7c3aed;
 }
 
 .stat-card.red .stat-icon {
-  background: #dc2626;
+  color: #dc2626;
 }
 
 .stat-card.cyan .stat-icon {
-  background: #0284c7;
+  color: #0284c7;
 }
 
 .progress-label {

@@ -13,9 +13,9 @@ defineProps<{
 <template>
   <article :class="['stat-card', tone || 'blue']">
     <div class="stat-content">
-      <span>{{ label }}</span>
-      <strong>{{ value }}<small v-if="unit">{{ unit }}</small></strong>
-      <p v-if="hint || trend">
+      <span class="stat-label">{{ label }}</span>
+      <strong class="stat-value">{{ value }}<small v-if="unit">{{ unit }}</small></strong>
+      <p v-if="hint || trend" class="stat-hint">
         <template v-if="hint">{{ hint }}</template>
         <template v-if="trend"> {{ trend }}</template>
       </p>

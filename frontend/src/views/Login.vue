@@ -64,7 +64,7 @@ function enter(role: UserRole, home: string) {
       </div>
 
       <div class="login-copy">
-        <p class="eyebrow">Competition Demo Ready</p>
+        <p class="eyebrow">Competition demo ready</p>
         <h1>三端教育智能体演示工作台</h1>
         <p>
           面向学生、教师和管理员，串联学习画像、路径规划、智能答疑、资源生成、报告沉淀和 Agent 工作流治理。
