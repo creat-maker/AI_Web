@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 
 interface MindmapNode {
   label: string;
@@ -44,6 +44,76 @@ function extractStepNumber(label: string): { num: number; text: string } | null 
   if (match) return { num: parseInt(match[1], 10), text: match[2].trim() };
   return null;
 }
+
+/* ── 树状连线：动态 SVG 定位 ── */
+const gridRef = ref<HTMLElement | null>(null);
+const treeSvgPaths = ref<string>('');
+const isNarrow = ref(false);
+
+function updateTreeLines() {
+  const grid = gridRef.value;
+  if (!grid) return;
+
+  const cards = grid.querySelectorAll('.kg-branch-card');
+  if (cards.length === 0) return;
+
+  const gridRect = grid.getBoundingClientRect();
+  const points: { x: number; y: number }[] = [];
+
+  cards.forEach((card) => {
+    const rect = card.getBoundingClientRect();
+    points.push({
+      x: rect.left + rect.width / 2 - gridRect.left,
+      y: 0,
+    });
+  });
+
+  // 检查是否窄屏（卡片纵向堆叠）
+  const firstRect = cards[0].getBoundingClientRect();
+  const secondRect = cards.length > 1 ? cards[1].getBoundingClientRect() : null;
+  isNarrow.value = secondRect !== null && Math.abs(firstRect.top - secondRect.top) > 10;
+
+  if (isNarrow.value || points.length <= 1) {
+    treeSvgPaths.value = '';
+    return;
+  }
+
+  const svgW = gridRect.width;
+  const stemH = 14;
+  const dropH = 12;
+  const totalH = stemH + dropH;
+  const barY = stemH;
+
+  let d = '';
+  // 主干
+  d += `M ${svgW / 2} 0 L ${svgW / 2} ${barY} `;
+  // 横干：从最左分支中心到最右分支中心
+  const leftX = points[0].x;
+  const rightX = points[points.length - 1].x;
+  d += `M ${leftX} ${barY} L ${rightX} ${barY} `;
+  // 分支竖线
+  points.forEach((p) => {
+    d += `M ${p.x} ${barY} L ${p.x} ${totalH} `;
+  });
+
+  treeSvgPaths.value = d;
+}
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  nextTick(updateTreeLines);
+  if (gridRef.value) {
+    resizeObserver = new ResizeObserver(updateTreeLines);
+    resizeObserver.observe(gridRef.value);
+  }
+});
+
+onUnmounted(() => {
+  resizeObserver?.disconnect();
+});
+
+watch(() => props.data, () => nextTick(updateTreeLines));
 </script>
 
 <template>
@@ -53,16 +123,21 @@ function extractStepNumber(label: string): { num: number; text: string } | null 
       <span class="kg-center-label">{{ data.label }}</span>
     </div>
 
-    <!-- 连接线 -->
-    <div class="kg-connector">
-      <div class="kg-connector-stem"></div>
-      <div class="kg-connector-branches">
-        <div v-for="(_, i) in sections" :key="i" class="kg-connector-branch"></div>
-      </div>
-    </div>
+    <!-- 树状连接线 SVG -->
+    <svg
+      v-if="treeSvgPaths && !isNarrow"
+      class="kg-tree-svg"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+    >
+      <path :d="treeSvgPaths" stroke="#e2e8f0" stroke-width="1.5" stroke-linecap="round" />
+    </svg>
+
+    <!-- 窄屏：简单主干线 -->
+    <div v-if="isNarrow" class="kg-tree-stem-narrow"></div>
 
     <!-- 分支卡片网格 -->
-    <div class="kg-branch-grid">
+    <div ref="gridRef" class="kg-branch-grid">
       <div
         v-for="(section, i) in sections"
         :key="i"
@@ -132,7 +207,7 @@ function extractStepNumber(label: string): { num: number; text: string } | null 
 
 <style scoped>
 /* ═══════════════════════════════════════════
-   中心辐射式知识图谱布局
+   中心辐射式知识图谱 — SVG 树状连线
    ═══════════════════════════════════════════ */
 
 .kg-radiate {
@@ -144,7 +219,6 @@ function extractStepNumber(label: string): { num: number; text: string } | null 
 .kg-center-node {
   display: flex;
   justify-content: center;
-  margin-bottom: 0;
 }
 
 .kg-center-label {
@@ -160,52 +234,39 @@ function extractStepNumber(label: string): { num: number; text: string } | null 
   box-shadow: 0 4px 20px rgba(30, 41, 59, 0.25);
 }
 
-/* ── 连接线 ── */
-.kg-connector {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 0 auto;
-  width: fit-content;
-}
+/* ═══════════════════════════════════════════
+   SVG 树状连线
+   通过 ResizeObserver 动态计算卡片位置，
+   绘制：主干 → 横干 → 分支竖线
+   ═══════════════════════════════════════════ */
 
-.kg-connector-stem {
-  width: 2px;
-  height: 24px;
-  background: linear-gradient(to bottom, #94a3b8, #cbd5e1);
-}
-
-.kg-connector-branches {
-  display: flex;
-  justify-content: center;
-  gap: 0;
+.kg-tree-svg {
+  display: block;
   width: 100%;
+  height: 26px; /* stemH(14) + dropH(12) */
+  overflow: visible;
+  z-index: 0;
   position: relative;
 }
 
-.kg-connector-branch {
-  width: 80px;
-  height: 20px;
-  position: relative;
+/* 窄屏简单主干线 */
+.kg-tree-stem-narrow {
+  width: 1.5px;
+  height: 14px;
+  background: #e2e8f0;
+  margin: 0 auto;
 }
 
-.kg-connector-branch::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 2px;
-  height: 100%;
-  background: #cbd5e1;
-  transform: rotate(0deg);
-}
+/* ═══════════════════════════════════════════
+   分支卡片网格
+   ═══════════════════════════════════════════ */
 
-/* ── 分支卡片网格 ── */
 .kg-branch-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
-  margin-top: 0;
+  position: relative;
+  z-index: 1;
 }
 
 /* ── 单个分支卡片 ── */
@@ -409,15 +470,49 @@ function extractStepNumber(label: string): { num: number; text: string } | null 
   opacity: 0.5;
 }
 
-/* ── 响应式 ── */
+/* ═══════════════════════════════════════════
+   响应式：窄屏隐藏树状连线，改用左侧时间轴
+   ═══════════════════════════════════════════ */
+
 @media (max-width: 640px) {
   .kg-branch-grid {
     grid-template-columns: 1fr;
   }
 
+  .kg-tree-svg {
+    display: none;
+  }
+
   .kg-center-label {
     font-size: 1rem;
     padding: 8px 24px;
+  }
+
+  /* 窄屏：卡片左侧加竖线时间轴 */
+  .kg-branch-card {
+    position: relative;
+    margin-left: 20px;
+  }
+
+  .kg-branch-card::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 0;
+    bottom: 0;
+    width: 1.5px;
+    background: #e2e8f0;
+  }
+
+  .kg-branch-card::after {
+    content: '';
+    position: absolute;
+    left: -24px;
+    top: 20px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-top);
   }
 }
 </style>
