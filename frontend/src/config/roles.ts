@@ -28,6 +28,7 @@ export const roleDescriptions: Record<UserRole, string> = {
 export const roleMenus: Record<UserRole, RoleMenuItem[]> = {
   student: [
     { label: '学习总览', path: '/student', description: '学生端首页，汇总今日目标、课程进度、路径、资源和报告。' },
+    { label: '画像构建', path: '/student/profile-dialog', description: '通过自然对话构建学习画像，获得个性化学习内容。' },
     { label: '我的课程', path: '/student/courses', description: '查看已加入课程、学习进度和最近学习记录。' },
     { label: '学习路径', path: '/student/learning-path', description: '查看个性化学习路径、当前节点和阶段任务。' },
     { label: '今日任务 / 日历', path: '/student/tasks', description: '查看今日任务、截止时间和完成状态。' },

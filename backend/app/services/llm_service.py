@@ -36,6 +36,12 @@ class LLMService:
             return self.mock.answer_tutor(payload["question"], payload.get("contexts", []))
         if task == "evaluate":
             return self.mock.evaluate(payload["quiz"], payload["answers"], payload["profile"])
+        if task == "profile_dialog":
+            return self.mock.profile_dialog(payload)
+        if task == "profile_extract":
+            return {"value": payload.get("user_message", "")}
+        if task == "profile_followup":
+            return {"reply": f"已记录你的{payload.get('dimension_label', '')}信息。"}
         return {"message": "mock result"}
 
     def _call_openai_compatible(self, task: str, payload: dict[str, Any]) -> dict[str, Any] | list[dict[str, Any]]:
