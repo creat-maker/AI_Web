@@ -30,6 +30,7 @@ def _citation_cards(contexts: list[dict]) -> list[dict]:
             "document_name": item.get("source_file") or f"知识库文档 #{item.get('document_id', '-')}",
             "snippet": item.get("content", ""),
             "relevance": item.get("score", 0),
+            "confidence": item.get("confidence", round(float(item.get("score") or 0.5), 4)),
             "document_id": item.get("document_id"),
         }
         for item in contexts
@@ -42,6 +43,23 @@ def _follow_up_suggestions(question: str) -> list[str]:
         "能不能给我一个相似但更简单的例题？",
         "我应该如何检查自己的解题步骤？",
     ] if question else []
+
+
+def _compute_confidence(contexts: list[dict]) -> tuple[float, str, dict]:
+    """计算整体 confidence 统计"""
+    scores = [float(item.get("score") or 0) for item in contexts]
+    if not scores:
+        return 0, "low", {"avg": 0, "max": 0, "min": 0, "count": 0}
+    avg = round(sum(scores) / len(scores), 4)
+    max_s = round(max(scores), 4)
+    min_s = round(min(scores), 4)
+    if avg >= 0.7:
+        level = "high"
+    elif avg >= 0.4:
+        level = "medium"
+    else:
+        level = "low"
+    return avg, level, {"avg": avg, "max": max_s, "min": min_s, "count": len(scores)}
 
 
 def _teaching_profile(question: str, contexts: list[dict], hint_level: str, no_direct_answer: bool) -> dict:
@@ -86,8 +104,14 @@ def _teaching_profile(question: str, contexts: list[dict], hint_level: str, no_d
 @router.post("/ask")
 def ask(payload: TutorPayload, db: Session = Depends(get_db)):
     contexts = retrieve_course_context(payload.course_id, payload.question, payload.top_k)
-    answer = llm_service.generate_json("tutor", {"question": payload.question, "contexts": contexts})
-    teaching_profile = _teaching_profile(payload.question, contexts, payload.hint_level, payload.no_direct_answer)
+
+    # 为每个 context 增加 confidence
+    enriched_contexts = [
+        {**item, "confidence": round(float(item.get("score") or 0.5), 4)} for item in contexts
+    ]
+
+    answer = llm_service.generate_json("tutor", {"question": payload.question, "contexts": enriched_contexts})
+    teaching_profile = _teaching_profile(payload.question, enriched_contexts, payload.hint_level, payload.no_direct_answer)
     if payload.no_direct_answer:
         raw_answer = answer.get("answer") if isinstance(answer, dict) else ""
         answer = {
@@ -100,13 +124,16 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db)):
     if isinstance(answer, dict):
         answer.update(teaching_profile)
 
+    # 计算整体 confidence
+    confidence, confidence_level, confidence_breakdown = _compute_confidence(enriched_contexts)
+
     mode = llm_service.runtime_mode
     stored_mode = f"{mode}-guided" if payload.heuristic_mode else mode
     log = TutorQuestionLog(
             course_id=payload.course_id,
             question=payload.question,
             answer_json=dumps(answer),
-            contexts_json=dumps(contexts),
+            contexts_json=dumps(enriched_contexts),
             mode=stored_mode,
         )
     db.add(log)
@@ -116,7 +143,7 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db)):
         db,
         event_type="question_answered",
         title="智能答疑完成",
-        description=f"问题已回答并记录 {len(contexts)} 条引用来源。",
+        description=f"问题已回答并记录 {len(enriched_contexts)} 条引用来源。",
         actor_role="student",
         actor_name="demo_student",
         target_type="tutor_question",
@@ -125,8 +152,9 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db)):
         status="answered",
         metadata={
             "question": payload.question,
-            "citation_count": len(contexts),
-            "confidence": round(sum(float(item.get("score") or 0) for item in contexts) / max(len(contexts), 1), 2) if contexts else 0,
+            "citation_count": len(enriched_contexts),
+            "confidence": confidence,
+            "confidence_level": confidence_level,
             "weak_point_impact": teaching_profile.get("detected_misconception"),
             "recommended_resource": "分层练习题",
             "path_suggestion": "将本次答疑知识点加入下一阶段复盘。",
@@ -134,15 +162,16 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db)):
         commit=False,
     )
     db.commit()
-    confidence = round(sum(float(item.get("score") or 0) for item in contexts) / max(len(contexts), 1), 2) if contexts else 0
     return {
         "answer": answer,
-        "retrieved_context": contexts,
-        "citation_sources": _citation_cards(contexts),
+        "retrieved_context": enriched_contexts,
+        "citation_sources": _citation_cards(enriched_contexts),
         "follow_up_suggestions": _follow_up_suggestions(payload.question),
         **teaching_profile,
-        "based_on_material": bool(contexts),
+        "based_on_material": bool(enriched_contexts),
         "confidence": confidence,
+        "confidence_level": confidence_level,
+        "confidence_breakdown": confidence_breakdown,
         "mode": stored_mode,
     }
 
@@ -157,6 +186,7 @@ def history(course_id: int | None = None, limit: int = 20, db: Session = Depends
     for item in items:
         answer = loads(item.answer_json, {})
         contexts = loads(item.contexts_json, [])
+        confidence, confidence_level, confidence_breakdown = _compute_confidence(contexts)
         rows.append(
             {
                 "id": item.id,
@@ -171,6 +201,9 @@ def history(course_id: int | None = None, limit: int = 20, db: Session = Depends
                 "detected_misconception": answer.get("detected_misconception"),
                 "mastery_delta": answer.get("mastery_delta"),
                 "based_on_material": bool(contexts),
+                "confidence": confidence,
+                "confidence_level": confidence_level,
+                "confidence_breakdown": confidence_breakdown,
                 "mode": item.mode,
                 "created_at": item.created_at,
             }

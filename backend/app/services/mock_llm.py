@@ -117,15 +117,40 @@ class MockLLM:
         }
 
     def answer_tutor(self, question: str, contexts: list[dict[str, Any]]) -> dict[str, Any]:
+        # 基于 context score 计算 per-citation confidence
+        scores = [float(item.get("score") or 0) for item in contexts]
         citations = [
-            {"source_file": item.get("source_file"), "content": item.get("content", "")[:160]}
-            for item in contexts
+            {
+                "source_file": item.get("source_file"),
+                "content": item.get("content", "")[:160],
+                "confidence": round(scores[i] if i < len(scores) else 0.5, 4),
+            }
+            for i, item in enumerate(contexts)
         ]
+
+        # 计算整体 confidence 统计
+        avg_score = sum(scores) / max(len(scores), 1)
+        max_score = max(scores) if scores else 0
+        if avg_score >= 0.7:
+            confidence_level = "high"
+        elif avg_score >= 0.4:
+            confidence_level = "medium"
+        else:
+            confidence_level = "low"
+
         basis = contexts[0]["content"] if contexts else "当前课程资料中没有检索到直接片段。"
         return {
             "answer": f"根据课程资料，可先抓住这个要点：{basis[:220]}。针对你的问题：{question}，建议先回到资料中的定义或示例，再做一个最小案例验证。",
             "citations": citations,
             "mode": self.mode_label,
+            "confidence": round(avg_score, 4),
+            "confidence_level": confidence_level,
+            "confidence_breakdown": {
+                "avg": round(avg_score, 4),
+                "max": round(max_score, 4),
+                "min": round(min(scores) if scores else 0, 4),
+                "count": len(scores),
+            },
         }
 
     def profile_dialog(self, payload: dict[str, Any]) -> dict[str, Any]:

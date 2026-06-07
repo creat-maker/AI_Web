@@ -8,6 +8,14 @@ interface RetrievedContext {
   source_file?: string;
   document_id?: number;
   score?: number;
+  confidence?: number;
+}
+
+interface CitationSource {
+  document_name: string;
+  snippet: string;
+  relevance?: number;
+  confidence?: number;
 }
 
 interface TutorAnswer {
@@ -16,10 +24,12 @@ interface TutorAnswer {
     [key: string]: unknown;
   };
   retrieved_context: RetrievedContext[];
-  citation_sources?: Array<{ document_name: string; snippet: string; relevance?: number }>;
+  citation_sources?: CitationSource[];
   follow_up_suggestions?: string[];
   based_on_material?: boolean;
   confidence?: number;
+  confidence_level?: 'high' | 'medium' | 'low';
+  confidence_breakdown?: { avg: number; max: number; min: number; count: number };
   teaching_strategy?: string;
   hint_level?: string;
   hint_text?: string;
@@ -39,9 +49,12 @@ interface TutorHistoryItem {
     [key: string]: unknown;
   };
   retrieved_context: RetrievedContext[];
-  citation_sources?: Array<{ document_name: string; snippet: string; relevance?: number }>;
+  citation_sources?: CitationSource[];
   follow_up_suggestions?: string[];
   based_on_material?: boolean;
+  confidence?: number;
+  confidence_level?: 'high' | 'medium' | 'low';
+  confidence_breakdown?: { avg: number; max: number; min: number; count: number };
   teaching_strategy?: string;
   hint_level?: string;
   detected_misconception?: string;
@@ -81,6 +94,20 @@ function formatDate(value?: string) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function getConfidenceColor(confidence?: number): string {
+  if (!confidence) return '#94a3b8';
+  if (confidence >= 0.7) return '#22c55e';
+  if (confidence >= 0.4) return '#eab308';
+  return '#ef4444';
+}
+
+function getConfidenceLabel(level?: 'high' | 'medium' | 'low'): string {
+  if (level === 'high') return '高可信';
+  if (level === 'medium') return '中可信';
+  if (level === 'low') return '低可信';
+  return '未知';
 }
 
 async function loadHistory() {
@@ -265,10 +292,27 @@ onMounted(loadCourses);
         <h2>引用来源</h2>
         <span class="muted">知识库检索结果</span>
       </div>
+      <div v-if="answer.confidence !== undefined" class="confidence-summary">
+        <div class="confidence-badge" :style="{ background: getConfidenceColor(answer.confidence) }">
+          {{ getConfidenceLabel(answer.confidence_level) }}
+        </div>
+        <span class="confidence-score">整体可信度 {{ (answer.confidence * 100).toFixed(0) }}%</span>
+        <span v-if="answer.confidence_breakdown" class="confidence-detail">
+          (最高 {{ (answer.confidence_breakdown.max * 100).toFixed(0) }}% / 最低 {{ (answer.confidence_breakdown.min * 100).toFixed(0) }}%)
+        </span>
+      </div>
       <div class="source-grid">
         <article v-for="item in answer.citation_sources || []" :key="`${item.document_name}-${item.snippet}`" class="source-card">
-          <strong>{{ item.document_name || '未知来源' }}</strong>
-          <span>相关度 {{ item.relevance ?? '-' }}</span>
+          <div class="source-header">
+            <strong>{{ item.document_name || '未知来源' }}</strong>
+            <div v-if="item.confidence !== undefined" class="source-confidence">
+              <div class="confidence-bar-bg">
+                <div class="confidence-bar-fill" :style="{ width: `${(item.confidence || 0) * 100}%`, background: getConfidenceColor(item.confidence) }"></div>
+              </div>
+              <span class="confidence-value">{{ ((item.confidence || 0) * 100).toFixed(0) }}%</span>
+            </div>
+          </div>
+          <span class="source-relevance">相关度 {{ (item.relevance ?? 0) >= 0 ? (item.relevance * 100).toFixed(0) + '%' : '-' }}</span>
           <p>{{ item.snippet }}</p>
         </article>
       </div>
@@ -437,6 +481,69 @@ onMounted(loadCourses);
 .source-card p {
   margin: 10px 0 0;
   color: var(--text-secondary);
+}
+
+.source-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.source-confidence {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.confidence-bar-bg {
+  width: 50px;
+  height: 6px;
+  background: var(--border-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.confidence-value {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 28px;
+}
+
+.confidence-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+.confidence-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.confidence-score {
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.confidence-detail {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .error-text {

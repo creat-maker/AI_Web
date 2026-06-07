@@ -52,8 +52,10 @@ def _quality_score(report_json: dict) -> float | None:
     return None
 
 
-def _evidence_chain(report_json: dict, references: list[Any], weak_points: list[Any]) -> list[dict[str, Any]]:
+def _evidence_chain(report_json: dict, references: list[Any], weak_points: list[Any], contexts_confidence: list[float] | None = None) -> list[dict[str, Any]]:
     evidence_types = ["document", "quiz", "chat", "mastery", "agent_run"]
+    # 如果有真实 confidence 数据，优先使用，否则使用降序假数据
+    base_confidences = contexts_confidence or [0.88, 0.82, 0.76]
     conclusions = [
         {
             "conclusion": _short(report_json.get("profile_summary") or report_json.get("summary"), "学生当前学习表现需要结合测评和问答继续观察。"),
@@ -74,7 +76,7 @@ def _evidence_chain(report_json: dict, references: list[Any], weak_points: list[
             "evidence_type": evidence_types[index % len(evidence_types)],
             "source_title": str(references[index % len(references)]) if references else "EduMind demo/fallback evidence",
             "source_excerpt": f"该证据用于支撑结论：{item['conclusion']}",
-            "confidence": round(0.88 - index * 0.06, 2),
+            "confidence": base_confidences[index] if index < len(base_confidences) else round(0.88 - index * 0.06, 2),
             "related_knowledge_point": item["related_knowledge_point"],
             "demo_fallback_note": "证据链为基于报告 JSON、测评和问答记录的轻量演示结构，后续可接真实引用追踪。",
         }
@@ -94,7 +96,11 @@ def _summary(report_json: dict, item: LearningReport) -> dict[str, Any]:
         "AgentWorkflow 运行结果" if report_json.get("agent_run_id") else "课程知识库",
     ]
     suggestions = _as_list(report_json.get("teaching_suggestions"))
-    evidence_chain = _evidence_chain(report_json, references, weak_points)
+    # 从 report_json 中提取 contexts confidence（如有）
+    contexts_confidence: list[float] | None = None
+    if "retrieved_contexts" in report_json:
+        contexts_confidence = [float(item.get("confidence") or item.get("score") or 0.5) for item in report_json["retrieved_contexts"]]
+    evidence_chain = _evidence_chain(report_json, references, weak_points, contexts_confidence)
 
     return {
         "report_abstract": _short(
