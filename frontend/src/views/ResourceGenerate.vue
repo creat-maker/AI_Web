@@ -76,14 +76,15 @@ function closePreview() {
 
 const isMindmap = computed(() => previewResource.value?.resource_type === 'mindmap');
 
-function parseMindmapData(content: string | undefined): MindmapData | null {
+const mindmapData = computed<MindmapData | null>(() => {
+  const content = previewResource.value?.content;
   if (!content) return null;
   try {
     return JSON.parse(content) as MindmapData;
   } catch {
     return null;
   }
-}
+});
 
 /* ── 类型标签映射 ── */
 const typeLabelMap: Record<string, string> = {
@@ -219,8 +220,8 @@ onMounted(loadResources);
           </div>
           <div class="modal-body">
             <!-- 思维导图渲染 -->
-            <template v-if="isMindmap && parseMindmapData(previewResource?.content)">
-              <MindmapViewer :data="parseMindmapData(previewResource!.content)!.root" />
+            <template v-if="isMindmap && mindmapData">
+              <MindmapViewer :data="mindmapData.root" />
             </template>
             <!-- 其他类型：纯文本展示 -->
             <template v-else>
