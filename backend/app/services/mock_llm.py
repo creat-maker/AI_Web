@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 
@@ -78,6 +79,12 @@ class MockLLM:
                 "title": f"{topic}综合任务",
                 "difficulty": "进阶",
                 "content": "围绕真实学习目标完成一个可展示的小任务，并写出复盘。",
+            },
+            {
+                "resource_type": "mindmap",
+                "title": f"{topic}知识结构思维导图",
+                "difficulty": "基础",
+                "content": self._build_mindmap_content(topic, profile),
             },
         ]
 
@@ -225,3 +232,36 @@ class MockLLM:
             "weak_points": profile.get("weak_points", []),
             "next_steps": ["复盘空题或低信心题", "围绕薄弱点再生成 1 组练习", "用课程资料继续追问 TutorAgent"],
         }
+
+    def _build_mindmap_content(self, topic: str, profile: dict[str, Any]) -> str:
+        """构建思维导图结构化 JSON 内容。"""
+        weak_points = profile.get("weak_points", ["核心概念"])[:3]
+        concept_children = [{"label": w} for w in weak_points] + [
+            {"label": "关键流程"},
+            {"label": "常见模式"},
+        ]
+        tree = {
+            "root": {
+                "label": topic,
+                "children": [
+                    {"label": "核心概念", "children": concept_children},
+                    {
+                        "label": "知识关联",
+                        "children": [
+                            {"label": "概念层：术语定义与使用场景"},
+                            {"label": "应用层：案例与练习的映射"},
+                            {"label": "诊断层：错误类型与修正策略"},
+                        ],
+                    },
+                    {
+                        "label": "学习路径",
+                        "children": [
+                            {"label": "1. 掌握核心概念节点"},
+                            {"label": "2. 通过案例连接概念与应用"},
+                            {"label": "3. 用练习巩固，用诊断查漏"},
+                        ],
+                    },
+                ],
+            }
+        }
+        return json.dumps(tree, ensure_ascii=False)
