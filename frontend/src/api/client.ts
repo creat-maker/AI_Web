@@ -5,9 +5,18 @@ export const apiBase = String(import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE)
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, init);
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload: any = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    if (!response.ok) throw new Error(text || `请求失败：${response.status}`);
+    throw new Error(`响应解析失败：${text.slice(0, 100)}`);
+  }
   if (!response.ok) {
-    throw new Error(payload?.detail || `请求失败：${response.status}`);
+    const detail = payload?.detail
+      ? (typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail))
+      : `请求失败：${response.status}`;
+    throw new Error(detail);
   }
   return payload as T;
 }

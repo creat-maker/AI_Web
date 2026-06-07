@@ -15,9 +15,8 @@ if settings.resolved_database_url.startswith("sqlite"):
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False, "timeout": 30},
-        pool_pre_ping=True,
         poolclass=StaticPool,
-        creator=lambda: sqlite3.connect(str(sqlite_path), timeout=30),
+        creator=lambda: sqlite3.connect(str(sqlite_path), timeout=30, check_same_thread=False),
     )
 else:
     engine = create_engine(settings.resolved_database_url, pool_pre_ping=True)
