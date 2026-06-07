@@ -9,8 +9,17 @@ from app.core.config import settings
 
 
 class HashEmbeddingFunction:
+    def name(self) -> str:
+        return "hash_embedding"
+
     def __call__(self, input: list[str]) -> list[list[float]]:
         return [self._embed(text) for text in input]
+
+    def embed_query(self, input: list[str]) -> list[list[float]]:
+        return self(input)
+
+    def embed_documents(self, input: list[str]) -> list[list[float]]:
+        return self(input)
 
     def _embed(self, text: str) -> list[float]:
         vector = [0.0] * 64
