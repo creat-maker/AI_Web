@@ -23,7 +23,8 @@ const fallbackResources: GeneratedResource[] = [
   { title: 'Python 爬虫分层练习题', resource_type: '习题', source_agent: '资源生成 Agent', created_at: '2024-05-31 10:20' },
   { title: 'HTTP 请求知识点讲义', resource_type: '知识点', source_agent: '知识解析 Agent', created_at: '2024-05-31 09:48' },
   { title: '班级学习报告初稿', resource_type: '报告', source_agent: '报告生成 Agent', created_at: '2024-05-30 18:12' },
-  { title: 'Python 爬虫学习路径', resource_type: '学习路径', source_agent: '规划 Agent', created_at: '2024-05-30 16:36' }
+  { title: 'Python 爬虫学习路径', resource_type: '学习路径', source_agent: '规划 Agent', created_at: '2024-05-30 16:36' },
+  { title: 'Python 爬虫知识结构思维导图', resource_type: '思维导图', source_agent: '资源生成 Agent', created_at: '2024-05-30 15:20' }
 ];
 
 const records = [
