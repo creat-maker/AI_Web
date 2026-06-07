@@ -312,7 +312,7 @@ onMounted(loadCourses);
               <span class="confidence-value">{{ ((item.confidence || 0) * 100).toFixed(0) }}%</span>
             </div>
           </div>
-          <span class="source-relevance">相关度 {{ (item.relevance ?? 0) >= 0 ? (item.relevance * 100).toFixed(0) + '%' : '-' }}</span>
+          <span class="source-relevance">相关度 {{ item.relevance != null ? (item.relevance * 100).toFixed(0) + '%' : '-' }}</span>
           <p>{{ item.snippet }}</p>
         </article>
       </div>
