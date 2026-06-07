@@ -16,6 +16,7 @@ interface GeneratedResource {
   difficulty?: string;
   source_agent?: string;
   created_at?: string;
+  recommend_reason?: string;
 }
 
 interface MindmapNode {
@@ -166,6 +167,7 @@ onMounted(loadResources);
               <th>类型</th>
               <th>来源</th>
               <th>难度</th>
+              <th>推荐理由</th>
               <th>创建时间</th>
               <th>操作</th>
             </tr>
@@ -176,6 +178,7 @@ onMounted(loadResources);
               <td><StatusBadge :label="displayType(item.resource_type)" tone="info" /></td>
               <td>{{ item.source_agent ?? '-' }}</td>
               <td>{{ item.difficulty ?? '-' }}</td>
+              <td class="reason-cell">{{ item.recommend_reason ?? '-' }}</td>
               <td>{{ item.created_at?.slice(0, 10) ?? '-' }}</td>
               <td>
                 <div class="row-actions">
@@ -219,6 +222,11 @@ onMounted(loadResources);
             <button class="ghost" @click="closePreview">关闭</button>
           </div>
           <div class="modal-body">
+            <!-- 推荐理由 -->
+            <div v-if="previewResource?.recommend_reason" class="recommend-reason-box">
+              <span class="recommend-label">推荐理由</span>
+              <p>{{ previewResource.recommend_reason }}</p>
+            </div>
             <!-- 思维导图渲染 -->
             <template v-if="isMindmap && mindmapData">
               <MindmapViewer :data="mindmapData.root" />
@@ -319,6 +327,41 @@ onMounted(loadResources);
   margin: 0;
   border: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.reason-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.recommend-reason-box {
+  background: linear-gradient(135deg, #eff6ff, #f0f9ff);
+  border-left: 3px solid #3b82f6;
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.recommend-reason-box .recommend-label {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #dbeafe;
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.recommend-reason-box p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #334155;
 }
 
 @media (max-width: 820px) {

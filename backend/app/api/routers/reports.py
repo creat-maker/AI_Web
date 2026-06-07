@@ -121,6 +121,7 @@ def _summary(report_json: dict, item: LearningReport) -> dict[str, Any]:
             {
                 "name": stage.get("name") or stage.get("title") or f"阶段 {index + 1}",
                 "target": stage.get("target") or stage.get("content") or "继续完成当前学习目标。",
+                "recommend_reason": stage.get("recommend_reason") or f"基于薄弱点分析，推荐进入「{stage.get('name') or stage.get('title') or f'阶段 {index + 1}'}」阶段。",
             }
             for index, stage in enumerate(stages[:4])
             if isinstance(stage, dict)
@@ -129,6 +130,7 @@ def _summary(report_json: dict, item: LearningReport) -> dict[str, Any]:
             {
                 "step": stage.get("name") or stage.get("title") or f"阶段 {index + 1}",
                 "goal": stage.get("target") or stage.get("content") or "继续完成当前学习目标。",
+                "recommend_reason": stage.get("recommend_reason") or f"基于薄弱点分析，推荐进入「{stage.get('name') or stage.get('title') or f'阶段 {index + 1}'}」阶段。",
             }
             for index, stage in enumerate(stages[:4])
             if isinstance(stage, dict)

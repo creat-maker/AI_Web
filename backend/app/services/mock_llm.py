@@ -21,6 +21,8 @@ class MockLLM:
 
     def generate_learning_path(self, profile: dict[str, Any], course_title: str) -> dict[str, Any]:
         goal = profile.get("learning_goal") or f"掌握{course_title}核心内容"
+        weak_points = profile.get("weak_points", [])
+        weak_text = "、".join(weak_points[:2]) if weak_points else "基础概念"
         return {
             "course_title": course_title,
             "goal": goal,
@@ -31,6 +33,7 @@ class MockLLM:
                     "resources": ["概念讲义", "最小可运行示例"],
                     "practice": "完成 3 道基础题",
                     "mastery": "能独立解释关键术语",
+                    "recommend_reason": f"针对薄弱点「{weak_text}」，先补齐基础概念和工具链使用，为后续案例实践建立知识框架。",
                 },
                 {
                     "name": "阶段二：案例迁移",
@@ -38,6 +41,7 @@ class MockLLM:
                     "resources": ["案例拆解", "代码模板"],
                     "practice": "改造一个示例任务",
                     "mastery": "能按步骤完成同类任务",
+                    "recommend_reason": f"基础概念掌握后，通过案例迁移将「{weak_text}」从理解层面提升到应用层面，匹配当前学习目标。",
                 },
                 {
                     "name": "阶段三：综合应用",
@@ -45,46 +49,55 @@ class MockLLM:
                     "resources": ["任务清单", "自评表"],
                     "practice": "提交任务结果和反思",
                     "mastery": "能说明方案选择和错误修正过程",
+                    "recommend_reason": f"综合应用阶段帮助你整合所学，目标匹配「{goal}」，通过实践验证知识掌握程度。",
                 },
             ],
         }
 
     def generate_resources(self, profile: dict[str, Any], path: dict[str, Any]) -> list[dict[str, Any]]:
         topic = path.get("course_title", "课程")
+        weak_points = profile.get("weak_points", [])
+        weak_text = "、".join(weak_points[:2]) if weak_points else "基础概念"
+        goal = path.get("goal", f"掌握{topic}核心内容")
         return [
             {
                 "resource_type": "handout",
                 "title": f"{topic}个性化讲义",
                 "difficulty": "基础到进阶",
                 "content": (
-                    f"## 学习目标\n{path.get('goal', '')}\n\n"
+                    f"## 学习目标\n{goal}\n\n"
                     "## 学习建议\n先运行最小案例，再逐步替换参数和输入数据。\n\n"
                     "## 关键提醒\n把每个错误信息记录为问题、原因、修正三列。"
                 ),
+                "recommend_reason": f"针对薄弱点「{weak_text}」，通过结构化讲义帮助梳理核心概念与知识脉络，为后续实践打下基础。",
             },
             {
                 "resource_type": "example",
                 "title": f"{topic}案例练习",
                 "difficulty": "中等",
                 "content": "1. 阅读资料片段。\n2. 标出输入、处理、输出。\n3. 修改一个参数并观察结果。",
+                "recommend_reason": f"案例驱动有助于将「{weak_text}」从抽象理解转化为可操作步骤，匹配你当前的学习阶段。",
             },
             {
                 "resource_type": "quiz",
                 "title": f"{topic}形成性测验",
                 "difficulty": "基础",
                 "content": "包含概念题、流程题和一个简短实践题。",
+                "recommend_reason": f"通过即时测验检验对「{weak_text}」的掌握程度，及时发现知识盲区并纠正误解。",
             },
             {
                 "resource_type": "task",
                 "title": f"{topic}综合任务",
                 "difficulty": "进阶",
                 "content": "围绕真实学习目标完成一个可展示的小任务，并写出复盘。",
+                "recommend_reason": f"综合任务帮助你将零散知识点整合应用，目标匹配「{goal}」，促进深度学习。",
             },
             {
                 "resource_type": "mindmap",
                 "title": f"{topic}知识结构思维导图",
                 "difficulty": "基础",
                 "content": self._build_mindmap_content(topic, profile),
+                "recommend_reason": f"思维导图可视化知识关联，帮助理清「{weak_text}」的层级结构，强化整体理解。",
             },
         ]
 

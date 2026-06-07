@@ -109,12 +109,12 @@ const statCards = computed(() => [
 ]);
 
 const pathNodes = [
-  { title: '环境搭建与基础语法', status: 'done' },
-  { title: '函数与 HTTP 请求', status: 'done' },
-  { title: '数据解析（正则与 BeautifulSoup）', status: 'done' },
-  { title: '数据存储与管理', status: 'active' },
-  { title: '反爬策略与应对', status: 'locked' },
-  { title: '爬虫项目实战', status: 'locked' }
+  { title: '环境搭建与基础语法', status: 'done', recommend_reason: '' },
+  { title: '函数与 HTTP 请求', status: 'done', recommend_reason: '' },
+  { title: '数据解析（正则与 BeautifulSoup）', status: 'done', recommend_reason: '' },
+  { title: '数据存储与管理', status: 'active', recommend_reason: '针对薄弱点「数据存储」，通过实践掌握 CSV/SQLite 数据保存，匹配当前学习阶段。' },
+  { title: '反爬策略与应对', status: 'locked', recommend_reason: '' },
+  { title: '爬虫项目实战', status: 'locked', recommend_reason: '' }
 ];
 
 const badges = [
@@ -249,7 +249,10 @@ onBeforeUnmount(() => {
               <div class="path-list">
                 <div v-for="node in pathNodes" :key="node.title" :class="['path-node', node.status]">
                   <span></span>
-                  <p>{{ node.title }}</p>
+                  <div>
+                    <p>{{ node.title }}</p>
+                    <p v-if="node.recommend_reason" class="node-reason">{{ node.recommend_reason }}</p>
+                  </div>
                 </div>
               </div>
               <RouterLink class="btn path-button" to="/learning-path">继续学习</RouterLink>
@@ -477,6 +480,16 @@ onBeforeUnmount(() => {
 
 .path-node p {
   margin: 0;
+}
+
+.node-reason {
+  font-size: 11px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-top: 4px !important;
+  line-height: 1.4;
 }
 
 .path-button {

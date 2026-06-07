@@ -17,7 +17,7 @@ interface PathItem {
   path_json?: {
     course_title?: string;
     goal?: string;
-    stages?: Array<{ name?: string; target?: string; practice?: string; mastery?: string }>;
+    stages?: Array<{ name?: string; target?: string; practice?: string; mastery?: string; recommend_reason?: string }>;
   };
 }
 
@@ -51,11 +51,11 @@ const courseFilter = ref('全部课程');
 
 const classOptions = ['计科大三 1 班', '计科大三 2 班', '计科大二 1 班', '计科大二 2 班'];
 const fallbackStages = [
-  { name: '环境搭建与基础语法', target: '完成 Python 环境与基础语法复盘', status: 'done' },
-  { name: '函数与 HTTP 请求', target: '理解函数封装与 requests 基础', status: 'done' },
-  { name: '数据解析', target: '掌握正则与 BeautifulSoup', status: 'active' },
-  { name: '数据存储与管理', target: '完成 CSV / SQLite 数据保存', status: 'todo' },
-  { name: '反爬策略与应对', target: '了解请求头、频控和异常处理', status: 'todo' }
+  { name: '环境搭建与基础语法', target: '完成 Python 环境与基础语法复盘', status: 'done', recommend_reason: '' },
+  { name: '函数与 HTTP 请求', target: '理解函数封装与 requests 基础', status: 'done', recommend_reason: '' },
+  { name: '数据解析', target: '掌握正则与 BeautifulSoup', status: 'active', recommend_reason: '' },
+  { name: '数据存储与管理', target: '完成 CSV / SQLite 数据保存', status: 'todo', recommend_reason: '' },
+  { name: '反爬策略与应对', target: '了解请求头、频控和异常处理', status: 'todo', recommend_reason: '' }
 ];
 
 const fallbackTasks: TaskRow[] = [
@@ -75,6 +75,7 @@ const stages = computed(() => {
     return realStages.map((stage, index) => ({
       name: stage.name || fallbackStages[index]?.name || `阶段 ${index + 1}`,
       target: stage.target || stage.practice || stage.mastery || fallbackStages[index]?.target || '继续完成当前阶段任务',
+      recommend_reason: stage.recommend_reason || '',
       status: index < 2 ? 'done' : index === 2 ? 'active' : 'todo'
     }));
   }
@@ -188,6 +189,7 @@ onMounted(load);
             <div>
               <strong>{{ stage.name }}</strong>
               <p>{{ stage.target }}</p>
+              <p v-if="stage.recommend_reason" class="stage-reason">{{ stage.recommend_reason }}</p>
             </div>
           </article>
         </div>
@@ -323,6 +325,16 @@ onMounted(load);
 .path-stage p {
   margin: 8px 0 0;
   font-size: 13px;
+}
+
+.stage-reason {
+  margin-top: 6px !important;
+  font-size: 12px !important;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 6px 10px;
+  border-radius: 8px;
+  line-height: 1.5;
 }
 
 .table-wrap {

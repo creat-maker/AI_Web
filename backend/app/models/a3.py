@@ -72,6 +72,7 @@ class GeneratedResource(Base, TimestampMixin):
     content = Column(Text, nullable=False)
     difficulty = Column(String(50), nullable=True)
     source_agent = Column(String(100), nullable=False)
+    recommend_reason = Column(Text, nullable=True)
 
 
 class Quiz(Base, TimestampMixin):

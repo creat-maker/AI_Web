@@ -70,6 +70,7 @@ def generate_resources(payload: ResourceGeneratePayload, db: Session = Depends(g
             content=item.get("content", ""),
             difficulty=item.get("difficulty"),
             source_agent="ResourceAgent",
+            recommend_reason=item.get("recommend_reason"),
         )
         db.add(resource)
         resources.append(resource)
