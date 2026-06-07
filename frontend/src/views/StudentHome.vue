@@ -15,8 +15,12 @@ import StatusBadge from '../components/StatusBadge.vue';
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
-const chartTextStyle = { color: '#475569' };
-const chartTooltip = { backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#0f172a' } };
+function cssVar(name: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+const chartTextStyle = { color: cssVar('--text-secondary', '#475569') };
+const chartTooltip = { backgroundColor: cssVar('--bg-card', '#ffffff'), borderColor: cssVar('--border-light', '#e2e8f0'), textStyle: { color: cssVar('--text-main', '#0f172a') } };
 
 interface DashboardSummary {
   metrics?: {
@@ -125,12 +129,12 @@ function renderChart() {
   if (!reportChartEl.value) return;
   reportChart = reportChart || echarts.init(reportChartEl.value);
   reportChart.setOption({
-    color: ['#7c5cff', '#22c55e', '#2f6bff', '#f97316'],
+    color: [cssVar('--color-purple', '#7c5cff'), cssVar('--status-success-solid', '#22c55e'), cssVar('--color-primary', '#2f6bff'), cssVar('--color-orange', '#f97316')],
     textStyle: chartTextStyle,
     tooltip: { trigger: 'axis', ...chartTooltip },
     grid: { left: 28, right: 8, top: 18, bottom: 24 },
     xAxis: { type: 'category', boundaryGap: false, axisLabel: chartTextStyle, data: ['周一', '周二', '周三', '周四', '周五'] },
-    yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: '#edf2f8' } } },
+    yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: cssVar('--border-soft', '#edf2f8') } } },
     series: [
       { type: 'line', smooth: true, data: [6, 8, 7, 10, 12], areaStyle: { opacity: 0.08 } },
       { type: 'line', smooth: true, data: [3, 6, 8, 12, 18], areaStyle: { opacity: 0.08 } },
@@ -374,9 +378,9 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 44px;
   border-radius: 12px;
-  color: #fff;
+  color: var(--text-light);
   font-weight: 600;
-  background: #2f6bff;
+  background: var(--color-primary);
 }
 
 .task-item {
@@ -384,7 +388,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 12px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  border-bottom: 1px solid #eef2f8;
+  border-bottom: 1px solid var(--border-table);
   padding-bottom: 10px;
 }
 
@@ -396,8 +400,15 @@ onBeforeUnmount(() => {
 .task-dot {
   width: 10px;
   height: 10px;
-  border: 2px solid #cbd5e1;
+  border: 2px solid var(--border-light);
   border-radius: 50%;
+  position: relative;
+}
+
+.task-dot::after {
+  content: '';
+  position: absolute;
+  inset: -17px;
 }
 
 .task-dot.done {
@@ -447,7 +458,7 @@ onBeforeUnmount(() => {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 2px solid #cbd5e1;
+  border: 2px solid var(--border-light);
 }
 
 .path-node.done span {
@@ -491,26 +502,26 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  color: #fff;
+  color: var(--text-light);
   font-weight: 600;
-  background: #2f6bff;
+  background: var(--color-primary);
 }
 
 .achievement-badge.orange span {
-  background: #f97316;
+  background: var(--color-orange);
 }
 
 .achievement-badge.red span {
-  background: #ef4444;
+  background: var(--status-danger-solid);
 }
 
 .achievement-badge.purple span {
-  background: #7c3aed;
+  background: var(--color-purple);
 }
 
 .achievement-badge.gray span {
-  background: #e2e8f0;
-  color: #94a3b8;
+  background: var(--border-light);
+  color: var(--text-muted);
 }
 
 .achievement-badge strong {
@@ -600,14 +611,14 @@ onBeforeUnmount(() => {
 
 .message.user {
   margin-left: 42px;
-  color: #fff;
+  color: var(--text-light);
   background: var(--color-primary);
 }
 
 .message.assistant {
   margin-right: 18px;
   color: var(--color-text-main);
-  background: #f8fbff;
+  background: var(--bg-surface);
 }
 
 .reference-card {
@@ -616,7 +627,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 12px;
-  background: #fbfdff;
+  background: var(--bg-surface);
 }
 
 .reference-card p {

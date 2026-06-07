@@ -20,8 +20,12 @@ import StatusBadge from '../components/StatusBadge.vue';
 
 echarts.use([LineChart, PieChart, RadarChart, GridComponent, LegendComponent, RadarComponent, TooltipComponent, CanvasRenderer]);
 
-const chartTextStyle = { color: '#475569' };
-const chartTooltip = { backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#0f172a' } };
+function cssVar(name: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+const chartTextStyle = { color: cssVar('--text-secondary', '#475569') };
+const chartTooltip = { backgroundColor: cssVar('--bg-card', '#ffffff'), borderColor: cssVar('--border-light', '#e2e8f0'), textStyle: { color: cssVar('--text-main', '#0f172a') } };
 
 interface DashboardSummary {
   metrics?: {
@@ -114,13 +118,13 @@ function renderCharts() {
   if (trendEl.value) {
     trendChart = trendChart || echarts.init(trendEl.value);
     trendChart.setOption({
-      color: ['#2f6bff', '#22c55e'],
+      color: [cssVar('--color-primary', '#2f6bff'), cssVar('--status-success-solid', '#22c55e')],
       textStyle: chartTextStyle,
       tooltip: { trigger: 'axis', ...chartTooltip },
       legend: { top: 0, left: 0, textStyle: chartTextStyle },
       grid: { left: 34, right: 16, top: 42, bottom: 26 },
       xAxis: { type: 'category', boundaryGap: false, axisLabel: chartTextStyle, data: ['04-20', '04-27', '05-04', '05-11', '05-18'] },
-      yAxis: { type: 'value', min: 0, max: 100, axisLabel: { ...chartTextStyle, formatter: '{value}%' }, splitLine: { lineStyle: { color: '#edf2f8' } } },
+      yAxis: { type: 'value', min: 0, max: 100, axisLabel: { ...chartTextStyle, formatter: '{value}%' }, splitLine: { lineStyle: { color: cssVar('--border-soft', '#edf2f8') } } },
       series: [
         { name: '班级平均', type: 'line', smooth: true, areaStyle: { opacity: 0.08 }, data: [24, 40, 50, 62, 72] },
         { name: '优秀学生', type: 'line', smooth: true, areaStyle: { opacity: 0.08 }, data: [34, 56, 71, 78, 82] }
@@ -130,7 +134,7 @@ function renderCharts() {
   if (donutEl.value) {
     donutChart = donutChart || echarts.init(donutEl.value);
     donutChart.setOption({
-      color: ['#22c55e', '#2f6bff', '#dbe2ef'],
+      color: [cssVar('--status-success-solid', '#22c55e'), cssVar('--color-primary', '#2f6bff'), cssVar('--border-light', '#dbe2ef')],
       textStyle: chartTextStyle,
       tooltip: { trigger: 'item', ...chartTooltip },
       legend: { orient: 'vertical', right: 0, top: 'middle', textStyle: chartTextStyle },
@@ -153,13 +157,13 @@ function renderCharts() {
   if (radarEl.value) {
     radarChart = radarChart || echarts.init(radarEl.value);
     radarChart.setOption({
-      color: ['#2f6bff'],
+      color: [cssVar('--color-primary', '#2f6bff')],
       radar: {
         radius: '68%',
         indicator: student.abilities.map((item) => ({ name: item.name, max: 100 })),
-        splitLine: { lineStyle: { color: '#dbe7ff' } },
-        splitArea: { areaStyle: { color: ['#f8fbff', '#eef4ff'] } },
-        axisLine: { lineStyle: { color: '#c8d6f0' } }
+        splitLine: { lineStyle: { color: cssVar('--border-link', '#dbe7ff') } },
+        splitArea: { areaStyle: { color: [cssVar('--bg-surface', '#f8fbff'), cssVar('--color-primary-light', '#eef4ff')] } },
+        axisLine: { lineStyle: { color: cssVar('--border-light', '#c8d6f0') } }
       },
       series: [{ type: 'radar', areaStyle: { opacity: 0.14 }, data: [{ value: student.abilities.map((item) => item.value) }] }]
     });
@@ -373,10 +377,10 @@ onBeforeUnmount(() => {
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  color: #fff;
+  color: var(--text-light);
   font-size: 22px;
   font-weight: 800;
-  background: linear-gradient(135deg, #1e40af, #60a5fa);
+  background: linear-gradient(135deg, var(--status-info-text), var(--color-primary));
 }
 
 .student-head p {
@@ -442,7 +446,7 @@ onBeforeUnmount(() => {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
   align-items: start;
-  border-bottom: 1px solid #eef2f8;
+  border-bottom: 1px solid var(--border-table);
   padding-bottom: 10px;
 }
 

@@ -193,19 +193,23 @@ const suggestions = computed(() => {
   ];
 });
 
+function cssVar(name: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
 function renderCharts() {
   const student = selectedStudent.value;
   if (!student) return;
   if (radarEl.value) {
     radarChart = radarChart || echarts.init(radarEl.value);
     radarChart.setOption({
-      color: ['#2f6bff'],
+      color: [cssVar('--color-primary', '#2f6bff')],
       radar: {
         radius: '68%',
         indicator: student.abilities.map((item) => ({ name: item.name, max: 100 })),
-        splitLine: { lineStyle: { color: '#dbe7ff' } },
-        splitArea: { areaStyle: { color: ['#f8fbff', '#eef4ff'] } },
-        axisLine: { lineStyle: { color: '#c8d6f0' } }
+        splitLine: { lineStyle: { color: cssVar('--border-link', '#dbe7ff') } },
+        splitArea: { areaStyle: { color: [cssVar('--bg-surface', '#f8fbff'), cssVar('--color-primary-light', '#eef4ff')] } },
+        axisLine: { lineStyle: { color: cssVar('--border-light', '#c8d6f0') } }
       },
       series: [{ type: 'radar', areaStyle: { opacity: 0.14 }, data: [{ value: student.abilities.map((item) => item.value) }] }]
     });
@@ -213,11 +217,11 @@ function renderCharts() {
   if (trendEl.value) {
     trendChart = trendChart || echarts.init(trendEl.value);
     trendChart.setOption({
-      color: ['#2f6bff', '#22c55e'],
+      color: [cssVar('--color-primary', '#2f6bff'), cssVar('--status-success-solid', '#22c55e')],
       tooltip: { trigger: 'axis' },
       grid: { left: 34, right: 16, top: 28, bottom: 28 },
       xAxis: { type: 'category', boundaryGap: false, data: ['04-20', '04-27', '05-04', '05-11', '05-18', '05-25', '05-31'] },
-      yAxis: { type: 'value', min: 0, max: 100, splitLine: { lineStyle: { color: '#edf2f8' } } },
+      yAxis: { type: 'value', min: 0, max: 100, splitLine: { lineStyle: { color: cssVar('--border-soft', '#edf2f8') } } },
       series: [{ name: '综合评分', type: 'line', smooth: true, areaStyle: { opacity: 0.08 }, data: student.trend }]
     });
   }
@@ -289,6 +293,7 @@ onBeforeUnmount(() => {
   <section class="page profile-page">
     <PageHeader title="学生画像分析" description="查看学生综合画像、能力结构、薄弱点和干预建议。">
       <template #actions>
+        <RouterLink class="btn secondary" to="/student/profile-dialog">对话式画像构建</RouterLink>
         <RouterLink class="btn secondary" to="/reports">报告中心</RouterLink>
         <button type="button" @click="assignTask">生成个性化学习报告</button>
       </template>
@@ -419,7 +424,7 @@ onBeforeUnmount(() => {
   padding: 10px;
   color: var(--color-text-main);
   text-align: left;
-  background: #fbfdff;
+  background: var(--bg-surface);
   box-shadow: none;
 }
 
@@ -440,10 +445,10 @@ onBeforeUnmount(() => {
   width: 62px;
   height: 62px;
   border-radius: 50%;
-  color: #fff;
+  color: var(--text-light);
   font-size: 24px;
   font-weight: 800;
-  background: linear-gradient(135deg, #1e40af, #60a5fa);
+  background: linear-gradient(135deg, var(--status-info-text), var(--color-primary));
 }
 
 .student-avatar.small {
@@ -501,7 +506,7 @@ onBeforeUnmount(() => {
   width: 24px;
   height: 24px;
   border-radius: 8px;
-  color: #fff;
+  color: var(--text-light);
   background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
 }
 

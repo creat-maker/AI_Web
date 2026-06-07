@@ -106,7 +106,7 @@ function enter(role: UserRole, home: string) {
   background:
     radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.12), transparent 28rem),
     radial-gradient(circle at 92% 18%, rgba(124, 58, 237, 0.12), transparent 26rem),
-    linear-gradient(180deg, #f8fbff 0%, var(--bg-page) 100%);
+    linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-page) 100%);
 }
 
 .login-brand-panel,
@@ -168,7 +168,7 @@ function enter(role: UserRole, home: string) {
 }
 
 .highlight-grid span {
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--color-primary-border);
   border-radius: 10px;
   padding: 12px;
   color: var(--color-primary-dark);
@@ -202,7 +202,7 @@ function enter(role: UserRole, home: string) {
   border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 16px;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .login-role-card h3 {
@@ -239,11 +239,11 @@ function enter(role: UserRole, home: string) {
 }
 
 .login-role-card.green .role-icon {
-  background: linear-gradient(135deg, #15803d, #16a34a);
+  background: linear-gradient(135deg, var(--status-success-dark), var(--status-success-solid));
 }
 
 .login-role-card.purple .role-icon {
-  background: linear-gradient(135deg, #6d28d9, #7c3aed);
+  background: linear-gradient(135deg, var(--status-purple-text), var(--color-purple));
 }
 
 @media (max-width: 980px) {

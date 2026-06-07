@@ -268,7 +268,7 @@ onMounted(loadCourses);
 
 .chat-bubble.user {
   margin-left: auto;
-  color: #fff;
+  color: var(--text-light);
   background: var(--color-primary);
   justify-self: end;
 }

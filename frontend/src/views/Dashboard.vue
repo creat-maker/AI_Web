@@ -18,8 +18,12 @@ import StatusBadge from '../components/StatusBadge.vue';
 
 echarts.use([LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
-const chartTextStyle = { color: '#475569' };
-const chartTooltip = { backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#0f172a' } };
+function cssVar(name: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+const chartTextStyle = { color: cssVar('--text-secondary', '#475569') };
+const chartTooltip = { backgroundColor: cssVar('--bg-card', '#ffffff'), borderColor: cssVar('--border-light', '#e2e8f0'), textStyle: { color: cssVar('--text-main', '#0f172a') } };
 
 interface DashboardSummary {
   metrics: {
@@ -141,13 +145,13 @@ function renderCharts() {
       { date: '2024-05-31', documents: 1088, questions: 720, reports: 86 }
     ];
     growthChart.setOption({
-      color: ['#2f6bff', '#22c55e'],
+      color: [cssVar('--color-primary', '#2f6bff'), cssVar('--status-success-solid', '#22c55e')],
       textStyle: chartTextStyle,
       tooltip: { trigger: 'axis', ...chartTooltip },
       legend: { top: 0, left: 0, textStyle: chartTextStyle },
       grid: { left: 36, right: 14, top: 42, bottom: 26 },
       xAxis: { type: 'category', boundaryGap: false, axisLabel: chartTextStyle, data: trend.map((item) => item.date.slice(5)) },
-      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: '#edf2f8' } } },
+      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: cssVar('--border-soft', '#edf2f8') } } },
       series: [
         { name: '新增学生', type: 'line', smooth: true, areaStyle: { opacity: 0.08 }, data: trend.map((item) => item.documents) },
         { name: '活跃学生', type: 'line', smooth: true, areaStyle: { opacity: 0.08 }, data: trend.map((item) => item.questions) }
@@ -157,7 +161,7 @@ function renderCharts() {
   if (roleEl.value) {
     roleChart = roleChart || echarts.init(roleEl.value);
     roleChart.setOption({
-      color: ['#2f6bff', '#f59e0b', '#22c55e', '#7c5cff'],
+      color: [cssVar('--color-primary', '#2f6bff'), cssVar('--status-warning-solid', '#f59e0b'), cssVar('--status-success-solid', '#22c55e'), cssVar('--color-purple', '#7c5cff')],
       textStyle: chartTextStyle,
       tooltip: { trigger: 'item', ...chartTooltip },
       legend: { orient: 'vertical', right: 0, top: 'middle', textStyle: chartTextStyle },
@@ -415,7 +419,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  border-bottom: 1px solid #eef2f8;
+  border-bottom: 1px solid var(--border-table);
   padding-bottom: 10px;
 }
 
@@ -442,8 +446,8 @@ onBeforeUnmount(() => {
   margin-top: 14px;
   border-radius: 14px;
   padding: 12px;
-  color: #1d4ed8;
-  background: #eef4ff;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
 }
 
 .demo-mini span {

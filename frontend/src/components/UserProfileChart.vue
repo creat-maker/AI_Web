@@ -235,10 +235,10 @@ onUnmounted(() => {
   gap: 20px;
 }
 .card {
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-light);
   padding: 15px;
   border-radius: 8px;
-  background-color: #f9f9f9;
+  background-color: var(--bg-neutral);
   min-width: 250px;
 }
 .card h3 {
@@ -255,7 +255,7 @@ onUnmounted(() => {
   flex: 1;
   min-width: 400px;
   height: 400px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 10px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);

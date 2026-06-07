@@ -28,10 +28,11 @@ const userName = computed(() => {
 
 // Role-specific theme colors
 const roleTheme = computed(() => {
+  const cs = getComputedStyle(document.documentElement);
   switch (currentRole.value) {
-    case 'teacher': return { accent: '#059669', accentLight: '#ecfdf5', label: '教学端' };
-    case 'admin': return { accent: '#7c3aed', accentLight: '#f3e8ff', label: '管理端' };
-    default: return { accent: '#2563eb', accentLight: '#eff6ff', label: '学习端' };
+    case 'teacher': return { accent: cs.getPropertyValue('--color-create-btn').trim() || '#059669', accentLight: cs.getPropertyValue('--color-primary-light').trim() || '#ecfdf5', label: '教学端' };
+    case 'admin': return { accent: cs.getPropertyValue('--color-purple').trim() || '#7c3aed', accentLight: cs.getPropertyValue('--color-purple-light').trim() || '#f3e8ff', label: '管理端' };
+    default: return { accent: cs.getPropertyValue('--color-primary').trim() || '#2563eb', accentLight: cs.getPropertyValue('--color-primary-light').trim() || '#eff6ff', label: '学习端' };
   }
 });
 
@@ -258,7 +259,7 @@ function toggleFullscreen() {
               <div class="identity-text">
                 <strong>{{ userName }}</strong>
                 <div class="identity-badges">
-                  <span class="role-badge" :style="{ background: roleTheme.accent, color: '#fff' }">{{ currentRoleLabel }}</span>
+                  <span class="role-badge" :style="{ background: roleTheme.accent, color: 'var(--text-light)' }">{{ currentRoleLabel }}</span>
                   <span class="mode-badge">{{ runtimeLoading ? '加载中' : runtime?.mock_mode ? '演示模式' : '在线' }}</span>
                 </div>
               </div>
@@ -308,7 +309,7 @@ function toggleFullscreen() {
                 </div>
                 <div class="submenu-list">
                   <button v-for="role in availableRoles" :key="role" class="role-option" :class="{ active: role === currentRole }" type="button" @click="switchRole(role)">
-                    <span class="role-icon" :style="{ background: role === 'teacher' ? '#059669' : role === 'admin' ? '#7c3aed' : '#2563eb' }">
+                    <span class="role-icon" :style="{ background: role === 'teacher' ? 'var(--color-create-btn)' : role === 'admin' ? 'var(--color-purple)' : 'var(--color-primary)' }">
                       {{ roleLabels[role].charAt(0) }}
                     </span>
                     <div class="role-option-text">

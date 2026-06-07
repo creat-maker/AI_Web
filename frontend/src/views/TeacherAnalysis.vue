@@ -15,8 +15,12 @@ import StatusBadge from '../components/StatusBadge.vue';
 
 echarts.use([BarChart, LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
-const chartTextStyle = { color: '#475569' };
-const chartTooltip = { backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#0f172a' } };
+function cssVar(name: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+const chartTextStyle = { color: cssVar('--text-secondary', '#475569') };
+const chartTooltip = { backgroundColor: cssVar('--bg-card', '#ffffff'), borderColor: cssVar('--border-light', '#e2e8f0'), textStyle: { color: cssVar('--text-main', '#0f172a') } };
 
 interface AnalysisData {
   real?: {
@@ -114,12 +118,12 @@ function renderCharts() {
     distributionChart = distributionChart || echarts.init(distributionEl.value);
     const items = data.value?.performance_distribution?.length ? data.value.performance_distribution : fallbackDistribution;
     distributionChart.setOption({
-      color: ['#2f6bff'],
+      color: [cssVar('--color-primary', '#2f6bff')],
       textStyle: chartTextStyle,
       tooltip: { trigger: 'axis', ...chartTooltip },
       grid: { left: 36, right: 12, top: 24, bottom: 28 },
       xAxis: { type: 'category', axisLabel: chartTextStyle, data: items.map((item) => item.name) },
-      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: '#edf2f8' } } },
+      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: cssVar('--border-soft', '#edf2f8') } } },
       series: [{ type: 'bar', barWidth: 28, data: items.map((item) => item.value), itemStyle: { borderRadius: [8, 8, 0, 0] } }]
     });
   }
@@ -133,13 +137,13 @@ function renderCharts() {
       { date: '05-31', submission_count: 36, average_score: 82 }
     ];
     trendChart.setOption({
-      color: ['#7c5cff', '#22c55e'],
+      color: [cssVar('--color-purple', '#7c5cff'), cssVar('--status-success-solid', '#22c55e')],
       textStyle: chartTextStyle,
       tooltip: { trigger: 'axis', ...chartTooltip },
       legend: { top: 0, left: 0, textStyle: chartTextStyle },
       grid: { left: 36, right: 14, top: 42, bottom: 28 },
       xAxis: { type: 'category', boundaryGap: false, axisLabel: chartTextStyle, data: trend.map((item) => item.date.slice(-5)) },
-      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: '#edf2f8' } } },
+      yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: cssVar('--border-soft', '#edf2f8') } } },
       series: [
         { name: '参与次数', type: 'line', smooth: true, data: trend.map((item) => item.submission_count) },
         { name: '平均分', type: 'line', smooth: true, data: trend.map((item) => item.average_score) }
@@ -294,7 +298,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  border-bottom: 1px solid #eef2f8;
+  border-bottom: 1px solid var(--border-table);
   padding-bottom: 10px;
 }
 
@@ -333,23 +337,23 @@ onBeforeUnmount(() => {
 .heat-head,
 .heat-label {
   color: var(--color-text-sub);
-  background: #f8fbff;
+  background: var(--bg-surface);
   font-weight: 700;
 }
 
 .heat-cell.good {
-  color: #15803d;
-  background: #dcfce7;
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
 }
 
 .heat-cell.mid {
-  color: #b45309;
-  background: #fef3c7;
+  color: var(--status-warning-text);
+  background: var(--status-warning-bg);
 }
 
 .heat-cell.low {
-  color: #dc2626;
-  background: #fee2e2;
+  color: var(--status-danger-solid);
+  background: var(--status-danger-bg);
 }
 
 .suggestion-grid {

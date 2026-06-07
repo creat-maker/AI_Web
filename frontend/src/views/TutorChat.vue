@@ -302,23 +302,23 @@ onMounted(loadCourses);
 
 .eyebrow {
   margin: 0 0 6px;
-  color: #2264d1;
+  color: var(--color-primary-dark);
   font-size: 13px;
   font-weight: 700;
 }
 
 .demo-note {
   margin: 8px 0 0;
-  color: #955600;
+  color: var(--status-warning-text);
   font-size: 13px;
 }
 
 .mode-card {
   min-width: 180px;
-  border: 1px solid #d9e0ea;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 14px;
-  background: #f8fbff;
+  background: var(--bg-surface);
 }
 
 .mode-card span,
@@ -327,7 +327,7 @@ onMounted(loadCourses);
 }
 
 .mode-card span {
-  color: #66758a;
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
@@ -363,27 +363,27 @@ onMounted(loadCourses);
 
 .history-item {
   display: block;
-  border: 1px solid #e4e9f1;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 12px;
-  background: #fbfcff;
+  background: var(--bg-surface);
 }
 
 .history-item p {
   margin: 8px 0;
-  color: #39475a;
+  color: var(--text-secondary);
 }
 
 .history-item span,
 .source-card span {
-  color: #66758a;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
 .answer-box {
   white-space: pre-wrap;
   line-height: 1.7;
-  color: #263244;
+  color: var(--text-main);
 }
 
 .answer-flags,
@@ -398,27 +398,27 @@ onMounted(loadCourses);
 .answer-flags span {
   border-radius: 999px;
   padding: 6px 9px;
-  color: #1453aa;
-  background: #edf4ff;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
 }
 
 .teaching-card {
   margin-top: 12px;
-  border: 1px solid #e4e9f1;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 12px;
-  background: #fbfcff;
+  background: var(--bg-surface);
 }
 
 .teaching-card p {
   margin: 8px 0 0;
-  color: #39475a;
+  color: var(--text-secondary);
 }
 
 .teaching-card small {
   display: block;
   margin-top: 8px;
-  color: #955600;
+  color: var(--status-warning-text);
 }
 
 .source-grid {
@@ -428,19 +428,19 @@ onMounted(loadCourses);
 }
 
 .source-card {
-  border: 1px solid #e4e9f1;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 12px;
-  background: #fbfcff;
+  background: var(--bg-surface);
 }
 
 .source-card p {
   margin: 10px 0 0;
-  color: #39475a;
+  color: var(--text-secondary);
 }
 
 .error-text {
-  color: #b42318;
+  color: var(--status-danger-dark);
 }
 
 @media (max-width: 980px) {
