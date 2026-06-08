@@ -56,7 +56,7 @@ const learningPath = [
     goal: '读取 CSV 成绩文件，输出统计结果和风险学生名单。',
     knowledge: '列表、字典、文件操作、异常处理',
     resource: 'CSV 成绩分析 Notebook',
-    practice: '实现读取、异常兜底、平均分统计和结果写出。',
+    practice: '实现读取、异常处理、平均分统计和结果写出。',
     completion: '项目通过 5 个测试数据文件，提交运行截图。',
     aiAdvice: '先完成最小可运行版本，再补异常处理和输出格式。',
     status: '未开始',
@@ -105,7 +105,7 @@ const generatedResourcePack = {
       estimatedMinutes: 35
     }
   ],
-  mode: 'local-fallback'
+  mode: 'local-demo'
 };
 
 const quizAnalysis = {

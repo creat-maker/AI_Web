@@ -1,43 +1,58 @@
-const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
+const { BASE_URL, USE_BACKEND } = require('./config');
 
-function getBaseUrl() {
-  const app = getApp();
-  return app.globalData.baseUrl || DEFAULT_BASE_URL;
-}
-
-function setBaseUrl(baseUrl) {
-  const app = getApp();
-  app.globalData.baseUrl = baseUrl || DEFAULT_BASE_URL;
+function buildUrl(url) {
+  if (/^https?:\/\//.test(url)) {
+    return url;
+  }
+  return BASE_URL.replace(/\/$/, '') + '/' + String(url || '').replace(/^\//, '');
 }
 
 function request(options) {
-  const baseUrl = getBaseUrl();
-  const url = /^https?:\/\//.test(options.url) ? options.url : `${baseUrl}${options.url}`;
+  const method = (options.method || 'GET').toUpperCase();
+
+  if (!USE_BACKEND) {
+    return Promise.reject({
+      message: '离线服务未连接后端',
+      disabled: true
+    });
+  }
 
   return new Promise((resolve, reject) => {
     wx.request({
-      url,
-      method: options.method || 'GET',
+      url: buildUrl(options.url),
+      method,
       data: options.data || {},
-      header: {
-        'content-type': 'application/json',
-        ...(options.header || {})
-      },
+      header: Object.assign({
+        'Content-Type': 'application/json'
+      }, options.header || {}),
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data);
-        } else {
-          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
         }
+        reject({
+          message: 'HTTP ' + res.statusCode,
+          statusCode: res.statusCode,
+          data: res.data
+        });
       },
-      fail: reject
+      fail(err) {
+        reject(err);
+      }
     });
   });
 }
 
+function get(url, data, header) {
+  return request({ url, data, header, method: 'GET' });
+}
+
+function post(url, data, header) {
+  return request({ url, data, header, method: 'POST' });
+}
+
 module.exports = {
-  DEFAULT_BASE_URL,
-  getBaseUrl,
-  setBaseUrl,
-  request
+  request,
+  get,
+  post
 };

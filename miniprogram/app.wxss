@@ -1,174 +1,249 @@
 page {
   min-height: 100%;
-  background: #f6f8fc;
-  color: #0f172a;
+  background: #f5f7fb;
+  color: #162033;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 28rpx;
+}
+
+view,
+text,
+button,
+input,
+textarea {
+  box-sizing: border-box;
 }
 
 .page {
   min-height: 100vh;
-  box-sizing: border-box;
-  padding: 28rpx 28rpx 44rpx;
+  padding: 32rpx 32rpx 48rpx;
+  padding-top: calc(32rpx + constant(safe-area-inset-top));
+  padding-top: calc(32rpx + env(safe-area-inset-top));
+  padding-bottom: calc(48rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+  background: #f5f7fb;
 }
 
-.hero {
-  border-radius: 28rpx;
+.header {
   padding: 32rpx;
+  border-radius: 28rpx;
+  background: #2f6fed;
   color: #ffffff;
-  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
-  box-shadow: 0 18rpx 40rpx rgba(37, 99, 235, 0.18);
+  box-shadow: 0 18rpx 42rpx rgba(47, 111, 237, 0.22);
 }
 
-.hero-title {
+.eyebrow {
   display: block;
-  font-size: 42rpx;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 26rpx;
   font-weight: 800;
-  line-height: 1.2;
 }
 
-.hero-subtitle {
+.title {
   display: block;
   margin-top: 12rpx;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 26rpx;
+  color: #ffffff;
+  font-size: 38rpx;
+  font-weight: 900;
+  line-height: 1.28;
+}
+
+.subtitle {
+  display: block;
+  margin-top: 14rpx;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 27rpx;
   line-height: 1.55;
 }
 
 .section {
-  margin-top: 28rpx;
+  margin-top: 24rpx;
 }
 
-.section-title {
+.section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16rpx;
   margin-bottom: 16rpx;
-  font-size: 32rpx;
-  font-weight: 800;
-  color: #0f172a;
+}
+
+.section-title {
+  color: #162033;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1.3;
 }
 
 .card {
-  box-sizing: border-box;
-  border: 1rpx solid #e2e8f0;
-  border-radius: 22rpx;
-  padding: 24rpx;
+  margin-top: 24rpx;
+  padding: 28rpx;
+  border: 1rpx solid #e4e7ec;
+  border-radius: 28rpx;
   background: #ffffff;
-  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12rpx 28rpx rgba(16, 24, 40, 0.06);
 }
 
-.card + .card {
-  margin-top: 18rpx;
+.card:first-child {
+  margin-top: 0;
 }
 
-.muted {
-  color: #64748b;
-  font-size: 24rpx;
-  line-height: 1.6;
-}
-
-.strong {
-  color: #0f172a;
-  font-weight: 800;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 18rpx;
 }
 
-.stat {
-  border-radius: 20rpx;
-  padding: 22rpx;
-  background: #ffffff;
-  border: 1rpx solid #e2e8f0;
+.col {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8rpx;
 }
 
-.stat-value {
-  display: block;
-  margin-top: 8rpx;
-  color: #1d4ed8;
-  font-size: 40rpx;
-  font-weight: 800;
+.primary-text {
+  color: #162033;
+  font-size: 30rpx;
+  font-weight: 850;
+  line-height: 1.4;
+}
+
+.body-text {
+  color: #162033;
+  font-size: 27rpx;
+  line-height: 1.65;
+}
+
+.muted {
+  color: #475467;
+  font-size: 26rpx;
+  line-height: 1.55;
 }
 
 .tag {
   display: inline-flex;
   align-items: center;
-  min-height: 40rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 999rpx;
-  color: #1e40af;
-  background: #dbeafe;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-
-.tag.success {
-  color: #166534;
-  background: #dcfce7;
-}
-
-.tag.warning {
-  color: #92400e;
-  background: #fef3c7;
-}
-
-.tag.purple {
-  color: #5b21b6;
-  background: #ede9fe;
-}
-
-.button-primary {
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-  min-height: 72rpx;
-  padding: 0 28rpx;
-  border-radius: 18rpx;
-  color: #ffffff;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  min-height: 44rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: #eaf1ff;
+  color: #2f6fed;
+  font-size: 24rpx;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.tag-success {
+  background: #e7f8ef;
+  color: #087443;
+}
+
+.tag-warning {
+  background: #fff4df;
+  color: #9a5b00;
+}
+
+.tag-muted {
+  background: #eef2f6;
+  color: #475467;
+}
+
+.grid-2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+
+.grid-2 > view,
+.grid-2 > button {
+  width: calc((100% - 24rpx) / 2);
+}
+
+.stat-card {
+  min-height: 146rpx;
+  padding: 24rpx;
+  border: 1rpx solid #e4e7ec;
+  border-radius: 28rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(16, 24, 40, 0.05);
+}
+
+.stat-label {
+  color: #475467;
   font-size: 26rpx;
   font-weight: 800;
 }
 
+.stat-value {
+  display: block;
+  margin-top: 14rpx;
+  color: #2f6fed;
+  font-size: 40rpx;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
 .progress {
-  height: 14rpx;
+  height: 16rpx;
+  margin-top: 18rpx;
   overflow: hidden;
   border-radius: 999rpx;
-  background: #e2e8f0;
+  background: #e4e7ec;
 }
 
 .progress-bar {
   height: 100%;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: #2f6fed;
 }
 
-.list-item {
+.button-primary,
+.button-secondary {
   display: flex;
-  gap: 18rpx;
-  align-items: flex-start;
-}
-
-.icon-box {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  width: 68rpx;
-  height: 68rpx;
-  border-radius: 20rpx;
-  color: #ffffff;
-  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
-  font-size: 26rpx;
-  font-weight: 800;
+  min-height: 82rpx;
+  margin: 0;
+  padding: 0 28rpx;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  font-weight: 850;
+  line-height: 1.2;
 }
 
-.split {
+.button-primary {
+  color: #ffffff;
+  background: #2f6fed;
+}
+
+.button-secondary {
+  color: #2f6fed;
+  background: #eaf1ff;
+}
+
+button::after {
+  border: 0;
+}
+
+.chip-row {
   display: flex;
-  justify-content: space-between;
-  gap: 16rpx;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.chip {
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: #eaf1ff;
+  color: #2f6fed;
+  font-size: 25rpx;
+  font-weight: 850;
+}
+
+.divider {
+  height: 1rpx;
+  margin: 24rpx 0;
+  background: #e4e7ec;
 }

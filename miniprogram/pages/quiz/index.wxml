@@ -1,38 +1,42 @@
 <view class="page">
-  <view class="hero">
-    <text class="hero-title">练习与错因分析</text>
-    <text class="hero-subtitle">展示测验得分、薄弱知识点、错因标签和下一步推荐。</text>
+  <view class="header">
+    <text class="eyebrow">AI 生成专项测验</text>
+    <text class="title">{{course}}</text>
+    <text class="subtitle">AI 生成专项测验覆盖循环结构、函数参数和列表操作，提交后同步形成学习报告展示。</text>
   </view>
 
-  <view class="section grid">
-    <view class="stat">
-      <text class="muted">本次得分</text>
-      <text class="stat-value">{{quizAnalysis.score}}</text>
+  <view wx:if="{{submitted}}" class="section">
+    <view class="card result-card">
+      <text class="primary-text">本次得分：{{score}} / {{questions.length}}</text>
+      <text class="muted">本次测验结果已同步到学习画像。</text>
+      <text class="muted">循环结构掌握度：58% → 64%。</text>
+      <text class="muted">下一步建议：完成函数参数专项训练。</text>
+      <button class="button-primary report-btn" bindtap="goReport">查看学习报告</button>
     </view>
-    <view class="stat">
-      <text class="muted">薄弱知识点</text>
-      <text class="stat-value">{{quizAnalysis.weakPoints.length}}</text>
-    </view>
-  </view>
-
-  <view class="section card">
-    <view class="section-title">错因分析</view>
-    <view class="point-row">
-      <text class="tag warning" wx:for="{{quizAnalysis.causes}}" wx:key="*this">{{item}}</text>
-    </view>
-    <text class="muted">{{quizAnalysis.nextStep}}</text>
   </view>
 
   <view class="section">
-    <view class="section-title">错题清单</view>
-    <view class="card" wx:for="{{wrongQuestions}}" wx:key="title">
-      <view class="split">
-        <text class="tag purple">{{item.course}}</text>
-        <text class="tag {{item.status === '已订正' ? 'success' : 'warning'}}">{{item.status}}</text>
+    <view class="card question-card" wx:for="{{questions}}" wx:key="id">
+      <view class="row">
+        <text class="primary-text question-title">{{index + 1}}. {{item.title}}</text>
+        <text wx:if="{{submitted}}" class="tag {{selected[item.id] === item.answer ? 'tag-success' : 'tag-warning'}}">{{selected[item.id] === item.answer ? '正确' : '需复盘'}}</text>
       </view>
-      <view class="question-title">{{item.title}}</view>
-      <text class="muted">错因：{{item.cause}}</text>
-      <text class="muted">{{item.answer}}</text>
+      <view class="option-list">
+        <view wx:for="{{item.options}}" wx:for-item="option" wx:for-index="optionIndex" wx:key="*this" data-qid="{{item.id}}" data-index="{{optionIndex}}" bindtap="chooseAnswer" class="option {{selected[item.id] === optionIndex ? 'option-selected' : ''}} {{submitted && item.answer === optionIndex ? 'option-correct' : ''}}">
+          <text class="option-index">{{optionIndex + 1}}</text>
+          <text class="option-text">{{option}}</text>
+        </view>
+      </view>
+      <view wx:if="{{submitted}}" class="analysis">
+        <text class="body-text">正确答案：{{item.answerText}}</text>
+        <text class="muted">解析：{{item.analysis}}</text>
+      </view>
     </view>
+  </view>
+
+  <view class="section action-grid">
+    <button class="button-secondary" bindtap="resetQuiz">重新作答</button>
+    <button wx:if="{{!submitted}}" class="button-primary" bindtap="submitQuiz">提交测验</button>
+    <button wx:else class="button-primary" bindtap="goReport">查看学习报告</button>
   </view>
 </view>

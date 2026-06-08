@@ -1,25 +1,78 @@
+.generate-btn {
+  margin-top: 24rpx;
+}
+
+.step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  opacity: 0.55;
+}
+
+.step-active {
+  opacity: 1;
+}
+
+.step-dot {
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  background: #d0d5dd;
+}
+
+.step-active .step-dot {
+  background: #2f6fed;
+}
+
+.basis-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.reason-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.reason-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #f5f7fb;
+}
+
+.reason-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  background: #2f6fed;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.reason-text {
+  flex: 1;
+}
+
 .resource-card .muted {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 12rpx;
 }
 
-.reason {
-  margin-top: 18rpx;
-  border-radius: 16rpx;
-  padding: 16rpx;
-  color: #1e40af;
-  background: #eff6ff;
-  font-size: 24rpx;
-}
-
-.resource-pack-card .strong,
-.resource-pack-card .muted {
-  display: block;
-}
-
-.point-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-  margin: 16rpx 0;
+.practice-btn {
+  margin-top: 20rpx;
 }
