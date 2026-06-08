@@ -11,14 +11,26 @@ import type { Course } from '../types';
 
 type TaskStatus = '未开始' | '进行中' | '待批改' | '已完成' | '逾期';
 
+interface AdjustmentEntry {
+  timestamp: string;
+  trigger: string;
+  reason: string;
+  old_stages_summary: string[];
+  new_stages_summary: string[];
+  detected_new_weak_points: string[];
+  resolved_weak_points: string[];
+}
+
 interface PathItem {
   id: number;
   course_id?: number;
+  student_profile_id?: number;
   path_json?: {
     course_title?: string;
     goal?: string;
     stages?: Array<{ name?: string; target?: string; practice?: string; mastery?: string; recommend_reason?: string }>;
   };
+  adjustment_log?: AdjustmentEntry[];
 }
 
 interface EventItem {
@@ -69,6 +81,7 @@ const fallbackTasks: TaskRow[] = [
 const courseOptions = computed(() => ['全部课程', ...Array.from(new Set([...courses.value.map((item) => item.title), ...fallbackTasks.map((item) => item.course)]))]);
 
 const selectedPath = computed(() => paths.value[0]);
+const adjustmentLog = computed(() => selectedPath.value?.adjustment_log || []);
 const stages = computed(() => {
   const realStages = selectedPath.value?.path_json?.stages;
   if (realStages?.length) {
@@ -143,6 +156,38 @@ function demoAction(label: string) {
   operationMessage.value = `${label} 为演示操作，后续可接真实任务创建、批改和提醒流程。`;
 }
 
+async function adjustPath() {
+  if (!selectedPath.value?.id) {
+    operationMessage.value = '请先选择学生并生成学习路径。';
+    return;
+  }
+  const profileId = selectedPath.value.student_profile_id;
+  if (!profileId) {
+    operationMessage.value = '当前路径无关联学生画像。';
+    return;
+  }
+  operationMessage.value = '正在根据最新薄弱点调整路径...';
+  try {
+    const result = await api.post<PathItem>('/api/v1/learning-paths/adjust', {
+      profile_id: profileId,
+      trigger: 'manual',
+    });
+    // 更新本地数据
+    const idx = paths.value.findIndex(p => p.id === result.id);
+    if (idx >= 0) paths.value[idx] = result;
+    else paths.value.unshift(result);
+    operationMessage.value = '路径已根据最新薄弱点动态调整完成。';
+  } catch (err) {
+    operationMessage.value = `路径调整失败：${err instanceof Error ? err.message : '未知错误'}`;
+  }
+}
+
+function formatTrigger(trigger: string) {
+  if (trigger === 'quiz_submission') return '测验触发';
+  if (trigger === 'manual') return '手动调整';
+  return trigger;
+}
+
 onMounted(load);
 </script>
 
@@ -150,7 +195,7 @@ onMounted(load);
   <section class="page path-page">
     <PageHeader title="学习路径与任务布置" description="按班级和课程维护学习路径，跟踪任务完成率与批改状态。">
       <template #actions>
-        <button class="secondary" @click="demoAction('路径优化')">路径优化</button>
+        <button class="secondary" @click="adjustPath">动态调整路径</button>
         <button @click="demoAction('新建任务')">新建任务</button>
       </template>
     </PageHeader>
@@ -212,6 +257,35 @@ onMounted(load);
         </div>
       </DataCard>
     </div>
+
+    <!-- 路径调整记录 -->
+    <DataCard v-if="adjustmentLog.length" title="路径调整记录" :subtitle="`${adjustmentLog.length} 次调整`">
+      <div class="adjustment-timeline">
+        <article v-for="(entry, index) in adjustmentLog" :key="index" class="adjustment-entry">
+          <div class="adjustment-header">
+            <StatusBadge :label="formatTrigger(entry.trigger)" :tone="entry.trigger === 'quiz_submission' ? 'purple' : 'info'" />
+            <span class="adjustment-time">{{ entry.timestamp?.slice(0, 19).replace('T', ' ') }}</span>
+          </div>
+          <p class="adjustment-reason">{{ entry.reason }}</p>
+          <div class="adjustment-changes">
+            <div v-if="entry.detected_new_weak_points?.length" class="change-group">
+              <span class="change-label new">新增薄弱点</span>
+              <span v-for="wp in entry.detected_new_weak_points" :key="wp" class="change-tag new-tag">{{ wp }}</span>
+            </div>
+            <div v-if="entry.resolved_weak_points?.length" class="change-group">
+              <span class="change-label resolved">已掌握</span>
+              <span v-for="wp in entry.resolved_weak_points" :key="wp" class="change-tag resolved-tag">{{ wp }}</span>
+            </div>
+          </div>
+          <div class="adjustment-stages">
+            <span class="stages-label">路径变化：</span>
+            <span class="stages-old">{{ entry.old_stages_summary?.join(' → ') }}</span>
+            <span class="stages-arrow">→</span>
+            <span class="stages-new">{{ entry.new_stages_summary?.join(' → ') }}</span>
+          </div>
+        </article>
+      </div>
+    </DataCard>
 
     <DataCard title="任务布置列表" :subtitle="`${filteredTasks.length} 项任务`">
       <template #action>
@@ -335,6 +409,112 @@ onMounted(load);
   padding: 6px 10px;
   border-radius: 8px;
   line-height: 1.5;
+}
+
+.adjustment-timeline {
+  display: grid;
+  gap: 12px;
+}
+
+.adjustment-entry {
+  background: #fafbfc;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.adjustment-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.adjustment-time {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.adjustment-reason {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.adjustment-changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.change-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.change-label {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.change-label.new {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.change-label.resolved {
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.change-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.new-tag {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.resolved-tag {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.adjustment-stages {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.stages-label {
+  font-weight: 600;
+}
+
+.stages-old {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.stages-arrow {
+  color: #3b82f6;
+  font-weight: 700;
+}
+
+.stages-new {
+  color: #1e40af;
+  font-weight: 500;
 }
 
 .table-wrap {

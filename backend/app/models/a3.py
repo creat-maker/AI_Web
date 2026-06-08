@@ -57,6 +57,7 @@ class LearningPath(Base, TimestampMixin):
     )
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
     path_json = Column(Text, nullable=False)
+    adjustment_log = Column(Text, nullable=True)
 
 
 class GeneratedResource(Base, TimestampMixin):

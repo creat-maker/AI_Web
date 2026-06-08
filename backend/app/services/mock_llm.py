@@ -264,10 +264,56 @@ class MockLLM:
         questions = quiz.get("questions", [])
         answered = sum(1 for q in questions if str(answers.get(q.get("id"), "")).strip())
         score = round((answered / max(len(questions), 1)) * 100, 1)
+
+        # 基于答题结果识别新薄弱点
+        original_weak = set(profile.get("weak_points", []) or [])
+        new_weak_points = set(original_weak)
+
+        # 规则：未作答的题目关键词 → 新薄弱点
+        topic_keywords = {
+            "函数": ["函数", "def", "参数", "返回值"],
+            "HTTP请求": ["HTTP", "requests", "GET", "POST", "请求"],
+            "数据解析": ["解析", "BeautifulSoup", "正则", "XPath", "CSS选择器"],
+            "数据存储": ["存储", "CSV", "SQLite", "数据库", "保存"],
+            "反爬策略": ["反爬", "请求头", "频控", "代理", "验证码"],
+            "异常处理": ["异常", "try", "except", "错误处理"],
+        }
+        for q in questions:
+            qid = str(q.get("id", ""))
+            ans = str(answers.get(qid, "")).strip()
+            if not ans:
+                # 未作答 → 从题目内容提取薄弱点
+                q_text = q.get("question", "") + q.get("content", "")
+                for topic, keywords in topic_keywords.items():
+                    if any(kw in q_text for kw in keywords):
+                        new_weak_points.add(topic)
+
+        # 规则：低分（< 60）→ 追加薄弱点
+        if score < 60:
+            new_weak_points.add("基础概念")
+
+        # 规则：高分（>= 85）→ 移除已有薄弱点
+        if score >= 85 and original_weak:
+            # 移除第一个薄弱点表示已掌握
+            removable = list(original_weak)[:1]
+            for r in removable:
+                new_weak_points.discard(r)
+
+        detected_new = list(new_weak_points - original_weak)
+        resolved = list(original_weak - new_weak_points)
+
         return {
             "score": score,
             "mistake_analysis": "已按答题完整度给出演示评分；真实 AI 模式会结合参考答案做语义评价。",
-            "weak_points": profile.get("weak_points", []),
+            "weak_points": list(new_weak_points),
+            "detected_new_weak_points": detected_new,
+            "resolved_weak_points": resolved,
+            "path_adjustment_needed": len(detected_new) > 0 or len(resolved) > 0,
+            "adjustment_reason": (
+                f"检测到新薄弱点: {detected_new}，已掌握: {resolved}"
+                if detected_new or resolved
+                else "薄弱点未变化，无需调整路径"
+            ),
             "next_steps": ["复盘空题或低信心题", "围绕薄弱点再生成 1 组练习", "用课程资料继续追问 TutorAgent"],
         }
 

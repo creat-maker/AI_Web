@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, courses, dashboard, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, reports, resources, system_settings, tutor, user_profile_ws
+from app.api.routers import agent_workflow, competition, content_review, courses, dashboard, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, system_settings, tutor, user_profile_ws
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -24,7 +24,15 @@ with engine.connect() as conn:
                     "ALTER TABLE generated_resources ADD COLUMN recommend_reason TEXT"
                 )
             )
-            conn.commit()
+    if "learning_paths" in insp.get_table_names():
+        existing_cols = {col["name"] for col in insp.get_columns("learning_paths")}
+        if "adjustment_log" not in existing_cols:
+            conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE learning_paths ADD COLUMN adjustment_log TEXT"
+                )
+            )
+    conn.commit()
 
 app = FastAPI(
     title="EduMind API",

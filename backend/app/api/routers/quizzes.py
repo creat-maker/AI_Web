@@ -62,10 +62,15 @@ def submit(payload: SubmitPayload, db: Session = Depends(get_db)):
     if not quiz or not profile:
         raise HTTPException(status_code=404, detail="测验或学生画像不存在")
     submission = submit_quiz(db, quiz, profile, payload.answers)
+    feedback = loads(submission.feedback_json, {})
     return {
         "id": submission.id,
         "score": submission.score,
-        "feedback_json": loads(submission.feedback_json, {}),
+        "feedback_json": feedback,
+        "path_adjustment_needed": feedback.get("path_adjustment_needed", False),
+        "adjustment_reason": feedback.get("adjustment_reason", ""),
+        "detected_new_weak_points": feedback.get("detected_new_weak_points", []),
+        "resolved_weak_points": feedback.get("resolved_weak_points", []),
         "created_at": submission.created_at,
     }
 
