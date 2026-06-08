@@ -1,0 +1,91 @@
+<view class="page">
+  <view class="header cockpit-banner">
+    <text class="eyebrow">学生学习驾驶舱</text>
+    <text class="title">你好，{{studentName}}</text>
+    <text class="subtitle">EduMind 已根据你的学习画像生成今日学习计划</text>
+    <view class="cockpit-meta">
+      <view class="meta-item">
+        <text class="meta-label">当前课程</text>
+        <text class="meta-value">{{course}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">综合掌握度</text>
+        <text class="meta-value">{{progress}}%</text>
+      </view>
+    </view>
+    <view class="advice-strip">
+      <text class="advice-label">今日建议</text>
+      <text class="advice-text">{{todayAdvice}}</text>
+    </view>
+    <button class="button-primary start-btn" data-path="/pages/path/index" bindtap="goPage">开始今日任务</button>
+  </view>
+
+  <view class="section grid-2">
+    <view class="stat-card" wx:for="{{stats}}" wx:key="label">
+      <text class="stat-label">{{item.label}}</text>
+      <text class="stat-value">{{item.value}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">AI 个性化诊断</text>
+      <text class="tag">{{progress}}%</text>
+    </view>
+    <view class="card">
+      <text class="body-text">当前课程：{{course}}</text>
+      <view class="progress"><view class="progress-bar" style="width: {{progress}}%;"></view></view>
+      <view class="divider"></view>
+      <text class="muted">薄弱知识点</text>
+      <view class="chip-row weak-row">
+        <text class="chip" wx:for="{{weakPoints}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">今日学习任务</text></view>
+    <view class="card" wx:for="{{tasks}}" wx:key="title">
+      <view class="row">
+        <view class="col">
+          <text class="primary-text">{{item.title}}</text>
+          <text class="muted">{{item.detail}}</text>
+        </view>
+        <text class="tag {{item.status === '进行中' ? 'tag-warning' : item.status === '已安排' ? 'tag-success' : 'tag-muted'}}">{{item.status}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">AI 学习建议</text></view>
+    <view class="card">
+      <text class="body-text">{{aiAdvice}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">个性化学习任务</text><text class="tag">今日任务</text></view>
+    <view class="card task-plan-card">
+      <text class="body-text task-plan-desc">根据你的学习画像，系统已为你生成今日学习任务。</text>
+      <view class="personal-task" wx:for="{{personalizedTasks}}" wx:key="title" data-path="{{item.path}}" bindtap="goPage">
+        <view class="task-status-dot"></view>
+        <view class="task-info">
+          <text class="primary-text task-name">{{item.title}}</text>
+          <view class="task-meta">
+            <text class="muted">{{item.time}}</text>
+            <text class="task-separator">·</text>
+            <text class="muted">状态：{{item.status}}</text>
+          </view>
+        </view>
+        <text class="tag {{item.priority === '高' ? 'tag-warning' : ''}}">优先级：{{item.priority}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">快捷入口</text></view>
+    <view class="grid-2">
+      <button wx:for="{{shortcuts}}" wx:key="name" data-path="{{item.path}}" bindtap="goPage" class="{{item.style === 'primary' ? 'button-primary' : 'button-secondary'}}">{{item.name}}</button>
+    </view>
+  </view>
+</view>

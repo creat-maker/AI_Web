@@ -1,0 +1,116 @@
+{
+  "courseId": "python-programming",
+  "courseName": "Python 程序设计",
+  "version": "demo-2026-06",
+  "description": "EduMind 轻量 RAG 演示知识库，覆盖 Python 基础语法、函数、文件处理、异常处理、递归和数据结构入门。",
+  "chapters": [
+    {
+      "chapter": "第 1 章 Python 基础与环境",
+      "sections": [
+        {
+          "section": "变量、类型与输入输出",
+          "sourceFile": "python_ch01_basics.md",
+          "knowledgePoints": ["变量命名", "数据类型", "输入输出", "类型转换"],
+          "lecture": "Python 程序由语句组成，变量用于保存数据。常见类型包括 int、float、str、bool、list 和 dict。输入通常使用 input()，输出使用 print()，涉及计算前应先完成类型转换。",
+          "exercises": [
+            "编写程序读取两个整数并输出它们的和、差、积。",
+            "将用户输入的摄氏温度转换为华氏温度。"
+          ],
+          "labTask": "完成一个命令行 BMI 计算器，要求处理身高、体重输入并输出健康提示。"
+        },
+        {
+          "section": "条件分支与循环",
+          "sourceFile": "python_ch01_control_flow.md",
+          "knowledgePoints": ["if 分支", "for 循环", "while 循环", "break", "continue"],
+          "lecture": "条件分支用于根据不同条件执行不同代码块。for 循环适合遍历序列，while 循环适合未知次数的重复任务。循环中使用 break 提前退出，使用 continue 跳过本轮剩余逻辑。",
+          "exercises": [
+            "输出 1 到 100 中所有能被 3 整除的数字。",
+            "统计一组成绩中及格和不及格的人数。"
+          ],
+          "labTask": "实现一个猜数字小游戏，记录用户猜测次数并给出过大或过小提示。"
+        }
+      ]
+    },
+    {
+      "chapter": "第 2 章 函数与模块化",
+      "sections": [
+        {
+          "section": "函数定义与参数",
+          "sourceFile": "python_ch02_functions.md",
+          "knowledgePoints": ["函数定义", "参数", "返回值", "作用域", "模块化"],
+          "lecture": "函数用于封装可复用逻辑。定义函数时应明确输入参数、返回值和异常情况。一个函数只做一件清晰的事情，能提升代码可读性和可测试性。",
+          "exercises": [
+            "封装一个函数判断整数是否为素数。",
+            "编写函数接收成绩列表并返回平均分、最高分和最低分。"
+          ],
+          "labTask": "把成绩分析程序拆分为读取数据、统计数据和输出报告三个函数。"
+        },
+        {
+          "section": "递归基础",
+          "sourceFile": "python_ch02_recursion.md",
+          "knowledgePoints": ["递归", "递归出口", "调用栈", "复杂度分析"],
+          "lecture": "递归函数必须包含递归出口和规模缩小的递推关系。分析递归题时先写最小规模问题，再写一般情况。常见错误包括忘记出口、规模没有缩小、重复计算过多。",
+          "exercises": [
+            "用递归实现阶乘函数。",
+            "画出 Fibonacci(5) 的递归调用树并说明重复计算。"
+          ],
+          "labTask": "实现目录树遍历的递归版本，输出每个文件的层级缩进。"
+        }
+      ]
+    },
+    {
+      "chapter": "第 3 章 文件处理与异常",
+      "sections": [
+        {
+          "section": "文件读写",
+          "sourceFile": "python_ch03_file_io.md",
+          "knowledgePoints": ["文件读写", "with open", "编码", "CSV", "文本处理"],
+          "lecture": "文件处理建议使用 with open(...) 语法自动关闭文件。读取文本时要注意编码，处理 CSV 时应关注表头、空行和异常数据。写文件前应确认输出路径和覆盖策略。",
+          "exercises": [
+            "读取 scores.csv 并计算平均分。",
+            "把低于 60 分的学生名单写入 warning.txt。"
+          ],
+          "labTask": "实现成绩文件分析器：读取 CSV、统计平均分、输出低分名单，并生成简单文本报告。"
+        },
+        {
+          "section": "异常处理",
+          "sourceFile": "python_ch03_exceptions.md",
+          "knowledgePoints": ["try except", "异常处理", "边界条件", "错误提示"],
+          "lecture": "异常处理用于让程序在错误输入、文件不存在、格式不合法时给出可理解提示。不要用空 except 吞掉所有错误，应针对 FileNotFoundError、ValueError 等具体异常处理。",
+          "exercises": [
+            "处理用户输入非数字时的 ValueError。",
+            "处理文件不存在时的 FileNotFoundError。"
+          ],
+          "labTask": "为成绩文件分析器补充异常处理，要求错误信息清晰并不中断整个演示流程。"
+        }
+      ]
+    },
+    {
+      "chapter": "第 4 章 数据结构入门",
+      "sections": [
+        {
+          "section": "列表、字典与集合",
+          "sourceFile": "python_ch04_collections.md",
+          "knowledgePoints": ["列表", "字典", "集合", "遍历", "统计"],
+          "lecture": "列表适合保存有序数据，字典适合通过键快速查找，集合适合去重和集合运算。选择数据结构时应关注访问方式、是否需要顺序、是否需要唯一性。",
+          "exercises": [
+            "统计一段文本中每个单词出现次数。",
+            "找出两个名单中共同出现的学生。"
+          ],
+          "labTask": "实现课程签到统计，输出缺勤学生、重复签到和签到率。"
+        },
+        {
+          "section": "栈与队列思想",
+          "sourceFile": "python_ch04_stack_queue.md",
+          "knowledgePoints": ["栈", "队列", "先进后出", "先进先出", "括号匹配"],
+          "lecture": "栈遵循先进后出，适合括号匹配、撤销操作和递归调用模拟。队列遵循先进先出，适合任务排队和广度优先遍历。理解入栈、出栈、入队、出队过程是解题关键。",
+          "exercises": [
+            "使用列表模拟栈完成括号匹配。",
+            "使用队列模拟打印任务调度。"
+          ],
+          "labTask": "实现一个简易任务队列，支持添加任务、完成任务和查看等待队列。"
+        }
+      ]
+    }
+  ]
+}

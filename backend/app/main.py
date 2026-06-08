@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, courses, dashboard, demo_status, events, knowledge_base, learning_paths, logs, profiles, quizzes, reports, resources, system_settings, tutor, user_profile_ws
+
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -29,9 +29,12 @@ app.add_middleware(
 API_PREFIX = "/api/v1"
 app.include_router(courses.router, prefix=API_PREFIX)
 app.include_router(knowledge_base.router, prefix=API_PREFIX)
+app.include_router(rag.router, prefix=API_PREFIX)
+app.include_router(content_review.router, prefix=API_PREFIX)
 app.include_router(profiles.router, prefix=API_PREFIX)
 app.include_router(learning_paths.router, prefix=API_PREFIX)
 app.include_router(resources.router, prefix=API_PREFIX)
+app.include_router(profile_dialog.router, prefix=API_PREFIX)
 app.include_router(tutor.router, prefix=API_PREFIX)
 app.include_router(quizzes.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
@@ -40,6 +43,7 @@ app.include_router(system_settings.router, prefix=API_PREFIX)
 app.include_router(logs.router, prefix=API_PREFIX)
 app.include_router(events.router, prefix=API_PREFIX)
 app.include_router(demo_status.router, prefix=API_PREFIX)
+app.include_router(competition.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(user_profile_ws.router)
 

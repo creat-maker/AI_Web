@@ -1,0 +1,32 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/path/index",
+    "pages/resources/index",
+    "pages/tutor/index",
+    "pages/quiz/index",
+    "pages/report/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "EduMind",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f7fb",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#667085",
+    "selectedColor": "#2f6fed",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/path/index", "text": "路径" },
+      { "pagePath": "pages/resources/index", "text": "资源" },
+      { "pagePath": "pages/tutor/index", "text": "助教" },
+      { "pagePath": "pages/report/index", "text": "报告" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

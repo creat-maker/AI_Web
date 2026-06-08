@@ -1,0 +1,48 @@
+<view class="page tutor-page">
+  <view class="header">
+    <text class="eyebrow">RAG 智能答疑</text>
+    <text class="title">AI 助教</text>
+    <text class="subtitle">围绕课程知识库和张三的学习画像回答问题，并给出可追溯的参考依据。</text>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">示例问题</text>
+      <text class="tag {{fromBackend ? 'tag-success' : 'tag-warning'}}">{{fromBackend ? '后端 RAG' : '离线服务'}}</text>
+    </view>
+    <view class="example-list">
+      <button class="example-btn" wx:for="{{examples}}" wx:key="*this" data-question="{{item}}" bindtap="useExample">{{item}}</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">问答消息</text></view>
+    <view class="card chat-card">
+      <view wx:for="{{messages}}" wx:key="index" class="message {{item.role === 'user' ? 'message-user' : 'message-ai'}}">
+        <text class="message-role">{{item.role === 'user' ? '张三' : 'AI 助教'}}</text>
+        <text wx:if="{{item.source}}" class="message-source">{{item.source}}</text>
+        <text class="message-content">{{item.content}}</text>
+        <view wx:if="{{item.role === 'ai' && item.references}}" class="reference-box">
+          <text class="reference-title">参考依据</text>
+          <text class="reference-line">课程知识库：{{item.references.knowledgeBase}}</text>
+          <text class="reference-line">相关知识点：{{item.references.points}}</text>
+          <text class="reference-line">学生画像：{{item.references.profile}}</text>
+          <text class="reference-line">近期错题：{{item.references.wrongQuestions}}</text>
+        </view>
+        <view wx:if="{{item.role === 'ai' && item.followUps}}" class="follow-box">
+          <text class="reference-title">继续追问建议</text>
+          <button class="follow-btn" wx:for="{{item.followUps}}" wx:for-item="follow" wx:key="*this" data-question="{{follow}}" bindtap="useFollowUp">{{follow}}</button>
+        </view>
+      </view>
+      <view wx:if="{{loading}}" class="message message-ai">
+        <text class="message-role">AI 助教</text>
+        <text class="message-content">正在检索课程知识库并匹配学习画像...</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="input-panel">
+    <textarea class="question-input" value="{{question}}" bindinput="onInput" maxlength="300" auto-height placeholder="请输入你的问题"></textarea>
+    <button class="button-primary send-btn" loading="{{loading}}" bindtap="sendQuestion">发送</button>
+  </view>
+</view>

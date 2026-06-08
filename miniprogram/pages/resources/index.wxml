@@ -1,0 +1,75 @@
+<view class="page">
+  <view class="header">
+    <text class="eyebrow">AI 个性化资源包</text>
+    <text class="title">Python 资源中心</text>
+    <text class="subtitle">围绕循环结构、函数参数、列表操作生成视频、文档和练习组合。</text>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">资源生成状态</text>
+      <text class="tag {{fromBackend ? 'tag-success' : 'tag-warning'}}">{{fromBackend ? '后端接口' : '智能推荐已加载'}}</text>
+    </view>
+    <view class="card">
+      <view class="step-list">
+        <view class="step-item {{index <= currentStep ? 'step-active' : ''}}" wx:for="{{generationSteps}}" wx:key="*this">
+          <text class="step-dot"></text>
+          <text class="body-text">{{item}}</text>
+        </view>
+      </view>
+      <button class="button-primary generate-btn" loading="{{loading}}" bindtap="generatePack">{{loading ? '生成中' : '生成资源包'}}</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">生成依据</text></view>
+    <view class="card basis-card">
+      <text class="body-text">学生薄弱点：{{basis.weakPointsText}}</text>
+      <text class="body-text">最近测验正确率：{{basis.accuracy}}</text>
+      <text class="body-text">推荐策略：{{basis.strategy}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">资源匹配理由</text><text class="tag">AI 推荐依据</text></view>
+    <view class="card reason-card">
+      <view class="reason-item" wx:for="{{matchReasons}}" wx:key="*this">
+        <text class="reason-index">{{index + 1}}</text>
+        <text class="body-text reason-text">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">视频资源</text></view>
+    <view class="card resource-card" wx:for="{{pack.videos}}" wx:key="title">
+      <view class="row"><text class="primary-text">{{item.title}}</text><text class="tag">{{item.tag || item.type || '视频'}}</text></view>
+      <text class="muted">建议学习 {{item.duration || item.estimatedMinutes + ' 分钟'}}</text>
+      <text class="muted">{{item.reason || '用于建立知识点理解并降低练习阻力。'}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">文档资料</text></view>
+    <view class="card resource-card" wx:for="{{pack.documents}}" wx:key="title">
+      <view class="row"><text class="primary-text">{{item.title}}</text><text class="tag tag-success">{{item.tag || item.type || '文档'}}</text></view>
+      <text class="muted">{{item.reason || '用于快速复盘关键概念和易错点。'}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">练习任务</text></view>
+    <view class="card resource-card" wx:for="{{pack.practices}}" wx:key="title">
+      <view class="row"><text class="primary-text">{{item.title}}</text><text class="tag tag-warning">{{item.tag || item.type || '练习'}}</text></view>
+      <text class="muted">{{item.reason || '完成后进入测验验证掌握情况。'}}</text>
+      <button class="button-primary practice-btn" bindtap="goQuiz">开始练习</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">推荐学习顺序</text></view>
+    <view class="card" wx:for="{{pack.order}}" wx:key="*this">
+      <text class="body-text">{{index + 1}}. {{item}}</text>
+    </view>
+  </view>
+</view>

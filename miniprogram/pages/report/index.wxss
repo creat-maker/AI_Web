@@ -1,0 +1,149 @@
+.mastery-card {
+  display: flex;
+  align-items: center;
+  gap: 26rpx;
+}
+
+.mastery-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 190rpx;
+  height: 190rpx;
+  border: 18rpx solid #2f6fed;
+  border-right-color: #dbe7ff;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.mastery-value {
+  color: #2f6fed;
+  font-size: 42rpx;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.mastery-label {
+  margin-top: 8rpx;
+  color: #475467;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.mastery-copy {
+  flex: 1;
+}
+
+.mastery-copy .muted {
+  display: block;
+  margin-top: 12rpx;
+}
+
+.rank-card .progress {
+  margin-top: 20rpx;
+}
+
+.ability-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.profile-note {
+  display: block;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #eaf1ff;
+  color: #2459bd;
+  font-weight: 800;
+}
+
+.ability-list {
+  margin-top: 22rpx;
+}
+
+.ability-item {
+  margin-top: 20rpx;
+}
+
+.ability-item:first-child {
+  margin-top: 0;
+}
+
+.ability-name {
+  flex: 1;
+}
+
+.ability-track {
+  height: 18rpx;
+  margin-top: 14rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: #e4e7ec;
+}
+
+.ability-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #2f6fed 0%, #12b76a 100%);
+}
+
+.trend-card {
+  padding: 24rpx 20rpx;
+}
+
+.trend-list {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 240rpx;
+}
+
+.trend-item {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  width: 13%;
+  height: 100%;
+}
+
+.trend-bar-wrap {
+  display: flex;
+  align-items: flex-end;
+  width: 34rpx;
+  flex: 1;
+  border-radius: 999rpx;
+  background: #eaf1ff;
+  overflow: hidden;
+}
+
+.trend-bar {
+  width: 100%;
+  min-height: 24rpx;
+  border-radius: 999rpx 999rpx 0 0;
+  background: #2f6fed;
+}
+
+.trend-date {
+  margin-top: 12rpx;
+  color: #475467;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.advice-card {
+  border-left: 8rpx solid #2f6fed;
+}
+
+.plan-detail {
+  display: block;
+  margin-top: 10rpx;
+}
+
+.action-grid {
+  display: flex;
+  gap: 24rpx;
+}
+
+.action-grid button {
+  flex: 1;
+}

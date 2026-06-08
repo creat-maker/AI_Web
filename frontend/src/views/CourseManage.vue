@@ -161,6 +161,45 @@ onMounted(load);
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
+    <DataCard title="知识点 - 资源 - 题目关联" subtitle="静态展示课程内容治理关系，后续可替换为可视化编辑器和数据库关联。">
+      <div class="relation-board">
+        <section>
+          <h3>知识点</h3>
+          <span v-for="item in ['变量与数据类型', '条件语句', '循环结构', '函数', '列表', '字典', '文件操作', '异常处理']" :key="item">{{ item }}</span>
+        </section>
+        <section>
+          <h3>推荐资源</h3>
+          <article>
+            <strong>循环边界专项微课</strong>
+            <p>关联：循环结构、条件语句</p>
+          </article>
+          <article>
+            <strong>函数封装案例包</strong>
+            <p>关联：函数</p>
+          </article>
+          <article>
+            <strong>CSV 成绩分析 Notebook</strong>
+            <p>关联：列表、字典、文件操作</p>
+          </article>
+        </section>
+        <section>
+          <h3>章节题目</h3>
+          <article>
+            <strong>while 循环终止条件判断</strong>
+            <p>难度：基础 · 关联：循环结构</p>
+          </article>
+          <article>
+            <strong>封装成绩统计函数</strong>
+            <p>难度：中等 · 关联：函数、列表</p>
+          </article>
+          <article>
+            <strong>读取 CSV 并处理异常</strong>
+            <p>难度：进阶 · 关联：文件操作、异常处理</p>
+          </article>
+        </section>
+      </div>
+    </DataCard>
+
     <DataCard title="筛选课程" subtitle="按课程名称、状态、类型和班级快速定位">
       <div class="filter-grid">
         <input v-model="keyword" placeholder="搜索课程名称、教师、班级..." />
@@ -271,8 +310,54 @@ onMounted(load);
   gap: 8px;
 }
 
+.relation-board {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.relation-board section {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+}
+
+.relation-board h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.relation-board span {
+  display: inline-block;
+  margin: 0 8px 8px 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.relation-board article {
+  border-top: 1px solid var(--color-border);
+  padding: 10px 0;
+}
+
+.relation-board article:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.relation-board p {
+  margin: 6px 0 0;
+  color: var(--color-text-sub);
+  font-size: 13px;
+}
+
 @media (max-width: 980px) {
-  .filter-grid {
+  .filter-grid,
+  .relation-board {
     grid-template-columns: 1fr;
   }
 }

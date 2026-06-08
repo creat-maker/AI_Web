@@ -1,0 +1,106 @@
+<view class="page">
+  <view class="header">
+    <text class="eyebrow">学习报告</text>
+    <text class="title">张三 · Python 程序设计</text>
+    <text class="subtitle">持续跟踪掌握度、薄弱点、学习趋势和下一步计划。</text>
+  </view>
+
+  <view class="section">
+    <view class="card mastery-card">
+      <view class="mastery-ring">
+        <text class="mastery-value">{{mastery}}%</text>
+        <text class="mastery-label">综合掌握度</text>
+      </view>
+      <view class="mastery-copy">
+        <text class="primary-text">学习状态：需要专项突破</text>
+        <text class="muted">{{profileUpdate}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">能力图谱</text><text class="tag">学习画像</text></view>
+    <view class="card ability-card">
+      <text class="body-text profile-note">{{profileUpdate}}</text>
+      <view class="ability-list">
+        <view class="ability-item" wx:for="{{abilities}}" wx:key="name">
+          <view class="row">
+            <text class="primary-text ability-name">{{item.name}}</text>
+            <text class="tag {{item.value < 60 ? 'tag-warning' : ''}}">{{item.value}}%</text>
+          </view>
+          <view class="ability-track">
+            <view class="ability-bar" style="width: {{item.value}}%;"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section grid-2">
+    <view class="stat-card"><text class="stat-label">学习进度</text><text class="stat-value">{{progress}}%</text></view>
+    <view class="stat-card"><text class="stat-label">学习时长</text><text class="stat-value">{{studyTime}}</text></view>
+    <view class="stat-card"><text class="stat-label">测验正确率</text><text class="stat-value">{{accuracy}}</text></view>
+    <view class="stat-card"><text class="stat-label">跟踪周期</text><text class="stat-value">7 天</text></view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">薄弱知识点排名</text><text class="tag tag-warning">持续跟踪</text></view>
+    <view class="card rank-card" wx:for="{{weakRanks}}" wx:key="name">
+      <view class="row">
+        <view class="col">
+          <text class="primary-text">{{index + 1}}. {{item.name}}</text>
+          <text class="muted">{{item.risk}}</text>
+        </view>
+        <text class="tag">{{item.value}}%</text>
+      </view>
+      <view class="progress"><view class="progress-bar" style="width: {{item.value}}%;"></view></view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">最近 7 天学习趋势</text></view>
+    <view class="card trend-card">
+      <view class="trend-list">
+        <view class="trend-item" wx:for="{{trends}}" wx:key="date">
+          <view class="trend-bar-wrap">
+            <view class="trend-bar" style="height: {{item.value}}%;"></view>
+          </view>
+          <text class="trend-date">{{item.date}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">AI 改进建议</text></view>
+    <view class="card advice-card" wx:for="{{suggestions}}" wx:key="*this">
+      <text class="body-text">{{index + 1}}. {{item}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">下一步学习计划</text></view>
+    <view class="card" wx:for="{{nextPlan}}" wx:key="title">
+      <text class="primary-text">{{item.title}}</text>
+      <text class="muted plan-detail">{{item.detail}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">近期学习记录</text></view>
+    <view class="card" wx:for="{{records}}" wx:key="date">
+      <view class="row">
+        <view class="col">
+          <text class="primary-text">{{item.title}}</text>
+          <text class="muted">{{item.date}} · {{item.result}}</text>
+        </view>
+        <text class="tag tag-success">已记录</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section action-grid">
+    <button class="button-secondary" bindtap="goQuiz">进入测验练习</button>
+    <button class="button-primary" bindtap="goTutor">咨询 AI 助教</button>
+  </view>
+</view>

@@ -1,0 +1,16 @@
+{
+  "description": "EduMind Studio 原生微信小程序学生端体验版",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.7.0",
+  "appid": "touristappid",
+  "projectname": "EduMind%20Student%20MiniProgram",
+  "condition": {},
+  "srcMiniprogramRoot": "./"
+}
