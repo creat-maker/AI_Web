@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     upload_dir: str = Field(default="./backend/storage/uploads", alias="UPLOAD_DIR")
     report_dir: str = Field(default="./backend/storage/reports", alias="REPORT_DIR")
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
+    jwt_secret: str = Field(default="edumind-jwt-secret-2026", alias="JWT_SECRET")
 
     @property
     def resolved_database_url(self) -> str:
