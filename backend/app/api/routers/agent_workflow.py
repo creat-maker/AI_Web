@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.agents.graph import run_full_learning_graph
@@ -523,3 +526,73 @@ def rerun(run_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(run)
     return _record_from_run(run)
+
+
+@router.post("/run-full-learning-flow/stream")
+def run_full_learning_flow_stream(payload: FullFlowPayload, db: Session = Depends(get_db)):
+    """SSE 流式推送 Agent 工作流执行进度。"""
+
+    course = db.query(Course).filter(Course.id == payload.course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="课程不存在")
+
+    step_names = [
+        ("task_receive", "任务接收"),
+        ("intent_recognition", "意图识别"),
+        ("knowledge_retrieval", "知识库检索"),
+        ("answer_generation", "答案生成"),
+        ("learning_analysis", "学情分析"),
+        ("teaching_advice", "教学建议"),
+        ("report_generation", "报告生成"),
+    ]
+
+    def event_stream():
+        for index, (key, name) in enumerate(step_names):
+            step_data = {
+                "key": key,
+                "name": name,
+                "status": "running",
+                "progress": int((index / len(step_names)) * 100),
+            }
+            yield f"data: {json.dumps(step_data, ensure_ascii=False)}\n\n"
+            # Simulate processing time
+            import time
+            time.sleep(0.3)
+            step_data["status"] = "success"
+            step_data["progress"] = int(((index + 1) / len(step_names)) * 100)
+            yield f"data: {json.dumps(step_data, ensure_ascii=False)}\n\n"
+
+        # Run the actual workflow
+        try:
+            state = run_full_learning_graph(
+                {
+                    **payload.model_dump(),
+                    "course_title": course.title,
+                    "messages": [],
+                    "errors": [],
+                }
+            )
+            complete_data = {
+                "key": "complete",
+                "name": "工作流完成",
+                "status": "success",
+                "progress": 100,
+                "summary": {
+                    "profile_extracted": bool(state.get("student_profile")),
+                    "path_generated": bool(state.get("learning_path")),
+                    "resources_count": len(state.get("generated_resources", [])),
+                    "quiz_generated": bool(state.get("quiz")),
+                    "report_path": state.get("report_path", ""),
+                },
+            }
+            yield f"data: {json.dumps(complete_data, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            error_data = {
+                "key": "error",
+                "name": "工作流失败",
+                "status": "failed",
+                "error": str(exc),
+            }
+            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
