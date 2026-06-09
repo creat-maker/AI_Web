@@ -84,7 +84,7 @@
 | 学生端 Web 页面 | 学习总览、课程、学习路径、知识图谱、任务、智能答疑、知识库、测验、报告、成就、积分、笔记、小组（13 个页面） | [StudentHome.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/StudentHome.vue) 等 | ✅ 已完成 | — |
 | 教师端 Web 页面 | 班级概览、AI 教学工作台、课程管理、学生画像、学习路径、测评分析、报告中心 | [TeacherHome.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/TeacherHome.vue) + [TeacherAIWorkbench.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/TeacherAIWorkbench.vue) | ✅ 已完成 | — |
 | 管理员端 Web 页面 | 平台总览、用户与角色、课程治理、资源生成、Agent 工作流、报告审核、内容审核、课程质量评价、知识库运营、日志、系统设置 | [Dashboard.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/Dashboard.vue) 等 | ✅ 已完成 | — |
-| 微信小程序学生端 | 6 页面（首页/路径/资源/助教/测验/报告），5 tab，demoData，request 工具 | [miniprogram/](file:///Users/xing/Desktop/EduMind/miniprogram/) | ✅ 已完成 | 可补 profile-dialog 页面 |
+| 微信小程序学生端 | 7 页面（首页/路径/资源/助教/测验/报告/画像构建），5 tab，demoData，request 工具，对话式画像构建 | [miniprogram/](file:///Users/xing/Desktop/EduMind/miniprogram/) | ✅ 已完成 | — |
 | Demo 状态页 | `/demo-status` 前后端，展示 Ready、通过率、三端路线和关键能力 | [DemoStatus.vue](file:///Users/xing/Desktop/EduMind/frontend/src/views/DemoStatus.vue) + [demo_status.py](file:///Users/xing/Desktop/EduMind/backend/app/api/routers/demo_status.py) | ✅ 已完成 | — |
 | 统一演示数据 | 张三、李四、王五；王老师、陈老师、张老师；四门课程；两个班级 | [seed_demo_data.py](file:///Users/xing/Desktop/EduMind/scripts/seed_demo_data.py) | ✅ 已完成 | — |
 | 一键验收脚本 | `seed-demo-data`、`check-demo-ready`、`e2e_demo_flow_check` | [scripts/](file:///Users/xing/Desktop/EduMind/scripts/) | ✅ 已完成 | — |
@@ -144,7 +144,7 @@
 
 | # | 缺少项 | 判断依据 | 当前状态 | 建议补法 |
 |---|--------|----------|----------|----------|
-| 13 | **小程序 profile-dialog 页面** | 小程序端缺少对话式画像构建页面 | ⚠️ 缺失 | 在 miniprogram 中新增 profile-dialog 页面 |
+| 13 | **小程序 profile-dialog 页面** | 小程序端缺少对话式画像构建页面 | ✅ 已补齐 | miniprogram/pages/profile-dialog/ 已实现对话式画像构建，含6维进度展示、后端/离线双模式、首页入口 |
 | 14 | **语义文本分块** | text_splitter 仅按 800 字符切分，无语义分块 | ⚠️ 演示级 | 后续可引入 markdown header splitting 或递归字符分块 |
 | 15 | **语义 Embedding** | HashEmbedding 基于 MD5 哈希，非语义向量 | ⚠️ 演示级 | 后续可替换为 bge-m3 等语义 embedding 模型 |
 | 16 | **真实登录鉴权** | 当前为 Demo 角色入口，无 JWT/auth 中间件 | ⚠️ Demo 级 | 初赛可接受；后续扩展真实鉴权 |

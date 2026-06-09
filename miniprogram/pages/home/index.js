@@ -28,7 +28,8 @@ Page({
       { name: '开始今日任务', path: '/pages/path/index', style: 'primary' },
       { name: '生成资源包', path: '/pages/resources/index', style: 'secondary' },
       { name: '咨询 AI 助教', path: '/pages/tutor/index', style: 'secondary' },
-      { name: '查看学习报告', path: '/pages/report/index', style: 'secondary' }
+      { name: '查看学习报告', path: '/pages/report/index', style: 'secondary' },
+      { name: '画像构建', path: '/pages/profile-dialog/index', style: 'secondary' }
     ]
   },
 
