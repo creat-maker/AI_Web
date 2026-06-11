@@ -98,6 +98,90 @@ class DemoFlowChecker:
         )
         return None
 
+    @staticmethod
+    def pick_profile_dialog_run(body: Any) -> dict[str, Any]:
+        if not isinstance(body, dict):
+            raise ValueError("response is not a JSON object")
+        required = ["studentName", "courseName", "summary", "dimensions", "weakKnowledgePoints", "recommendedStrategy", "mode"]
+        missing = [key for key in required if key not in body]
+        if missing:
+            raise ValueError(f"missing fields: {', '.join(missing)}")
+        if not isinstance(body.get("dimensions"), list) or not body["dimensions"]:
+            raise ValueError("dimensions must be a non-empty list")
+        if not isinstance(body.get("weakKnowledgePoints"), list):
+            raise ValueError("weakKnowledgePoints must be a list")
+        return {
+            "studentName": body.get("studentName"),
+            "dimension_count": len(body.get("dimensions", [])),
+            "weak_point_count": len(body.get("weakKnowledgePoints", [])),
+            "mode": body.get("mode"),
+        }
+
+    @staticmethod
+    def pick_resource_pack(body: Any) -> dict[str, Any]:
+        if not isinstance(body, dict):
+            raise ValueError("response is not a JSON object")
+        required = ["packageTitle", "courseName", "weakPoints", "resourceCount", "resources", "mode"]
+        missing = [key for key in required if key not in body]
+        if missing:
+            raise ValueError(f"missing fields: {', '.join(missing)}")
+        resources = body.get("resources")
+        if not isinstance(resources, list) or len(resources) < 5:
+            raise ValueError("resources must contain at least 5 items")
+        return {
+            "packageTitle": body.get("packageTitle"),
+            "resource_count": len(resources),
+            "mode": body.get("mode"),
+        }
+
+    @staticmethod
+    def pick_rag_answer(body: Any) -> dict[str, Any]:
+        if not isinstance(body, dict):
+            raise ValueError("response is not a JSON object")
+        required = ["answer", "citations", "matchedChunks", "confidence", "recommendedExercises", "relatedKnowledgePoints"]
+        missing = [key for key in required if key not in body]
+        if missing:
+            raise ValueError(f"missing fields: {', '.join(missing)}")
+        if not body.get("answer"):
+            raise ValueError("answer is empty")
+        if not isinstance(body.get("citations"), list):
+            raise ValueError("citations must be a list")
+        return {
+            "citation_count": len(body.get("citations", [])),
+            "matched_chunk_count": len(body.get("matchedChunks", [])),
+            "confidence": body.get("confidence"),
+            "retrieval_mode": body.get("retrievalMode"),
+        }
+
+    @staticmethod
+    def pick_content_review(body: Any) -> dict[str, Any]:
+        if not isinstance(body, dict):
+            raise ValueError("response is not a JSON object")
+        required = ["riskLevel", "confidence", "citationCoverage", "reviewStatus", "suggestions"]
+        missing = [key for key in required if key not in body]
+        if missing:
+            raise ValueError(f"missing fields: {', '.join(missing)}")
+        return {
+            "review_status": body.get("reviewStatus"),
+            "risk_level": body.get("riskLevel"),
+            "confidence": body.get("confidence"),
+            "citation_coverage": body.get("citationCoverage"),
+        }
+
+    @staticmethod
+    def pick_demo_status(body: Any) -> dict[str, Any]:
+        if not isinstance(body, dict):
+            raise ValueError("response is not a JSON object")
+        required = ["status", "message", "capability_checklist", "readiness_checks"]
+        missing = [key for key in required if key not in body]
+        if missing:
+            raise ValueError(f"missing fields: {', '.join(missing)}")
+        return {
+            "status": body.get("status"),
+            "capability_count": len(body.get("capability_checklist", [])),
+            "readiness_count": len(body.get("readiness_checks", [])),
+        }
+
     def run_step(self, name: str, method: str, endpoint: str, payload: dict[str, Any] | None, expected_event: str | None, key_picker) -> Any:
         status, body, reason = self.safe_request(method, endpoint, payload)
         success = bool(status and status < 400)
@@ -219,6 +303,66 @@ class DemoFlowChecker:
         self.run_step("I. 查询业务日志", "GET", "/api/v1/logs?type=business_event", None, None, lambda body: {"log_count": len(body.get("items", body) if isinstance(body, dict) else body or [])})
         self.run_step("J. 查询 Agent 工作流", "GET", "/api/v1/agent-workflow", None, None, lambda body: {"template_count": len(body.get("workflow_templates", [])), "event_run_count": len(body.get("business_event_records", []))})
         self.run_step("K. 查询学习路径", "GET", "/api/v1/learning-paths", None, None, lambda body: {"path_count": len(body or []), "package_id_checked": package_id})
+
+        self.run_step(
+            "L. profile-dialog/run compatibility API",
+            "POST",
+            "/api/v1/profile-dialog/run",
+            {
+                "studentId": "demo-student-zhangsan",
+                "studentName": "张三",
+                "courseId": "demo-course-python",
+                "courseName": "Python 程序设计",
+                "answer": "Python 文件处理和递归边界比较薄弱，喜欢代码案例和分步练习。",
+            },
+            None,
+            self.pick_profile_dialog_run,
+        )
+        self.run_step(
+            "M. resources/generate-pack API",
+            "POST",
+            "/api/v1/resources/generate-pack",
+            {
+                "studentId": "demo-student-zhangsan",
+                "courseId": "demo-course-python",
+                "courseName": "Python 程序设计",
+                "weakPoints": ["Python 文件处理", "递归边界", "代码调试"],
+            },
+            None,
+            self.pick_resource_pack,
+        )
+        self.run_step(
+            "N. rag/ask API",
+            "POST",
+            "/api/v1/rag/ask",
+            {
+                "question": "递归题应该怎么分析？",
+                "courseId": "python-programming",
+                "studentId": "demo-student-zhangsan",
+            },
+            None,
+            self.pick_rag_answer,
+        )
+        self.run_step(
+            "O. content-review/check API",
+            "POST",
+            "/api/v1/content-review/check",
+            {
+                "courseId": "python-programming",
+                "content": "递归函数需要递归出口，并通过更小规模的问题逐步逼近结果。",
+                "citations": [
+                    {
+                        "sourceFile": "python_ch02_functions.md",
+                        "chapter": "函数与模块化",
+                        "section": "递归基础",
+                        "snippet": "递归函数必须包含递归出口。",
+                    }
+                ],
+            },
+            None,
+            self.pick_content_review,
+        )
+        self.run_step("P. demo-status API", "GET", "/api/v1/demo-status", None, None, self.pick_demo_status)
 
     def event_summary(self) -> dict[str, bool]:
         existing = {item.get("event_type") for item in self.get_events()}

@@ -49,6 +49,10 @@ interface AnalysisData {
     weak_knowledge_top5?: Array<{ name: string; value: number }>;
     teacher_intervention_suggestions?: Array<{ title: string; content: string }>;
   };
+  class_profile_distribution?: Array<{ name: string; value: number; student_name?: string }>;
+  weak_point_ranking?: Array<{ name: string; value: number; student_count?: number }>;
+  warning_students?: Array<{ student_name: string; profile_type: string; risk_level: string; weak_points: string[]; suggestion: string }>;
+  resource_usage?: Array<{ student_name: string; profile_type: string; usage_rate: number; recommended_count: number; completed_count: number }>;
 }
 
 const data = ref<AnalysisData | null>(null);
@@ -91,6 +95,9 @@ const suggestions = computed(() => data.value?.knowledge_tracking?.teacher_inter
   { title: '分层布置练习', content: '对 70 分以下学生布置基础题，对 85 分以上学生增加项目挑战。' },
   { title: '课后答疑复盘', content: '将高频答疑问题整理为知识卡片，同步到知识库。' }
 ]));
+const profileDistribution = computed(() => data.value?.class_profile_distribution || []);
+const warningStudents = computed(() => data.value?.warning_students || []);
+const resourceUsage = computed(() => data.value?.resource_usage || []);
 
 const statCards = computed(() => [
   { label: '测验数量', value: data.value?.real?.quiz_count || quizzes.value.length, unit: '次', hint: '本月测验', icon: '测' },
@@ -267,6 +274,36 @@ onBeforeUnmount(() => {
       </div>
     </DataCard>
 
+    <DataCard title="班级画像与资源使用" subtitle="展示基础薄弱型、进阶提升型、考试冲刺型学生的画像分布、预警和资源使用闭环。">
+      <div class="research-grid">
+        <section>
+          <h3>画像分布</h3>
+          <article v-for="item in profileDistribution" :key="item.name" class="research-row">
+            <strong>{{ item.name }}</strong>
+            <span>{{ item.student_name }} · {{ item.value }} 人</span>
+          </article>
+        </section>
+        <section>
+          <h3>学习预警学生</h3>
+          <article v-for="item in warningStudents" :key="item.student_name" class="research-row">
+            <strong>{{ item.student_name }} · {{ item.risk_level }}</strong>
+            <span>{{ item.profile_type }} · {{ item.weak_points.join('、') }}</span>
+            <p>{{ item.suggestion }}</p>
+          </article>
+        </section>
+        <section>
+          <h3>资源使用情况</h3>
+          <article v-for="item in resourceUsage" :key="item.student_name" class="usage-row">
+            <div>
+              <strong>{{ item.student_name }}</strong>
+              <span>{{ item.profile_type }} · 已完成 {{ item.completed_count }}/{{ item.recommended_count }}</span>
+            </div>
+            <ProgressBar :value="item.usage_rate" :tone="item.usage_rate >= 75 ? 'success' : 'warning'" />
+          </article>
+        </section>
+      </div>
+    </DataCard>
+
     <DataCard title="教学建议" subtitle="面向下一轮课堂优化">
       <div class="suggestion-grid">
         <article v-for="item in suggestions" :key="item.title" class="item">
@@ -360,9 +397,50 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.research-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr 1fr;
+  gap: 14px;
+}
+
+.research-grid section,
+.research-row,
+.usage-row {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.research-grid h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.research-row,
+.usage-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.research-row:last-child,
+.usage-row:last-child {
+  margin-bottom: 0;
+}
+
+.research-row span,
+.usage-row span,
+.research-row p {
+  margin: 0;
+  color: var(--color-text-sub);
+  font-size: 13px;
+}
+
 @media (max-width: 1180px) {
   .analysis-layout,
-  .suggestion-grid {
+  .suggestion-grid,
+  .research-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -4,6 +4,7 @@ import { roleFromPath, roleHomePath, roleLabels, type UserRole } from '../config
 
 const STORAGE_KEY = 'edumind.demoRole';
 const LEGACY_STORAGE_KEY = 'edumind.currentRole';
+const DEMO_USER_KEY = 'edumind.demoUserId';
 const availableRoles: UserRole[] = ['student', 'teacher', 'admin'];
 
 function readInitialRole(): UserRole {
@@ -12,6 +13,7 @@ function readInitialRole(): UserRole {
 }
 
 const storedRole = ref<UserRole>(readInitialRole());
+const demoUserId = ref(localStorage.getItem(DEMO_USER_KEY) || 'demo-basic');
 
 export function useRole() {
   const route = useRoute();
@@ -24,10 +26,17 @@ export function useRole() {
     localStorage.setItem(STORAGE_KEY, role);
   }
 
+  function setDemoUserId(userId: string) {
+    demoUserId.value = userId;
+    localStorage.setItem(DEMO_USER_KEY, userId);
+  }
+
   function clearRole() {
     storedRole.value = 'student';
+    demoUserId.value = 'demo-basic';
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
+    localStorage.removeItem(DEMO_USER_KEY);
   }
 
   return {
@@ -35,8 +44,10 @@ export function useRole() {
     currentRole,
     currentRoleLabel,
     currentHomePath,
+    demoUserId,
     roleLabels,
     clearRole,
+    setDemoUserId,
     setRole
   };
 }

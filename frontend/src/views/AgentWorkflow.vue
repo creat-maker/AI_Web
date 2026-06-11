@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import { useRole } from '../composables/useRole';
 
 interface WorkflowStep {
   key: string;
@@ -31,11 +32,12 @@ interface WorkflowCenter {
 const center = ref<WorkflowCenter>({});
 const error = ref('');
 const loading = ref(true);
+const { demoUserId } = useRole();
 
 const demoChain: WorkflowStep[] = [
   {
     key: 'profile',
-    name: '画像构建',
+    name: '画像 Agent',
     input_summary: '学生自然语言回答、课程、薄弱点、时间安排',
     output_summary: '生成学习目标、基础水平、薄弱知识点、偏好、风险和策略',
     duration_ms: 220,
@@ -44,7 +46,7 @@ const demoChain: WorkflowStep[] = [
   },
   {
     key: 'rag',
-    name: '知识检索',
+    name: '问答 Agent',
     input_summary: '学生问题、courseId、studentId',
     output_summary: '命中课程知识库片段、引用来源、可信度和推荐练习',
     duration_ms: 180,
@@ -53,7 +55,7 @@ const demoChain: WorkflowStep[] = [
   },
   {
     key: 'path',
-    name: '路径规划',
+    name: '路径 Agent',
     input_summary: '画像维度、薄弱点、课程章节',
     output_summary: '生成阶段目标、学习顺序和任务安排',
     duration_ms: 260,
@@ -62,7 +64,7 @@ const demoChain: WorkflowStep[] = [
   },
   {
     key: 'resource',
-    name: '资源生成',
+    name: '资源 Agent',
     input_summary: 'studentId、courseId、weakPoints',
     output_summary: '生成讲义、练习题、实验任务、思维导图、视频脚本/任务书',
     duration_ms: 340,
@@ -71,7 +73,7 @@ const demoChain: WorkflowStep[] = [
   },
   {
     key: 'review',
-    name: '内容审核',
+    name: '审核 Agent',
     input_summary: '生成内容、引用来源、课程 ID',
     output_summary: '输出风险等级、引用覆盖、防幻觉告警和修改建议',
     duration_ms: 160,
@@ -80,9 +82,9 @@ const demoChain: WorkflowStep[] = [
   },
   {
     key: 'report',
-    name: '学习报告',
-    input_summary: '画像、RAG 引用、资源包、审核结果、学习任务',
-    output_summary: '汇总阶段学习报告和下一步建议',
+    name: '诊断 Agent',
+    input_summary: '测评结果、答疑日志、资源使用和路径完成情况',
+    output_summary: '识别薄弱知识点、预警学生和教师干预建议',
     duration_ms: 300,
     duration: '300ms',
     status: 'success'
@@ -105,7 +107,7 @@ async function loadCenter() {
   loading.value = true;
   error.value = '';
   try {
-    center.value = await api.get<WorkflowCenter>('/api/v1/agent-workflow');
+    center.value = await api.get<WorkflowCenter>(`/api/v1/agent-workflow?user_id=${encodeURIComponent(demoUserId.value)}`);
   } catch (err) {
     error.value = err instanceof Error ? err.message : '工作流接口暂不可用，当前显示演示链路。';
   } finally {

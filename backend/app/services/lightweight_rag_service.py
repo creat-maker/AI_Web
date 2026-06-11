@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from app.services.demo_learning_service import get_demo_student
+
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 COURSE_KB_PATH = ROOT_DIR / "docs" / "course_kb" / "python_programming.json"
@@ -96,7 +98,9 @@ def _score_chunk(question_tokens: list[str], chunk: dict[str, Any]) -> float:
 
 
 def ask_rag(question: str, course_id: str | int | None = None, student_id: str | int | None = None) -> dict[str, Any]:
-    tokens = _tokenize(question)
+    student = get_demo_student(student_id)
+    profile_hint = " ".join(student.get("weak_points", [])[:3])
+    tokens = _tokenize(f"{question} {profile_hint}")
     scored = []
     for chunk in _chunks():
         score = _score_chunk(tokens, chunk)
@@ -134,7 +138,8 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
     answer = (
         f"根据《Python 程序设计》{primary['chapter']}“{primary['section']}”的资料，"
         f"建议先抓住 {related_points[0] if related_points else '核心概念'}：{primary['lecture']} "
-        f"如果是在做题，先写最小可运行步骤，再检查边界条件，并用推荐练习巩固。"
+        f"结合{student['student_name']}的{student['profile_type']}画像，当前应优先关注"
+        f"{'、'.join(student['weak_points'][:2])}。如果是在做题，先写最小可运行步骤，再检查边界条件，并用推荐练习巩固。"
     )
     citations = [
         {
@@ -149,6 +154,8 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
         "question": question,
         "courseId": course_id or "python-programming",
         "studentId": student_id or "demo-student-zhangsan",
+        "studentName": student["student_name"],
+        "profileType": student["profile_type"],
         "answer": answer,
         "citations": citations,
         "matchedChunks": matched,

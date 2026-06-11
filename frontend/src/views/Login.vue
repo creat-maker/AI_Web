@@ -4,7 +4,7 @@ import { useRole } from '../composables/useRole';
 import type { UserRole } from '../config/roles';
 
 const router = useRouter();
-const { setRole } = useRole();
+const { setDemoUserId, setRole } = useRole();
 
 const roleCards: Array<{
   role: UserRole;
@@ -14,15 +14,37 @@ const roleCards: Array<{
   button: string;
   home: string;
   tone: string;
+  userId?: string;
 }> = [
   {
     role: 'student',
-    title: '学员登录',
-    description: '进入个人学习空间，查看课程、路径、答疑、测验和学习报告。',
-    account: 'demo_student / 张三',
-    button: '进入学生端',
+    title: '基础薄弱型学生',
+    description: '张三：循环、函数、文件操作薄弱，适合展示低门槛补强路径。',
+    account: 'demo-basic / 张三',
+    button: '以张三进入',
     home: '/student',
-    tone: 'blue'
+    tone: 'blue',
+    userId: 'demo-basic'
+  },
+  {
+    role: 'student',
+    title: '进阶提升型学生',
+    description: '李四：已有基础，目标是完成项目实践和代码健壮性提升。',
+    account: 'demo-advanced / 李四',
+    button: '以李四进入',
+    home: '/student',
+    tone: 'cyan',
+    userId: 'demo-advanced'
+  },
+  {
+    role: 'student',
+    title: '考试冲刺型学生',
+    description: '王五：围绕高频考点、错题二刷和考前复盘进行推荐。',
+    account: 'demo-exam / 王五',
+    button: '以王五进入',
+    home: '/student',
+    tone: 'orange',
+    userId: 'demo-exam'
   },
   {
     role: 'teacher',
@@ -46,8 +68,9 @@ const roleCards: Array<{
 
 const highlights = ['学习画像', '个性化路径', '智能答疑', '资源生成', '教学分析', 'Agent 工作流'];
 
-function enter(role: UserRole, home: string) {
+function enter(role: UserRole, home: string, userId?: string) {
   setRole(role);
+  if (userId) setDemoUserId(userId);
   router.push(home);
 }
 </script>
@@ -89,7 +112,7 @@ function enter(role: UserRole, home: string) {
           <p>{{ item.description }}</p>
           <span>演示账号：{{ item.account }}</span>
         </div>
-        <button type="button" @click="enter(item.role, item.home)">{{ item.button }}</button>
+        <button type="button" @click="enter(item.role, item.home, item.userId)">{{ item.button }}</button>
       </article>
     </div>
   </section>
@@ -244,6 +267,14 @@ function enter(role: UserRole, home: string) {
 
 .login-role-card.purple .role-icon {
   background: linear-gradient(135deg, var(--status-purple-text), var(--color-purple));
+}
+
+.login-role-card.cyan .role-icon {
+  background: linear-gradient(135deg, #0891b2, #22d3ee);
+}
+
+.login-role-card.orange .role-icon {
+  background: linear-gradient(135deg, #ea580c, #fb923c);
 }
 
 @media (max-width: 980px) {

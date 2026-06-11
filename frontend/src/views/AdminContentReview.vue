@@ -13,6 +13,7 @@ const data = ref<ReviewData>(adminReview);
 const error = ref('');
 const loading = ref(true);
 const statusFilter = ref('全部');
+const auditFlow = ['资源 Agent 生成', '审核 Agent 初审', '管理员复核', '发布或驳回'];
 
 const filteredItems = computed(() => data.value.items.filter((item) => statusFilter.value === '全部' || item.status === statusFilter.value));
 const statusCount = computed(() => ({
@@ -80,6 +81,15 @@ onMounted(load);
       </div>
     </DataCard>
 
+    <DataCard title="AI 生成资源审核流程" subtitle="展示资源从生成到发布的治理链路，AI 初审不替代管理员复核。">
+      <div class="audit-flow">
+        <article v-for="(step, index) in auditFlow" :key="step">
+          <span>{{ index + 1 }}</span>
+          <strong>{{ step }}</strong>
+        </article>
+      </div>
+    </DataCard>
+
     <DataCard title="AI 生成资源审核列表" :subtitle="`${filteredItems.length} 项内容`">
       <div class="table-wrap">
         <table class="table">
@@ -143,5 +153,37 @@ onMounted(load);
   color: var(--status-warning-text);
   background: var(--status-warning-bg);
   font-size: 12px;
+}
+
+.audit-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.audit-flow article {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.audit-flow span {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: var(--text-light);
+  background: var(--color-primary);
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .audit-flow {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from app.services.demo_learning_service import build_content_review_items
+
 
 REVIEW_RECORDS: list[dict[str, Any]] = []
 
@@ -57,4 +59,6 @@ def check_content(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_review_records(limit: int = 20) -> list[dict[str, Any]]:
-    return REVIEW_RECORDS[: max(1, min(limit, 50))]
+    if REVIEW_RECORDS:
+        return REVIEW_RECORDS[: max(1, min(limit, 50))]
+    return build_content_review_items()["items"][: max(1, min(limit, 50))]

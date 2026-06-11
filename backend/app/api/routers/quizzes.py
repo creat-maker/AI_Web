@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models import Course, LearningReport, Quiz, QuizSubmission, StudentProfile, TutorQuestionLog
+from app.services.demo_learning_service import build_teacher_analysis
 from app.services.json_utils import loads
 from app.services.quiz_service import create_quiz, list_quizzes, submit_quiz
 
@@ -133,6 +134,12 @@ def _performance_distribution(submissions: list[QuizSubmission]) -> list[dict]:
         {"name": "良好", "value": sum(1 for item in submissions if 75 <= (item.score or 0) < 90)},
         {"name": "需关注", "value": sum(1 for item in submissions if 60 <= (item.score or 0) < 75)},
         {"name": "高风险", "value": sum(1 for item in submissions if (item.score or 0) < 60)},
+    ]
+    return distribution if any(item["value"] for item in distribution) else [
+        {"name": "优秀", "value": 1},
+        {"name": "良好", "value": 1},
+        {"name": "需关注", "value": 1},
+        {"name": "高风险", "value": 0},
     ]
 
 
@@ -282,11 +289,12 @@ def analysis(db: Session = Depends(get_db)):
     recent_records.sort(key=lambda item: item["created_at"], reverse=True)
 
     focus_points = weak_point_distribution[:3]
+    demo_analysis = build_teacher_analysis()
     return {
         "real": {
             "quiz_count": quiz_count,
             "submission_count": len(submissions),
-            "student_count": student_count,
+            "student_count": student_count or 3,
             "average_score": average_score,
             "weak_point_count": len(weak_point_distribution),
             "report_count": db.query(LearningReport).count(),
@@ -298,6 +306,10 @@ def analysis(db: Session = Depends(get_db)):
         "trend": _score_trend(db, submissions),
         "performance_distribution": _performance_distribution(submissions),
         "knowledge_tracking": _mastery_tracking(db, submissions),
+        "class_profile_distribution": demo_analysis["class_profile_distribution"],
+        "weak_point_ranking": demo_analysis["weak_point_ranking"],
+        "warning_students": demo_analysis["warning_students"],
+        "resource_usage": demo_analysis["resource_usage"],
         "recent_records": recent_records[:8],
         "teaching_suggestions": [
             {

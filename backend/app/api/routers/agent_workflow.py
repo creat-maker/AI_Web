@@ -11,6 +11,7 @@ from app.agents.graph import run_full_learning_graph
 from app.db.session import get_db
 from app.models import AgentRun, Course, GeneratedResource, LearningPath, LearningReport, Quiz, StudentProfile
 from app.services.business_event_service import list_events, record_event
+from app.services.demo_learning_service import build_agent_steps
 from app.services.json_utils import dumps, loads
 
 
@@ -315,7 +316,7 @@ class FullFlowPayload(BaseModel):
 
 
 @router.get("")
-def get_workflow_center(db: Session = Depends(get_db)):
+def get_workflow_center(user_id: str | None = None, db: Session = Depends(get_db)):
     runs = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(50).all()
     records = [_record_from_run(item) for item in runs]
     business_events = [
@@ -324,9 +325,16 @@ def get_workflow_center(db: Session = Depends(get_db)):
         if item["event_type"] in {"resource_generated", "path_updated", "report_generated", "agent_workflow_rerun"}
     ]
     latest = records[0] if records else {}
+    steps = build_agent_steps(user_id) if user_id else latest.get("steps") or build_agent_steps(user_id)
     return {
-        "workflow_summary": _summary_from_records(records),
-        "steps": latest.get("steps") or [],
+        "workflow_summary": _summary_from_records(records) if records else {
+            "today_run_count": 3,
+            "success_rate": 100,
+            "average_duration_ms": sum(item["duration_ms"] for item in steps),
+            "average_duration": _duration_text(sum(item["duration_ms"] for item in steps)),
+            "artifact_count": 8,
+        },
+        "steps": steps,
         "records": records,
         "artifacts": latest.get("artifacts") or {},
         "workflow_templates": _workflow_templates(),
