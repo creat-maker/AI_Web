@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../api/client';
 import { learningTaskPaths } from '../api/mocks/competitionData';
 import DataCard from '../components/DataCard.vue';
@@ -7,6 +7,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import { useRole } from '../composables/useRole';
 
 type LearningTaskPaths = typeof learningTaskPaths;
 
@@ -14,6 +15,12 @@ const data = ref<LearningTaskPaths>(learningTaskPaths);
 const activeProfile = ref(learningTaskPaths.active_profile_type);
 const loading = ref(true);
 const error = ref('');
+const { demoUserId, setDemoUserId } = useRole();
+const demoUsers = [
+  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
+  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
+  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
+];
 
 const activePath = computed(() => data.value.paths.find((item) => item.profile_type === activeProfile.value) || data.value.paths[0]);
 const allTasks = computed(() => data.value.paths.flatMap((path) => path.tasks));
@@ -29,7 +36,9 @@ async function loadTasks(profileType?: string) {
   loading.value = true;
   error.value = '';
   try {
-    const query = profileType ? `?profile_type=${encodeURIComponent(profileType)}` : '';
+    const params = new URLSearchParams({ user_id: demoUserId.value });
+    if (profileType) params.set('profile_type', profileType);
+    const query = `?${params.toString()}`;
     data.value = await api.get<LearningTaskPaths>(`/api/v1/student/learning-tasks${query}`);
     activeProfile.value = profileType || data.value.active_profile_type;
   } catch (err) {
@@ -46,12 +55,16 @@ function switchProfile(profileType: string) {
 }
 
 onMounted(() => loadTasks());
+watch(demoUserId, () => loadTasks());
 </script>
 
 <template>
   <section class="page student-path-page">
     <PageHeader title="任务式学习路径" description="根据学生画像生成不同学习路径，把学习目标、知识点、资源、练习、完成条件和 AI 建议组织成可执行任务。">
       <template #actions>
+        <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
+          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
+        </select>
         <RouterLink class="btn secondary" to="/student/knowledge-graph">知识图谱</RouterLink>
         <RouterLink class="btn" to="/student/smart-quiz">章节测验</RouterLink>
       </template>

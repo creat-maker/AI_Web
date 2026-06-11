@@ -4,12 +4,15 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_demo_user_id
 from app.db.session import get_db
 from app.models import Course, GeneratedResource, LearningPath, StudentProfile
 from app.services.business_event_service import record_event
+from app.services.demo_profile_chain import build_resource_pack, get_demo_student
 from app.services.json_utils import loads
 from app.services.llm_service import llm_service
 from app.services.personalization_service import generate_resource_pack
+from app.services.profile_service import latest_profile_by_user_id, profile_to_dict
 
 
 router = APIRouter(prefix="/resources", tags=["resources"])
@@ -24,11 +27,33 @@ class ResourcePackPayload(BaseModel):
     studentId: str | int | None = None
     courseId: str | int | None = None
     courseName: str | None = None
+    studentLevel: str | None = None
+    learningGoal: str | None = None
+    knowledgePoints: list[str] = []
     weakPoints: list[str] = []
 
 
 @router.get("")
-def list_items(course_id: int | None = None, db: Session = Depends(get_db)):
+def list_items(course_id: int | None = None, user_id: str | None = None, db: Session = Depends(get_db)):
+    if user_id:
+        profile = latest_profile_by_user_id(db, user_id, course_id)
+        pack = build_resource_pack({"user_id": user_id, "profile": profile_to_dict(profile) if profile else None})
+        return [
+            {
+                "id": f"{pack['studentId']}-{index}",
+                "course_id": pack["courseId"],
+                "student_profile_id": pack["studentId"],
+                "resource_type": item["resource_type"],
+                "title": item["title"],
+                "content": item["content"],
+                "difficulty": item["difficulty"],
+                "source_agent": "ResourceAgent",
+                "recommend_reason": item["recommendation_reason"],
+                "recommendation_reason": item["recommendation_reason"],
+                "created_at": pack["profile"]["updated_at"],
+            }
+            for index, item in enumerate(pack["resources"], start=1)
+        ]
     query = db.query(GeneratedResource)
     if course_id:
         query = query.filter(GeneratedResource.course_id == course_id)
@@ -80,25 +105,45 @@ def generate_resources(payload: ResourceGeneratePayload, db: Session = Depends(g
     return resources
 
 
+@router.get("/recommendations")
+def recommendations(
+    user_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_demo_user_id),
+):
+    active_user_id = user_id or current_user_id
+    profile = latest_profile_by_user_id(db, active_user_id)
+    return build_resource_pack({"user_id": active_user_id, "profile": profile_to_dict(profile) if profile else None})
+
+
 @router.post("/generate-pack")
-def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db)):
-    pack = generate_resource_pack(payload.model_dump())
+def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), current_user_id: str = Depends(get_demo_user_id)):
+    data = payload.model_dump()
+    active_user_id = payload.studentId or current_user_id
+    profile = latest_profile_by_user_id(db, active_user_id)
+    data["studentId"] = active_user_id
+    if profile:
+        data["profile"] = profile_to_dict(profile)
+    pack = build_resource_pack(data) if active_user_id else generate_resource_pack(data)
+    student = get_demo_student(active_user_id)
     record_event(
         db,
         event_type="resource_pack_generated",
         title="5 类个性化资源包已生成",
         description=f"{pack['courseName']} 已生成个性化讲义、练习题、实验任务、思维导图和视频脚本/任务书。",
         actor_role="student",
-        actor_name="张三",
+        actor_name=student["student_name"],
         target_type="resource_pack",
         target_id=f"{pack['studentId']}-{pack['courseId']}",
-        related_student="张三",
+        related_student=student["student_name"],
         related_course=pack["courseName"],
         metadata={
             "resource_count": pack["resourceCount"],
             "resource_types": [item["resourceType"] for item in pack["resources"]],
             "weak_points": pack["weakPoints"],
             "mode": pack["mode"],
+            "profile_type": pack.get("profileType"),
+            "audit_flow": pack.get("auditFlow"),
         },
     )
     return pack

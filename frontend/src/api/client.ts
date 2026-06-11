@@ -2,8 +2,40 @@ const DEFAULT_BASE = '';
 
 export const apiBase = String(import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE).replace(/\/$/, '');
 
+const DEMO_USER_KEY = 'edumind.demoUserId';
+
+function currentDemoUserId() {
+  return localStorage.getItem(DEMO_USER_KEY) || 'demo-basic';
+}
+
+function shouldAppendUserId(pathname: string) {
+  return [
+    '/api/v1/student/learning-tasks',
+    '/api/v1/learning-paths/recommend',
+    '/api/v1/resources/recommendations',
+    '/api/v1/tutor/history',
+    '/api/v1/quiz/chapter'
+  ].some((prefix) => pathname.startsWith(prefix));
+}
+
+function withDemoUser(path: string, init?: RequestInit) {
+  const userId = currentDemoUserId();
+  const method = String(init?.method || 'GET').toUpperCase();
+  const url = new URL(path, window.location.origin);
+  if (method === 'GET' && shouldAppendUserId(url.pathname) && !url.searchParams.has('user_id')) {
+    url.searchParams.set('user_id', userId);
+  }
+  const headers = new Headers(init?.headers);
+  headers.set('X-Demo-User-Id', userId);
+  return {
+    path: `${url.pathname}${url.search}${url.hash}`,
+    init: { ...init, headers }
+  };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, init);
+  const requestInfo = withDemoUser(path, init);
+  const response = await fetch(`${apiBase}${requestInfo.path}`, requestInfo.init);
   const text = await response.text();
   let payload: any = null;
   try {

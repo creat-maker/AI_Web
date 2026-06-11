@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../api/client';
 import PageHeader from '../components/PageHeader.vue';
 import DataCard from '../components/DataCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import { useRole } from '../composables/useRole';
 
 interface ProfileDimension {
   name: string;
@@ -62,6 +63,12 @@ const loadingPack = ref(false);
 const loadingRag = ref(false);
 const loadingReview = ref(false);
 const error = ref('');
+const { demoUserId, setDemoUserId } = useRole();
+const demoUsers = [
+  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
+  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
+  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
+];
 
 const fallbackProfile: ProfileDialogResult = {
   studentName: '张三',
@@ -170,7 +177,7 @@ async function runProfileDialog() {
   error.value = '';
   try {
     profile.value = await api.post<ProfileDialogResult>('/api/v1/profile-dialog/run', {
-      studentId: 'demo-student-zhangsan',
+      studentId: demoUserId.value,
       studentName: '张三',
       courseId: 'demo-course-python',
       courseName: 'Python 程序设计',
@@ -190,10 +197,12 @@ async function generateResourcePack() {
   error.value = '';
   try {
     resourcePack.value = await api.post<ResourcePackResult>('/api/v1/resources/generate-pack', {
-      studentId: 'demo-student-zhangsan',
+      studentId: demoUserId.value,
       courseId: 'demo-course-python',
       courseName: profile.value.courseName,
-      weakPoints: profile.value.weakKnowledgePoints
+      weakPoints: profile.value.weakKnowledgePoints,
+      studentLevel: profile.value.dimensions.find((item) => item.name === '基础水平')?.value,
+      learningGoal: profile.value.dimensions.find((item) => item.name === '学习目标')?.value
     });
     selectedType.value = resourcePack.value.resources[0]?.resourceType || '个性化讲义';
   } catch (err) {
@@ -211,7 +220,7 @@ async function askRag() {
     ragResult.value = await api.post<RagResult>('/api/v1/rag/ask', {
       question: ragQuestion.value,
       courseId: 'python-programming',
-      studentId: 'demo-student-zhangsan'
+      studentId: demoUserId.value
     });
   } catch (err) {
     error.value = err instanceof Error ? `RAG 接口暂不可用，已使用本地演示回答：${err.message}` : 'RAG 接口暂不可用，已使用本地演示回答。';
@@ -244,12 +253,16 @@ async function runFullDemo() {
 }
 
 onMounted(runFullDemo);
+watch(demoUserId, runFullDemo);
 </script>
 
 <template>
   <section class="page assistant-page">
     <PageHeader title="智能答疑与画像生成" description="通过自然语言对话生成学习画像，并基于薄弱点生成 5 类个性化资源包。">
       <template #actions>
+        <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
+          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
+        </select>
         <StatusBadge label="规则生成演示" tone="success" />
       </template>
     </PageHeader>

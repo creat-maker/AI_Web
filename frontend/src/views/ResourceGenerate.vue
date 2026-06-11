@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import MindmapViewer from '../components/MindmapViewer.vue';
@@ -7,6 +7,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import { useRole } from '../composables/useRole';
 
 interface GeneratedResource {
   id?: number;
@@ -17,6 +18,7 @@ interface GeneratedResource {
   source_agent?: string;
   created_at?: string;
   recommend_reason?: string;
+  recommendation_reason?: string;
 }
 
 interface MindmapNode {
@@ -31,6 +33,12 @@ interface MindmapData {
 const resources = ref<GeneratedResource[]>([]);
 const loading = ref(true);
 const error = ref('');
+const { demoUserId, setDemoUserId } = useRole();
+const demoUsers = [
+  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
+  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
+  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
+];
 
 const fallbackResources: GeneratedResource[] = [
   { title: 'Python 爬虫分层练习题', resource_type: 'quiz', source_agent: '资源生成 Agent', created_at: '2024-05-31 10:20' },
@@ -113,7 +121,7 @@ async function loadResources() {
   loading.value = true;
   error.value = '';
   try {
-    resources.value = await api.get<GeneratedResource[]>('/api/v1/resources');
+    resources.value = await api.get<GeneratedResource[]>(`/api/v1/resources?user_id=${encodeURIComponent(demoUserId.value)}`);
   } catch (err) {
     error.value = err instanceof Error ? err.message : '资源生成接口暂不可用，当前显示演示数据。';
     resources.value = fallbackResources;
@@ -123,12 +131,16 @@ async function loadResources() {
 }
 
 onMounted(loadResources);
+watch(demoUserId, loadResources);
 </script>
 
 <template>
   <section class="page">
     <PageHeader title="资源生成 / AI 资源管理" description="监控 AI 课件、习题、报告、知识点和学习路径生成任务。">
       <template #actions>
+        <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
+          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
+        </select>
         <button>新建生成任务</button>
         <button class="secondary">模板管理</button>
       </template>
@@ -178,7 +190,7 @@ onMounted(loadResources);
               <td><StatusBadge :label="displayType(item.resource_type)" tone="info" /></td>
               <td>{{ item.source_agent ?? '-' }}</td>
               <td>{{ item.difficulty ?? '-' }}</td>
-              <td class="reason-cell">{{ item.recommend_reason ?? '-' }}</td>
+              <td class="reason-cell">{{ item.recommendation_reason ?? item.recommend_reason ?? '-' }}</td>
               <td>{{ item.created_at?.slice(0, 10) ?? '-' }}</td>
               <td>
                 <div class="row-actions">
@@ -223,9 +235,9 @@ onMounted(loadResources);
           </div>
           <div class="modal-body">
             <!-- 推荐理由 -->
-            <div v-if="previewResource?.recommend_reason" class="recommend-reason-box">
+            <div v-if="previewResource?.recommendation_reason || previewResource?.recommend_reason" class="recommend-reason-box">
               <span class="recommend-label">推荐理由</span>
-              <p>{{ previewResource.recommend_reason }}</p>
+              <p>{{ previewResource.recommendation_reason || previewResource.recommend_reason }}</p>
             </div>
             <!-- 思维导图渲染 -->
             <template v-if="isMindmap && mindmapData">

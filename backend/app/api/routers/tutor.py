@@ -4,12 +4,15 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_demo_user_id
 from app.db.session import get_db
 from app.models import Course, TutorQuestionLog
 from app.services.business_event_service import record_event
+from app.services.demo_profile_chain import normalize_profile_schema
 from app.rag.retriever import retrieve_course_context
 from app.services.json_utils import dumps, loads
 from app.services.llm_service import llm_service
+from app.services.profile_service import latest_profile_by_user_id, profile_to_dict
 
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
@@ -18,6 +21,7 @@ router = APIRouter(prefix="/tutor", tags=["tutor"])
 class TutorPayload(BaseModel):
     course_id: int
     question: str
+    user_id: str | None = None
     top_k: int = 3
     heuristic_mode: bool = True
     no_direct_answer: bool = False
@@ -102,7 +106,10 @@ def _teaching_profile(question: str, contexts: list[dict], hint_level: str, no_d
 
 
 @router.post("/ask")
-def ask(payload: TutorPayload, db: Session = Depends(get_db)):
+def ask(payload: TutorPayload, db: Session = Depends(get_db), current_user_id: str = Depends(get_demo_user_id)):
+    active_user_id = payload.user_id or current_user_id
+    stored_profile = latest_profile_by_user_id(db, active_user_id, payload.course_id)
+    profile = normalize_profile_schema(profile_to_dict(stored_profile) if stored_profile else None, active_user_id)
     contexts = retrieve_course_context(payload.course_id, payload.question, payload.top_k)
 
     # 为每个 context 增加 confidence
@@ -123,6 +130,9 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db)):
         answer.setdefault("guidance_mode", "heuristic")
     if isinstance(answer, dict):
         answer.update(teaching_profile)
+        answer["related_weak_points"] = profile["weak_points"]
+        answer["recommended_resources"] = profile["resource_preference"].split("、")
+        answer["profile_used"] = True
 
     # 计算整体 confidence
     confidence, confidence_level, confidence_breakdown = _compute_confidence(enriched_contexts)
@@ -156,6 +166,8 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db)):
             "confidence": confidence,
             "confidence_level": confidence_level,
             "weak_point_impact": teaching_profile.get("detected_misconception"),
+            "user_id": active_user_id,
+            "related_weak_points": profile["weak_points"],
             "recommended_resource": "分层练习题",
             "path_suggestion": "将本次答疑知识点加入下一阶段复盘。",
         },
@@ -172,6 +184,10 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db)):
         "confidence": confidence,
         "confidence_level": confidence_level,
         "confidence_breakdown": confidence_breakdown,
+        "related_weak_points": profile["weak_points"],
+        "recommended_resources": profile["resource_preference"].split("、"),
+        "profile_used": True,
+        "profile": profile,
         "mode": stored_mode,
     }
 

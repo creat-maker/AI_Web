@@ -19,14 +19,26 @@ echarts.use([LineChart, RadarChart, GridComponent, RadarComponent, TooltipCompon
 
 interface StudentProfileItem {
   id: number;
+  user_id?: string;
+  profile_type?: string;
+  major?: string;
   course_id?: number;
   student_name: string;
   current_level?: string;
+  knowledge_level?: string;
   learning_goal?: string;
   weak_points?: string[] | string;
   learning_preference?: string;
+  learning_style?: string;
+  mistake_pattern?: string;
+  available_time?: string;
+  resource_preference?: string;
+  risk_level?: string;
+  recommended_strategy?: string;
   profile_json?: unknown;
   created_at?: string;
+  updated_at?: string;
+  change_log?: unknown[];
 }
 
 interface StudentView {
@@ -36,16 +48,31 @@ interface StudentView {
   number: string;
   score: number;
   course_id?: number;
+  user_id?: string;
+  profileType?: string;
+  major?: string;
   level: string;
   goal: string;
   weakPoints: string[];
   preference: string;
+  mistakePattern?: string;
+  availableTime?: string;
+  resourcePreference?: string;
+  riskLevel?: string;
+  recommendedStrategy?: string;
+  updatedAt?: string;
+  changeLog?: unknown[];
   abilities: Array<{ name: string; value: number }>;
   trend: number[];
   raw?: StudentProfileItem;
 }
 
-const { currentRole } = useRole();
+const { currentRole, demoUserId, setDemoUserId } = useRole();
+const demoUsers = [
+  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
+  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
+  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
+];
 const courses = ref<Course[]>([]);
 const profiles = ref<StudentProfileItem[]>([]);
 const loading = ref(true);
@@ -147,6 +174,16 @@ function normalizeWeakPoints(profile: StudentProfileItem, fallback: string[]) {
   return fallback;
 }
 
+function rawProfile(profile: StudentProfileItem) {
+  return (profile.profile_json as Record<string, unknown> | undefined) || {};
+}
+
+function fieldText(profile: StudentProfileItem, key: string, fallback = '') {
+  const raw = rawProfile(profile);
+  const value = (profile as unknown as Record<string, unknown>)[key] ?? raw[key];
+  return typeof value === 'string' && value.trim() ? value : fallback;
+}
+
 const students = computed<StudentView[]>(() => {
   if (!profiles.value.length) return fallbackStudents;
   return profiles.value.map((profile, index) => {
@@ -154,12 +191,22 @@ const students = computed<StudentView[]>(() => {
     return {
       ...fallback,
       id: profile.id,
+      user_id: fieldText(profile, 'user_id', demoUserId.value),
       name: cleanText(profile.student_name, fallback.name),
+      profileType: fieldText(profile, 'profile_type', '演示画像'),
+      major: fieldText(profile, 'major', '未填写'),
       course_id: profile.course_id || fallback.course_id,
-      level: cleanText(profile.current_level, fallback.level),
+      level: cleanText(profile.current_level || profile.knowledge_level, fallback.level),
       goal: cleanText(profile.learning_goal, fallback.goal),
-      preference: cleanText(profile.learning_preference, fallback.preference),
+      preference: cleanText(profile.learning_style || profile.learning_preference, fallback.preference),
       weakPoints: normalizeWeakPoints(profile, fallback.weakPoints),
+      mistakePattern: fieldText(profile, 'mistake_pattern', '暂无错因模式'),
+      availableTime: fieldText(profile, 'available_time', '暂无可用时间'),
+      resourcePreference: fieldText(profile, 'resource_preference', '暂无资源偏好'),
+      riskLevel: fieldText(profile, 'risk_level', fallback.level),
+      recommendedStrategy: fieldText(profile, 'recommended_strategy', ''),
+      updatedAt: fieldText(profile, 'updated_at', String(profile.updated_at || '')),
+      changeLog: (profile.change_log || rawProfile(profile).change_log || []) as unknown[],
       raw: profile
     };
   });
@@ -233,7 +280,7 @@ async function load() {
   try {
     const [courseData, profileData] = await Promise.all([
       api.get<Course[]>('/api/v1/courses').catch(() => []),
-      api.get<StudentProfileItem[]>('/api/v1/profiles')
+      api.get<StudentProfileItem[]>(currentRole.value === 'student' ? `/api/v1/profiles?user_id=${encodeURIComponent(demoUserId.value)}` : '/api/v1/profiles')
     ]);
     courses.value = courseData;
     profiles.value = profileData;
@@ -265,6 +312,22 @@ async function assignTask() {
   }
 }
 
+async function simulateProfileUpdate() {
+  operationMessage.value = '';
+  try {
+    await api.post('/api/v1/profile-dialog/update-by-learning', {
+      user_id: demoUserId.value,
+      event_type: 'quiz',
+      weak_point: selectedStudent.value?.weakPoints[0] || 'Python 函数',
+      score: 52
+    });
+    operationMessage.value = '已模拟一次低分测试，画像更新时间和 change_log 已刷新。';
+    await load();
+  } catch (err) {
+    operationMessage.value = err instanceof Error ? err.message : '模拟更新画像失败。';
+  }
+}
+
 function selectStudent(id: number) {
   selectedId.value = id;
   nextTick(renderCharts);
@@ -276,6 +339,7 @@ function resizeCharts() {
 }
 
 watch(selectedStudent, () => nextTick(renderCharts));
+watch(demoUserId, () => load());
 
 onMounted(() => {
   load();
@@ -293,6 +357,10 @@ onBeforeUnmount(() => {
   <section class="page profile-page">
     <PageHeader title="学生画像分析" description="查看学生综合画像、能力结构、薄弱点和干预建议。">
       <template #actions>
+        <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
+          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
+        </select>
+        <button type="button" class="secondary" @click="simulateProfileUpdate">模拟测试后更新画像</button>
         <RouterLink class="btn secondary" to="/student/profile-dialog">对话式画像构建</RouterLink>
         <RouterLink class="btn secondary" to="/reports">报告中心</RouterLink>
         <button type="button" @click="assignTask">生成个性化学习报告</button>
@@ -386,6 +454,21 @@ onBeforeUnmount(() => {
               <strong>{{ selectedStudent.score }}</strong><small>/100</small>
             </div>
           </div>
+          <div class="profile-dimension-list">
+            <article><span>画像类型</span><strong>{{ selectedStudent.profileType }}</strong></article>
+            <article><span>专业</span><strong>{{ selectedStudent.major }}</strong></article>
+            <article><span>知识基础</span><strong>{{ selectedStudent.level }}</strong></article>
+            <article><span>学习风格</span><strong>{{ selectedStudent.preference }}</strong></article>
+            <article><span>易错模式</span><strong>{{ selectedStudent.mistakePattern }}</strong></article>
+            <article><span>可用时间</span><strong>{{ selectedStudent.availableTime }}</strong></article>
+            <article><span>资源偏好</span><strong>{{ selectedStudent.resourcePreference }}</strong></article>
+            <article><span>更新时间</span><strong>{{ selectedStudent.updatedAt || '-' }}</strong></article>
+          </div>
+          <div class="change-log-box">
+            <strong>change_log</strong>
+            <p v-if="!selectedStudent.changeLog?.length">暂无变化记录</p>
+            <p v-for="(item, index) in selectedStudent.changeLog" :key="index">{{ typeof item === 'string' ? item : JSON.stringify(item) }}</p>
+          </div>
         </DataCard>
 
         <div class="two-column">
@@ -445,9 +528,40 @@ onBeforeUnmount(() => {
 .student-list,
 .ability-list,
 .weak-list,
-.suggestion-grid {
+.suggestion-grid,
+.profile-dimension-list {
   display: grid;
   gap: 12px;
+}
+
+.profile-dimension-list {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: 14px;
+}
+
+.profile-dimension-list article,
+.change-log-box {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.profile-dimension-list span,
+.change-log-box p {
+  color: var(--color-text-sub);
+  font-size: 13px;
+}
+
+.profile-dimension-list strong {
+  display: block;
+  margin-top: 6px;
+}
+
+.change-log-box {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .student-list {
