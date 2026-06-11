@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router';
 import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import PageHeader from '../components/PageHeader.vue';
-import { useRole } from '../composables/useRole';
+import { demoStudents, useRole } from '../composables/useRole';
 import type { Course } from '../types';
 
 interface ExtractedDimension {
@@ -47,16 +47,12 @@ const started = ref(false);
 const saving = ref(false);
 const savedProfileId = ref<number | null>(null);
 const { demoUserId, setDemoUserId } = useRole();
-const demoUsers = [
-  { id: 'demo-basic', label: '张三 · 基础薄弱型', name: '张三' },
-  { id: 'demo-advanced', label: '李四 · 进阶提升型', name: '李四' },
-  { id: 'demo-exam', label: '王五 · 考试冲刺型', name: '王五' }
-];
+const demoUsers = demoStudents;
 
 function switchDemoUser(userId: string) {
   setDemoUserId(userId);
   const user = demoUsers.find((item) => item.id === userId);
-  if (user && !started.value) studentName.value = user.name;
+  if (user && !started.value) studentName.value = user.shortName;
 }
 
 function getExtractedDimensions(): ExtractedDimension[] {

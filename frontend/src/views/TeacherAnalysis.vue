@@ -64,11 +64,23 @@ let distributionChart: echarts.ECharts | null = null;
 let trendChart: echarts.ECharts | null = null;
 
 const fallbackWeakPoints = [
-  { name: 'HTTP 请求', value: 44 },
-  { name: '函数封装', value: 38 },
-  { name: '数据解析', value: 35 },
-  { name: '异常处理', value: 28 },
-  { name: '文件操作', value: 24 }
+  { name: 'Python 函数', value: 44 },
+  { name: 'SQL 查询', value: 40 },
+  { name: 'RAG', value: 35 },
+  { name: '系统部署', value: 30 },
+  { name: '高频考点', value: 28 }
+];
+
+const fallbackProfileDistribution = [
+  { name: '基础补弱型', value: 1, student_name: '张同学' },
+  { name: '项目提升型', value: 1, student_name: '李同学' },
+  { name: '考试冲刺型', value: 1, student_name: '王同学' }
+];
+
+const profileInterventions = [
+  { title: '基础补弱型', content: '推送基础讲义、知识点卡片和基础练习，优先补 Python 函数、SQL 查询和接口基础。' },
+  { title: '项目提升型', content: '安排项目案例、接口文档和工程化任务，围绕 RAG、后端工程化和系统部署形成交付闭环。' },
+  { title: '考试冲刺型', content: '安排高频考点、错题训练和模拟测试，强化概念辨析和审题稳定性。' }
 ];
 
 const fallbackDistribution = [
@@ -95,7 +107,7 @@ const suggestions = computed(() => data.value?.knowledge_tracking?.teacher_inter
   { title: '分层布置练习', content: '对 70 分以下学生布置基础题，对 85 分以上学生增加项目挑战。' },
   { title: '课后答疑复盘', content: '将高频答疑问题整理为知识卡片，同步到知识库。' }
 ]));
-const profileDistribution = computed(() => data.value?.class_profile_distribution || []);
+const profileDistribution = computed(() => data.value?.class_profile_distribution?.length ? data.value.class_profile_distribution : fallbackProfileDistribution);
 const warningStudents = computed(() => data.value?.warning_students || []);
 const resourceUsage = computed(() => data.value?.resource_usage || []);
 
@@ -274,7 +286,7 @@ onBeforeUnmount(() => {
       </div>
     </DataCard>
 
-    <DataCard title="班级画像与资源使用" subtitle="展示基础薄弱型、进阶提升型、考试冲刺型学生的画像分布、预警和资源使用闭环。">
+    <DataCard title="班级画像分布与教师干预" subtitle="展示基础补弱型、项目提升型、考试冲刺型学生的画像分布、薄弱知识点排行和教师干预建议。">
       <div class="research-grid">
         <section>
           <h3>画像分布</h3>
@@ -299,6 +311,13 @@ onBeforeUnmount(() => {
               <span>{{ item.profile_type }} · 已完成 {{ item.completed_count }}/{{ item.recommended_count }}</span>
             </div>
             <ProgressBar :value="item.usage_rate" :tone="item.usage_rate >= 75 ? 'success' : 'warning'" />
+          </article>
+        </section>
+        <section>
+          <h3>教师干预建议</h3>
+          <article v-for="item in profileInterventions" :key="item.title" class="research-row">
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.content }}</p>
           </article>
         </section>
       </div>
@@ -399,7 +418,7 @@ onBeforeUnmount(() => {
 
 .research-grid {
   display: grid;
-  grid-template-columns: 0.8fr 1.2fr 1fr;
+  grid-template-columns: 0.8fr 1fr 1fr 1.1fr;
   gap: 14px;
 }
 

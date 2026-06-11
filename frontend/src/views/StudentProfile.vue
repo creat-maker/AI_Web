@@ -12,7 +12,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { useRole } from '../composables/useRole';
+import { demoStudents, useRole } from '../composables/useRole';
 import type { Course } from '../types';
 
 echarts.use([LineChart, RadarChart, GridComponent, RadarComponent, TooltipComponent, CanvasRenderer]);
@@ -39,6 +39,30 @@ interface StudentProfileItem {
   created_at?: string;
   updated_at?: string;
   change_log?: unknown[];
+  evidence_items?: EvidenceItem[];
+  dialog_extraction?: DialogExtraction;
+}
+
+interface EvidenceItem {
+  source_type: string;
+  description: string;
+  related_field: string;
+  confidence: number;
+}
+
+interface DialogExtraction {
+  mode?: string;
+  raw_answer?: string;
+  extracted_fields?: Record<string, unknown>;
+  confidence?: number;
+  evidence_basis?: string;
+}
+
+interface ProfileUpdateResult {
+  before_profile?: StudentProfileItem;
+  after_profile?: StudentProfileItem;
+  change_log?: unknown[];
+  updated_at?: string;
 }
 
 interface StudentView {
@@ -62,17 +86,15 @@ interface StudentView {
   recommendedStrategy?: string;
   updatedAt?: string;
   changeLog?: unknown[];
+  evidenceItems?: EvidenceItem[];
+  dialogExtraction?: DialogExtraction;
   abilities: Array<{ name: string; value: number }>;
   trend: number[];
   raw?: StudentProfileItem;
 }
 
 const { currentRole, demoUserId, setDemoUserId } = useRole();
-const demoUsers = [
-  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
-  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
-  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
-];
+const demoUsers = demoStudents;
 const courses = ref<Course[]>([]);
 const profiles = ref<StudentProfileItem[]>([]);
 const loading = ref(true);
@@ -80,6 +102,7 @@ const error = ref('');
 const operationMessage = ref('');
 const selectedId = ref<number | null>(null);
 const keyword = ref('');
+const lastUpdateResult = ref<ProfileUpdateResult | null>(null);
 const radarEl = ref<HTMLDivElement | null>(null);
 const trendEl = ref<HTMLDivElement | null>(null);
 let radarChart: echarts.ECharts | null = null;
@@ -184,6 +207,38 @@ function fieldText(profile: StudentProfileItem, key: string, fallback = '') {
   return typeof value === 'string' && value.trim() ? value : fallback;
 }
 
+function arrayField<T>(profile: StudentProfileItem, key: string): T[] {
+  const raw = rawProfile(profile);
+  const value = (profile as unknown as Record<string, unknown>)[key] ?? raw[key];
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function objectField<T>(profile: StudentProfileItem, key: string): T | undefined {
+  const raw = rawProfile(profile);
+  const value = (profile as unknown as Record<string, unknown>)[key] ?? raw[key];
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as T : undefined;
+}
+
+function simulateWeakPoint() {
+  if (demoUserId.value === 'demo-advanced') return '接口联调';
+  if (demoUserId.value === 'demo-exam') return '审题陷阱';
+  return '接口参数传递';
+}
+
+function weakPointText(profile?: StudentProfileItem) {
+  if (!profile) return '-';
+  const points = normalizeWeakPoints(profile, []);
+  return points.length ? points.join('、') : '-';
+}
+
+function updateReason(result: ProfileUpdateResult | null) {
+  const latest = result?.change_log?.[result.change_log.length - 1];
+  if (!latest || typeof latest === 'string') return latest || '-';
+  const item = latest as Record<string, unknown>;
+  const changes = item.changes;
+  return Array.isArray(changes) ? changes.join('；') : JSON.stringify(item);
+}
+
 const students = computed<StudentView[]>(() => {
   if (!profiles.value.length) return fallbackStudents;
   return profiles.value.map((profile, index) => {
@@ -207,6 +262,8 @@ const students = computed<StudentView[]>(() => {
       recommendedStrategy: fieldText(profile, 'recommended_strategy', ''),
       updatedAt: fieldText(profile, 'updated_at', String(profile.updated_at || '')),
       changeLog: (profile.change_log || rawProfile(profile).change_log || []) as unknown[],
+      evidenceItems: arrayField<EvidenceItem>(profile, 'evidence_items'),
+      dialogExtraction: objectField<DialogExtraction>(profile, 'dialog_extraction'),
       raw: profile
     };
   });
@@ -318,8 +375,10 @@ async function simulateProfileUpdate() {
     await api.post('/api/v1/profile-dialog/update-by-learning', {
       user_id: demoUserId.value,
       event_type: 'quiz',
-      weak_point: selectedStudent.value?.weakPoints[0] || 'Python 函数',
+      weak_point: simulateWeakPoint(),
       score: 52
+    }).then((result) => {
+      lastUpdateResult.value = result as ProfileUpdateResult;
     });
     operationMessage.value = '已模拟一次低分测试，画像更新时间和 change_log 已刷新。';
     await load();
@@ -469,6 +528,43 @@ onBeforeUnmount(() => {
             <p v-if="!selectedStudent.changeLog?.length">暂无变化记录</p>
             <p v-for="(item, index) in selectedStudent.changeLog" :key="index">{{ typeof item === 'string' ? item : JSON.stringify(item) }}</p>
           </div>
+          <div v-if="lastUpdateResult" class="update-compare-box">
+            <strong>动态更新前后对比</strong>
+            <article>
+              <span>更新前薄弱点</span>
+              <p>{{ weakPointText(lastUpdateResult.before_profile) }}</p>
+            </article>
+            <article>
+              <span>更新后薄弱点</span>
+              <p>{{ weakPointText(lastUpdateResult.after_profile) }}</p>
+            </article>
+            <article>
+              <span>更新时间</span>
+              <p>{{ lastUpdateResult.after_profile?.updated_at || lastUpdateResult.updated_at || '-' }}</p>
+            </article>
+            <article>
+              <span>更新原因</span>
+              <p>{{ updateReason(lastUpdateResult) }}</p>
+            </article>
+          </div>
+          <div class="evidence-box">
+            <strong>画像依据</strong>
+            <p v-if="!selectedStudent.evidenceItems?.length">暂无画像依据</p>
+            <article v-for="item in selectedStudent.evidenceItems" :key="`${item.source_type}-${item.related_field}-${item.description}`">
+              <span>{{ item.source_type }} · {{ item.related_field }} · 置信度 {{ Math.round(item.confidence * 100) }}%</span>
+              <p>{{ item.description }}</p>
+            </article>
+          </div>
+          <div v-if="selectedStudent.dialogExtraction" class="extraction-box">
+            <strong>最近一次对话抽取过程</strong>
+            <article>
+              <span>{{ selectedStudent.dialogExtraction.mode || '规则抽取演示' }}</span>
+              <p>学生原始回答：{{ selectedStudent.dialogExtraction.raw_answer }}</p>
+              <p>抽取字段：{{ JSON.stringify(selectedStudent.dialogExtraction.extracted_fields) }}</p>
+              <p>抽取置信度：{{ Math.round((selectedStudent.dialogExtraction.confidence || 0) * 100) }}%</p>
+              <p>抽取依据：{{ selectedStudent.dialogExtraction.evidence_basis }}</p>
+            </article>
+          </div>
         </DataCard>
 
         <div class="two-column">
@@ -540,7 +636,10 @@ onBeforeUnmount(() => {
 }
 
 .profile-dimension-list article,
-.change-log-box {
+.change-log-box,
+.update-compare-box,
+.evidence-box,
+.extraction-box {
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 12px;
@@ -548,7 +647,10 @@ onBeforeUnmount(() => {
 }
 
 .profile-dimension-list span,
-.change-log-box p {
+.change-log-box p,
+.update-compare-box span,
+.evidence-box span,
+.extraction-box span {
   color: var(--color-text-sub);
   font-size: 13px;
 }
@@ -558,10 +660,26 @@ onBeforeUnmount(() => {
   margin-top: 6px;
 }
 
-.change-log-box {
+.change-log-box,
+.update-compare-box,
+.evidence-box,
+.extraction-box {
   display: grid;
   gap: 8px;
   margin-top: 12px;
+}
+
+.update-compare-box article,
+.evidence-box article,
+.extraction-box article {
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
+}
+
+.update-compare-box p,
+.evidence-box p,
+.extraction-box p {
+  margin: 4px 0 0;
 }
 
 .student-list {

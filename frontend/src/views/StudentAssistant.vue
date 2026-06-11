@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import PageHeader from '../components/PageHeader.vue';
 import DataCard from '../components/DataCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { useRole } from '../composables/useRole';
+import { demoStudents, useRole } from '../composables/useRole';
 
 interface ProfileDimension {
   name: string;
@@ -64,11 +64,7 @@ const loadingRag = ref(false);
 const loadingReview = ref(false);
 const error = ref('');
 const { demoUserId, setDemoUserId } = useRole();
-const demoUsers = [
-  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
-  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
-  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
-];
+const demoUsers = demoStudents;
 
 const fallbackProfile: ProfileDialogResult = {
   studentName: '张三',

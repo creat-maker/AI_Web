@@ -7,6 +7,16 @@ const LEGACY_STORAGE_KEY = 'edumind.currentRole';
 const DEMO_USER_KEY = 'edumind.demoUserId';
 const availableRoles: UserRole[] = ['student', 'teacher', 'admin'];
 
+export const demoStudents = [
+  { id: 'demo-basic', label: '张同学｜基础补弱型', shortName: '张同学', profileType: '基础补弱型' },
+  { id: 'demo-advanced', label: '李同学｜项目提升型', shortName: '李同学', profileType: '项目提升型' },
+  { id: 'demo-exam', label: '王同学｜考试冲刺型', shortName: '王同学', profileType: '考试冲刺型' }
+];
+
+export function demoStudentLabel(userId: string) {
+  return demoStudents.find((item) => item.id === userId)?.label || '张同学｜基础补弱型';
+}
+
 function readInitialRole(): UserRole {
   const stored = (localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY)) as UserRole | null;
   return stored && availableRoles.includes(stored) ? stored : 'student';
@@ -20,6 +30,7 @@ export function useRole() {
   const currentRole = computed<UserRole>(() => roleFromPath(route.path) || storedRole.value);
   const currentRoleLabel = computed(() => roleLabels[currentRole.value]);
   const currentHomePath = computed(() => roleHomePath[currentRole.value]);
+  const demoUserLabel = computed(() => demoStudentLabel(demoUserId.value));
 
   function setRole(role: UserRole) {
     storedRole.value = role;
@@ -45,6 +56,8 @@ export function useRole() {
     currentRoleLabel,
     currentHomePath,
     demoUserId,
+    demoUserLabel,
+    demoStudents,
     roleLabels,
     clearRole,
     setDemoUserId,

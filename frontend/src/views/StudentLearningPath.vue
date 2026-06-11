@@ -7,7 +7,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { useRole } from '../composables/useRole';
+import { demoStudents, useRole } from '../composables/useRole';
 
 type LearningTaskPaths = typeof learningTaskPaths;
 
@@ -16,11 +16,7 @@ const activeProfile = ref(learningTaskPaths.active_profile_type);
 const loading = ref(true);
 const error = ref('');
 const { demoUserId, setDemoUserId } = useRole();
-const demoUsers = [
-  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
-  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
-  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
-];
+const demoUsers = demoStudents;
 
 const activePath = computed(() => data.value.paths.find((item) => item.profile_type === activeProfile.value) || data.value.paths[0]);
 const allTasks = computed(() => data.value.paths.flatMap((path) => path.tasks));
@@ -52,6 +48,10 @@ async function loadTasks(profileType?: string) {
 function switchProfile(profileType: string) {
   activeProfile.value = profileType;
   loadTasks(profileType);
+}
+
+function taskReason(task: LearningTaskPaths['paths'][number]['tasks'][number]) {
+  return (task as unknown as Record<string, string>).recommendation_reason || (task as unknown as Record<string, string>).ai_suggestion || '-';
 }
 
 onMounted(() => loadTasks());
@@ -120,6 +120,10 @@ watch(demoUserId, () => loadTasks());
           <div class="task-line">
             <strong>完成条件</strong>
             <p>{{ task.completion_rule }}</p>
+          </div>
+          <div class="task-line recommend-reason">
+            <strong>推荐理由</strong>
+            <p>{{ taskReason(task) }}</p>
           </div>
           <div class="task-bottom">
             <span>预计 {{ task.estimated_minutes }} 分钟</span>

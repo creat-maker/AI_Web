@@ -7,7 +7,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { useRole } from '../composables/useRole';
+import { demoStudents, useRole } from '../composables/useRole';
 
 interface GeneratedResource {
   id?: number;
@@ -34,11 +34,7 @@ const resources = ref<GeneratedResource[]>([]);
 const loading = ref(true);
 const error = ref('');
 const { demoUserId, setDemoUserId } = useRole();
-const demoUsers = [
-  { id: 'demo-basic', label: '张三 · 基础薄弱型' },
-  { id: 'demo-advanced', label: '李四 · 进阶提升型' },
-  { id: 'demo-exam', label: '王五 · 考试冲刺型' }
-];
+const demoUsers = demoStudents;
 
 const fallbackResources: GeneratedResource[] = [
   { title: 'Python 爬虫分层练习题', resource_type: 'quiz', source_agent: '资源生成 Agent', created_at: '2024-05-31 10:20' },

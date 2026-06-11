@@ -18,30 +18,30 @@ const roleCards: Array<{
 }> = [
   {
     role: 'student',
-    title: '基础薄弱型学生',
-    description: '张三：循环、函数、文件操作薄弱，适合展示低门槛补强路径。',
-    account: 'demo-basic / 张三',
-    button: '以张三进入',
+    title: '张同学｜基础补弱型',
+    description: 'Python 函数、SQL 查询和接口基础薄弱，适合展示低门槛补强路径。',
+    account: '张同学｜基础补弱型',
+    button: '以张同学进入',
     home: '/student',
     tone: 'blue',
     userId: 'demo-basic'
   },
   {
     role: 'student',
-    title: '进阶提升型学生',
-    description: '李四：已有基础，目标是完成项目实践和代码健壮性提升。',
-    account: 'demo-advanced / 李四',
-    button: '以李四进入',
+    title: '李同学｜项目提升型',
+    description: '已有基础，目标是完成软件杯项目开发，适合展示项目实战推荐链路。',
+    account: '李同学｜项目提升型',
+    button: '以李同学进入',
     home: '/student',
     tone: 'cyan',
     userId: 'demo-advanced'
   },
   {
     role: 'student',
-    title: '考试冲刺型学生',
-    description: '王五：围绕高频考点、错题二刷和考前复盘进行推荐。',
-    account: 'demo-exam / 王五',
-    button: '以王五进入',
+    title: '王同学｜考试冲刺型',
+    description: '围绕高频考点、错题训练和考前复盘进行推荐。',
+    account: '王同学｜考试冲刺型',
+    button: '以王同学进入',
     home: '/student',
     tone: 'orange',
     userId: 'demo-exam'

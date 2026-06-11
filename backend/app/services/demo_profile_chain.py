@@ -8,8 +8,9 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
     {
         "user_id": "demo-basic",
         "aliases": ["demo-student-zhangsan", "basic", "基础薄弱型", "张三"],
-        "student_name": "张三",
-        "profile_type": "基础薄弱型",
+        "student_name": "张同学",
+        "display_name": "张同学｜基础补弱型",
+        "profile_type": "基础补弱型",
         "major": "物联网工程技术",
         "course_id": 1,
         "course_name": "Python 程序设计",
@@ -27,12 +28,45 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
         "progress": 36,
         "resource_usage": 48,
         "recommended_strategy": "先用图解和知识点卡片补概念，再用基础题巩固 Python 函数、SQL 查询和接口基础。",
+        "evidence_items": [
+            {
+                "source_type": "dialog",
+                "description": "对话中提到“函数不会写，参数和返回值经常分不清”，识别为 Python 函数薄弱。",
+                "related_field": "weak_points",
+                "confidence": 0.92,
+            },
+            {
+                "source_type": "quiz",
+                "description": "最近测评 SQL 查询题正确率低于 60%，需要补齐 SELECT/WHERE 基础。",
+                "related_field": "weak_points",
+                "confidence": 0.88,
+            },
+            {
+                "source_type": "learning",
+                "description": "学习记录显示更常打开图解和知识点卡片，步骤化材料完成率更高。",
+                "related_field": "learning_style",
+                "confidence": 0.84,
+            },
+        ],
+        "dialog_extraction": {
+            "mode": "规则抽取演示",
+            "raw_answer": "我函数不会写，SQL 查询也总是漏条件，希望先把 Python 和数据库基础补起来，每天大概 1 小时。",
+            "extracted_fields": {
+                "learning_goal": "补齐 Python 和数据库基础",
+                "weak_points": ["Python 函数", "SQL 查询"],
+                "available_time": "每天 1 小时",
+                "learning_style": "步骤化讲解、图解、基础例题",
+            },
+            "confidence": 0.89,
+            "evidence_basis": "命中“函数不会写”“SQL 查询漏条件”“每天 1 小时”等关键词，并结合测评低分规则。",
+        },
     },
     {
         "user_id": "demo-advanced",
         "aliases": ["advanced", "进阶提升型", "李四"],
-        "student_name": "李四",
-        "profile_type": "进阶提升型",
+        "student_name": "李同学",
+        "display_name": "李同学｜项目提升型",
+        "profile_type": "项目提升型",
         "major": "计算机/人工智能相关方向",
         "course_id": 1,
         "course_name": "软件杯项目开发",
@@ -50,11 +84,44 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
         "progress": 72,
         "resource_usage": 78,
         "recommended_strategy": "以项目案例和接口文档为主线，把 RAG、后端工程化和部署串成可交付任务。",
+        "evidence_items": [
+            {
+                "source_type": "dialog",
+                "description": "对话中明确学习目标是完成软件杯项目开发，适合项目实战路径。",
+                "related_field": "learning_goal",
+                "confidence": 0.94,
+            },
+            {
+                "source_type": "tutor",
+                "description": "问答记录多次出现 RAG、检索增强、接口联调和部署问题。",
+                "related_field": "weak_points",
+                "confidence": 0.87,
+            },
+            {
+                "source_type": "learning",
+                "description": "项目案例和接口文档点击率高，综合任务完成度优于基础讲义。",
+                "related_field": "resource_preference",
+                "confidence": 0.82,
+            },
+        ],
+        "dialog_extraction": {
+            "mode": "规则抽取演示",
+            "raw_answer": "我基础还可以，想把软件杯项目做出来，主要卡在 RAG、后端接口和最后部署。",
+            "extracted_fields": {
+                "learning_goal": "完成软件杯项目开发",
+                "weak_points": ["RAG", "后端工程化", "系统部署"],
+                "knowledge_level": "基础较好",
+                "learning_style": "案例驱动、项目实战",
+            },
+            "confidence": 0.91,
+            "evidence_basis": "命中“软件杯项目”“RAG”“后端接口”“部署”等项目型关键词。",
+        },
     },
     {
         "user_id": "demo-exam",
         "aliases": ["exam", "考试冲刺型", "王五"],
-        "student_name": "王五",
+        "student_name": "王同学",
+        "display_name": "王同学｜考试冲刺型",
         "profile_type": "考试冲刺型",
         "major": "电子信息/计算机方向",
         "course_id": 1,
@@ -73,6 +140,38 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
         "progress": 61,
         "resource_usage": 66,
         "recommended_strategy": "按高频考点建立复习清单，用模拟题和错题训练稳定概念辨析与审题过程。",
+        "evidence_items": [
+            {
+                "source_type": "dialog",
+                "description": "对话中提到期末考核压力大，希望快速复习高频考点。",
+                "related_field": "learning_goal",
+                "confidence": 0.9,
+            },
+            {
+                "source_type": "quiz",
+                "description": "章节测验显示概念辨析题波动较大，错题集中在高频考点。",
+                "related_field": "mistake_pattern",
+                "confidence": 0.86,
+            },
+            {
+                "source_type": "demo",
+                "description": "可用时间只有每天 45 分钟，更适合短周期复习清单和模拟题训练。",
+                "related_field": "available_time",
+                "confidence": 0.83,
+            },
+        ],
+        "dialog_extraction": {
+            "mode": "规则抽取演示",
+            "raw_answer": "快期末了，我想冲刺课程考核，概念题经常混，做题时也容易审错题，每天只有 45 分钟。",
+            "extracted_fields": {
+                "learning_goal": "课程考核和期末冲刺",
+                "weak_points": ["高频考点", "错题", "概念辨析"],
+                "mistake_pattern": "概念混淆、审题不稳",
+                "available_time": "每天 45 分钟",
+            },
+            "confidence": 0.88,
+            "evidence_basis": "命中“期末”“概念题经常混”“审错题”“45 分钟”等考试冲刺关键词。",
+        },
     },
 ]
 
@@ -101,9 +200,12 @@ def normalize_profile_schema(profile: dict[str, Any] | None = None, user_id: str
         change_log = [change_log]
     learning_style = raw.get("learning_style") or raw.get("learning_preference") or base["learning_style"]
     current_level = raw.get("current_level") or raw.get("knowledge_level") or base["current_level"]
+    evidence_items = raw.get("evidence_items") or base.get("evidence_items", [])
+    dialog_extraction = raw.get("dialog_extraction") or base.get("dialog_extraction", {})
     return {
         "user_id": normalize_user_id(raw.get("user_id") or base["user_id"]),
         "student_name": raw.get("student_name") or base["student_name"],
+        "display_name": raw.get("display_name") or base.get("display_name") or raw.get("student_name") or base["student_name"],
         "profile_type": raw.get("profile_type") or base["profile_type"],
         "major": raw.get("major") or base["major"],
         "course_id": raw.get("course_id") or base["course_id"],
@@ -121,6 +223,8 @@ def normalize_profile_schema(profile: dict[str, Any] | None = None, user_id: str
         "recommended_strategy": raw.get("recommended_strategy") or base["recommended_strategy"],
         "updated_at": raw.get("updated_at") or datetime.utcnow().isoformat(),
         "change_log": change_log,
+        "evidence_items": evidence_items,
+        "dialog_extraction": dialog_extraction,
         "score": raw.get("score", base["score"]),
         "progress": raw.get("progress", base["progress"]),
         "resource_usage": raw.get("resource_usage", base["resource_usage"]),
@@ -132,6 +236,7 @@ def get_demo_users() -> list[dict[str, Any]]:
         {
             "user_id": item["user_id"],
             "student_name": item["student_name"],
+            "display_name": item["display_name"],
             "profile_type": item["profile_type"],
             "major": item["major"],
             "current_level": item["current_level"],
@@ -182,6 +287,13 @@ def build_learning_tasks(
             _task("Python 函数基础补齐", ["Python 函数", "参数与返回值"], ["基础讲义", "函数知识点卡片"], ["阅读步骤化讲义", "完成 6 道基础函数题"], "1 小时", "能独立解释参数、返回值和调用顺序", normalized["learning_goal"], 60, normalized["recommended_strategy"], "进行中"),
             _task("SQL 与接口入门", ["SQL 查询", "接口基础"], ["SQL 知识点卡片", "接口图解"], ["完成 SELECT/WHERE 基础题", "画出一次请求响应流程"], "1 小时", "能写出基础查询并说明接口输入输出", "补齐数据库和接口基础。", 60, "用图解先理解流程，再写最小例题。", "推荐"),
         ]
+    for task in tasks:
+        task["recommendation_reason"] = _recommendation_reason(
+            normalized,
+            "、".join(task["knowledge_points"][:3]),
+            "、".join(task["resources"][:2]),
+        )
+
     return {
         "student_id": normalized["user_id"],
         "student_name": normalized["student_name"],
@@ -228,15 +340,21 @@ def _task(
     }
 
 
+def _recommendation_reason(profile: dict[str, Any], focus: str, resource_hint: str) -> str:
+    weak_points = "、".join(str(item) for item in profile["weak_points"][:3])
+    return (
+        f"由于该学生 knowledge_level 为“{profile['knowledge_level']}”，weak_points 包含“{weak_points}”，"
+        f"learning_style 偏好“{profile['learning_style']}”，因此本阶段聚焦“{focus}”，"
+        f"优先推荐“{resource_hint}”。"
+    )
+
+
 def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
     profile = normalize_profile_schema(payload.get("profile"), payload.get("studentId") or payload.get("student_id") or payload.get("user_id"))
     weak_points = payload.get("knowledgePoints") or payload.get("knowledge_points") or payload.get("weakPoints") or payload.get("weak_points") or profile["weak_points"]
     if isinstance(weak_points, str):
         weak_points = [weak_points]
-    reason = (
-        f"依据画像类型「{profile['profile_type']}」、薄弱点「{'、'.join(weak_points[:3])}」、"
-        f"学习风格「{profile['learning_style']}」和资源偏好「{profile['resource_preference']}」推荐。"
-    )
+    reason = _recommendation_reason(profile, "、".join(str(item) for item in weak_points[:3]), profile["resource_preference"])
     if profile["user_id"] == "demo-advanced":
         specs = [
             ("项目案例", "RAG 课程问答项目案例", "拆解检索、生成、引用和日志记录的完整项目流程。", "进阶"),

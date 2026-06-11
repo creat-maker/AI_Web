@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -87,6 +88,7 @@ def update_profile_by_learning(
     resource_id: str | int | None = None,
 ) -> dict:
     profile_json = normalize_profile_schema(loads(profile.profile_json, {}), loads(profile.profile_json, {}).get("user_id"))
+    before_profile = deepcopy(profile_json)
     before_weak = list(profile_json["weak_points"])
     before_pattern = profile_json["mistake_pattern"]
     changes: list[str] = []
@@ -94,6 +96,12 @@ def update_profile_by_learning(
     if score is not None and score < 60 and weak_point and weak_point not in profile_json["weak_points"]:
         profile_json["weak_points"].append(weak_point)
         changes.append(f"测评分数 {score} 低于 60，新增薄弱点：{weak_point}")
+        profile_json.setdefault("evidence_items", []).append({
+            "source_type": "quiz",
+            "description": f"模拟测评分数 {score} 低于 60，系统将 {weak_point} 追加为薄弱点。",
+            "related_field": "weak_points",
+            "confidence": 0.86,
+        })
 
     if event_type == "tutor" and question:
         keyword_map = {
@@ -108,6 +116,12 @@ def update_profile_by_learning(
             if point not in profile_json["weak_points"]:
                 profile_json["weak_points"].append(point)
                 changes.append(f"问答问题命中关键词，新增薄弱点：{point}")
+                profile_json.setdefault("evidence_items", []).append({
+                    "source_type": "tutor",
+                    "description": f"问答问题“{question}”命中关键词，追加 {point} 作为画像证据。",
+                    "related_field": "weak_points",
+                    "confidence": 0.8,
+                })
         if matched:
             addition = "问答暴露出" + "、".join(matched) + "相关理解不稳"
             if addition not in profile_json["mistake_pattern"]:
@@ -139,4 +153,10 @@ def update_profile_by_learning(
     profile.profile_json = dumps(profile_json)
     db.commit()
     db.refresh(profile)
-    return profile_to_dict(profile)
+    after_profile = profile_to_dict(profile)
+    return {
+        **after_profile,
+        "before_profile": before_profile,
+        "after_profile": after_profile,
+        "change_log": after_profile.get("change_log", profile_json["change_log"]),
+    }
