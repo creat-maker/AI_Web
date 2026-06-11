@@ -1,0 +1,146 @@
+.profile-dialog-page {
+  padding-bottom: 210rpx;
+  padding-bottom: calc(210rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(210rpx + env(safe-area-inset-bottom));
+}
+
+.progress-card {
+  padding: 24rpx;
+}
+
+.dimension-list {
+  margin-top: 20rpx;
+}
+
+.dim-item {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  min-height: 72rpx;
+  padding: 14rpx 18rpx;
+  border: 1rpx solid #e4e7ec;
+  border-radius: 20rpx;
+  background: #ffffff;
+  margin-top: 12rpx;
+}
+
+.dim-item:first-child {
+  margin-top: 0;
+}
+
+.dim-filled {
+  border-color: #2f6fed;
+  background: #f5f8ff;
+}
+
+.dim-check {
+  width: 36rpx;
+  height: 36rpx;
+  line-height: 36rpx;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 24rpx;
+  font-weight: 900;
+  color: #98a2b3;
+}
+
+.dim-filled .dim-check {
+  color: #2f6fed;
+}
+
+.dim-label {
+  color: #475467;
+  font-size: 27rpx;
+  font-weight: 850;
+  min-width: 140rpx;
+}
+
+.dim-filled .dim-label {
+  color: #162033;
+}
+
+.dim-value {
+  flex: 1;
+  color: #2f6fed;
+  font-size: 25rpx;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-card {
+  padding: 20rpx;
+}
+
+.message {
+  max-width: 94%;
+  margin-top: 18rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+}
+
+.message:first-child {
+  margin-top: 0;
+}
+
+.message-ai {
+  background: #f2f4f7;
+  color: #162033;
+}
+
+.message-user {
+  margin-left: auto;
+  background: #eaf1ff;
+  color: #162033;
+}
+
+.message-role {
+  display: inline-block;
+  margin-bottom: 8rpx;
+  color: #2f6fed;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.message-content {
+  display: block;
+  color: #162033;
+  font-size: 27rpx;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.input-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 12rpx;
+  padding: 20rpx 32rpx 28rpx;
+  padding-bottom: calc(28rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 1rpx solid #e4e7ec;
+}
+
+.dialog-input {
+  flex: 1;
+  min-height: 82rpx;
+  max-height: 168rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  background: #f5f7fb;
+  color: #162033;
+  font-size: 26rpx;
+  line-height: 1.45;
+}
+
+.send-btn {
+  width: 130rpx;
+}
+
+.finish-btn {
+  width: 160rpx;
+}

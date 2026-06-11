@@ -5,7 +5,8 @@
     "pages/resources/index",
     "pages/tutor/index",
     "pages/quiz/index",
-    "pages/report/index"
+    "pages/report/index",
+    "pages/profile-dialog/index"
   ],
   "window": {
     "navigationBarTitleText": "EduMind",

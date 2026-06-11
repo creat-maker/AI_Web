@@ -27,21 +27,36 @@ class LLMService:
         if task == "profile":
             return self.mock.generate_profile(payload)
         if task == "learning_path":
-            return self.mock.generate_learning_path(payload["profile"], payload["course_title"])
+            return self.mock.generate_learning_path(
+                payload["profile"],
+                payload["course_title"],
+                payload.get("contexts", []),
+                payload.get("knowledge_evidence", {}),
+            )
+        if task == "resource_plan":
+            return self.mock.generate_resource_plan(
+                payload["profile"],
+                payload["learning_path"],
+                payload.get("contexts", []),
+                payload.get("knowledge_evidence", {}),
+                payload.get("course_title", "课程"),
+            )
         if task == "resources":
-            return self.mock.generate_resources(payload["profile"], payload["learning_path"])
+            return self.mock.generate_resources(
+                payload["profile"],
+                payload["learning_path"],
+                payload.get("resource_plan", {}),
+                payload.get("contexts", []),
+                payload.get("knowledge_evidence", {}),
+            )
         if task == "quiz":
             return self.mock.generate_quiz(payload["course_title"])
         if task == "tutor":
             return self.mock.answer_tutor(payload["question"], payload.get("contexts", []))
         if task == "evaluate":
             return self.mock.evaluate(payload["quiz"], payload["answers"], payload["profile"])
-        if task == "profile_dialog":
-            return self.mock.profile_dialog(payload)
-        if task == "profile_extract":
-            return {"value": payload.get("user_message", "")}
-        if task == "profile_followup":
-            return {"reply": f"已记录你的{payload.get('dimension_label', '')}信息。"}
+        if task == "audit":
+            return self.mock.audit_generation(payload)
         return {"message": "mock result"}
 
     def _call_openai_compatible(self, task: str, payload: dict[str, Any]) -> dict[str, Any] | list[dict[str, Any]]:

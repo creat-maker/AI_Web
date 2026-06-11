@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -270,4 +271,5 @@ def download(report_id: int, db: Session = Depends(get_db)):
     report = db.query(LearningReport).filter(LearningReport.id == report_id).first()
     if not report or not report_exists(report):
         raise HTTPException(status_code=404, detail="报告文件不存在")
-    return FileResponse(report.report_path, filename=f"learning-report-{report_id}.docx")
+    suffix = Path(report.report_path).suffix or ".docx"
+    return FileResponse(report.report_path, filename=f"learning-report-{report_id}{suffix}")
