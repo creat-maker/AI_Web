@@ -2,77 +2,67 @@ export const statusMeta: Record<string, { label: string; color: string; bg: stri
   mastered: { label: '已掌握', color: '#16a34a', bg: '#dcfce7', tone: 'success' },
   learning: { label: '学习中', color: '#2563eb', bg: '#dbeafe', tone: 'info' },
   weak: { label: '薄弱', color: '#ea580c', bg: '#ffedd5', tone: 'warning' },
-  not_started: { label: '未学习', color: '#64748b', bg: '#f1f5f9', tone: 'neutral' }
+  not_started: { label: '后续章节', color: '#64748b', bg: '#f1f5f9', tone: 'neutral' }
 };
 
 export const knowledgeGraph = {
   course_id: 'python-programming',
   course_name: 'Python 程序设计',
-  recommendation_policy: '根据掌握率、错题标签、学习路径任务和答疑记录综合推荐资源。',
+  recommendation_policy: '围绕李明的画像、测验错因、学习路径任务和 AI 学伴问答综合推荐循环结构补弱资源。',
   nodes: [
-    { id: 'variables', name: '变量与数据类型', status: 'mastered', status_label: '已掌握', mastery: 92, description: '理解变量命名、数字/字符串/布尔值类型转换和基础输入输出。', resources: ['变量命名规范速查', '类型转换 10 分钟微课'], exercises: ['完成 5 道类型转换选择题', '编写 BMI 计算小程序'], ai_suggestion: '已具备后续学习基础，可通过小项目巩固变量命名和类型边界。' },
-    { id: 'conditions', name: '条件语句', status: 'learning', status_label: '学习中', mastery: 76, description: '掌握 if/elif/else 分支、布尔表达式和嵌套条件拆解。', resources: ['分支结构案例讲义', '条件表达式错题集'], exercises: ['成绩等级判断', '会员折扣规则实现'], ai_suggestion: '建议先画条件表，再写代码，减少漏分支问题。' },
-    { id: 'loops', name: '循环结构', status: 'weak', status_label: '薄弱', mastery: 58, description: '理解 for/while、循环控制、嵌套循环和边界条件。', resources: ['循环边界专项微课', 'for/while 对比练习'], exercises: ['九九乘法表', '统计列表中满足条件的元素'], ai_suggestion: '先写循环不变量和停止条件，再补充循环体，避免死循环和少算一次。' },
-    { id: 'functions', name: '函数', status: 'learning', status_label: '学习中', mastery: 69, description: '掌握函数定义、参数、返回值、作用域和模块化拆分。', resources: ['函数封装案例包', '参数与返回值导学单'], exercises: ['封装成绩统计函数', '拆分温度转换程序'], ai_suggestion: '把重复代码先圈出来，再抽象输入、处理和输出。' },
-    { id: 'lists', name: '列表', status: 'mastered', status_label: '已掌握', mastery: 88, description: '掌握列表索引、切片、遍历、增删改查和常用方法。', resources: ['列表操作速查表', '列表推导式入门'], exercises: ['学生成绩排序', '筛选偶数列表'], ai_suggestion: '可以进入列表与循环结合的综合题，提升数据处理速度。' },
-    { id: 'dicts', name: '字典', status: 'not_started', status_label: '未学习', mastery: 34, description: '理解键值对、字典遍历、统计计数和嵌套数据结构。', resources: ['字典计数案例', 'JSON 与字典对照讲义'], exercises: ['词频统计', '课程成绩表查询'], ai_suggestion: '建议在掌握列表遍历后进入，重点理解 key 的唯一性。' },
-    { id: 'files', name: '文件操作', status: 'weak', status_label: '薄弱', mastery: 52, description: '掌握 with open、读写模式、编码、CSV 读写和异常边界。', resources: ['文件读写分步讲义', 'CSV 成绩分析 Notebook'], exercises: ['读取日志并统计关键字', '学生成绩 CSV 汇总'], ai_suggestion: '先复习异常处理，再练习文件不存在、空文件、编码错误三类边界。' },
-    { id: 'exceptions', name: '异常处理', status: 'not_started', status_label: '未学习', mastery: 28, description: '理解 try/except/finally、异常类型和可恢复错误处理。', resources: ['异常处理情境卡', '常见异常类型清单'], exercises: ['输入合法性校验', '文件读取异常兜底'], ai_suggestion: '结合文件操作一起练，重点区分错误提示和程序崩溃。' }
+    { id: 'syntax', name: '基础语法', status: 'mastered', status_label: '已掌握', mastery: 86, description: '变量、表达式、输入输出和基础运算。', resources: ['基础语法速查卡'], exercises: ['变量命名判断题'], ai_suggestion: '作为循环结构学习的前置基础。' },
+    { id: 'conditions', name: '条件判断', status: 'learning', status_label: '学习中', mastery: 76, description: 'if/elif/else、布尔表达式和条件拆解。', resources: ['条件判断导学单'], exercises: ['成绩等级判断'], ai_suggestion: '先画条件表，再写代码。' },
+    { id: 'for-loop', name: 'for 循环', status: 'learning', status_label: '学习中', mastery: 70, description: '掌握 range、遍历和循环次数判断。', resources: ['for 循环边界讲义'], exercises: ['输出指定范围内的偶数'], ai_suggestion: '先判断起点、终点和步长。' },
+    { id: 'while-loop', name: 'while 循环', status: 'weak', status_label: '薄弱', mastery: 48, description: '理解循环条件、变量更新和死循环风险。', resources: ['while 死循环修复案例'], exercises: ['while 循环补全题'], ai_suggestion: '先手写前三轮变量变化，再运行代码验证。' },
+    { id: 'break-continue', name: 'break / continue', status: 'weak', status_label: '薄弱', mastery: 58, description: '区分跳出循环和跳过本轮循环。', resources: ['break / continue 对比卡'], exercises: ['控制语句判断题'], ai_suggestion: '用输出结果反推控制语句的作用。' },
+    { id: 'nested-loop', name: '循环嵌套', status: 'weak', status_label: '薄弱', mastery: 54, description: '跟踪内外层循环变量变化和执行顺序。', resources: ['循环嵌套变量变化表'], exercises: ['九九乘法表补全'], ai_suggestion: '把外层变量和内层变量分列记录。' },
+    { id: 'loop-practice', name: '循环综合实操', status: 'not_started', status_label: '后续巩固', mastery: 35, description: '用于整合 for、while、break / continue 和循环嵌套。', resources: ['循环综合任务卡'], exercises: ['循环结构综合实操'], ai_suggestion: '完成基础补弱后再进入综合任务。' }
   ],
   links: [
-    { source: 'variables', target: 'conditions', relation: '表达式基础' },
-    { source: 'conditions', target: 'loops', relation: '循环控制' },
-    { source: 'loops', target: 'functions', relation: '封装重复逻辑' },
-    { source: 'loops', target: 'lists', relation: '遍历数据' },
-    { source: 'lists', target: 'dicts', relation: '结构化数据' },
-    { source: 'dicts', target: 'files', relation: '持久化数据' },
-    { source: 'files', target: 'exceptions', relation: '边界兜底' },
-    { source: 'functions', target: 'files', relation: '工程封装' }
+    { source: 'syntax', target: 'conditions', relation: '表达式基础' },
+    { source: 'conditions', target: 'for-loop', relation: '循环控制' },
+    { source: 'conditions', target: 'while-loop', relation: '循环条件' },
+    { source: 'while-loop', target: 'break-continue', relation: '控制语句' },
+    { source: 'for-loop', target: 'nested-loop', relation: '嵌套遍历' },
+    { source: 'break-continue', target: 'nested-loop', relation: '复杂控制' },
+    { source: 'nested-loop', target: 'functions', relation: '后续封装' }
   ]
 };
 
 export const learningTaskPaths = {
-  student_id: 'demo-student-zhangsan',
+  student_id: 'demo-basic',
   course_name: 'Python 程序设计',
-  active_profile_type: '基础薄弱型',
+  active_profile_type: '基础薄弱 + 代码实操偏好型',
   paths: [
     {
-      profile_type: '基础薄弱型',
-      summary: '先补齐变量、条件、循环和函数的概念断点，用短任务建立可见进步。',
-      ai_recommendation: '每天 25 分钟，优先完成可自动判分的小练习，降低挫败感。',
+      profile_type: '基础薄弱 + 代码实操偏好型',
+      summary: '围绕循环结构薄弱点，先修复 while 死循环，再区分 break / continue，最后完成循环嵌套实操。',
+      ai_recommendation: '每天 25-30 分钟，用短代码和变量变化表建立可见进步。',
       tasks: [
-        { title: '循环边界修复任务', goal: '能判断 for/while 的起止条件并解释循环次数。', knowledge_points: ['循环结构', '条件语句'], resources: ['循环边界专项微课', 'for/while 对比练习'], practice: '完成 6 道循环边界题并提交 1 个九九乘法表程序。', completion_rule: '练习正确率达到 80%，且代码通过 3 个边界用例。', estimated_minutes: 30, ai_suggestion: '先手写前三轮循环变量变化，再运行代码验证。', status: '进行中' },
-        { title: '函数封装入门', goal: '把重复逻辑抽取为函数，说明参数和返回值。', knowledge_points: ['函数', '变量与数据类型'], resources: ['函数封装案例包', '参数与返回值导学单'], practice: '封装成绩平均分、最高分、及格率三个函数。', completion_rule: '完成函数定义并通过样例输入输出。', estimated_minutes: 25, ai_suggestion: '用输入、处理、输出三列拆解函数职责。', status: '未开始' }
+        { title: 'while 循环终止条件补全', goal: '能判断循环是否会终止，并解释变量如何更新。', knowledge_points: ['while 循环', '循环结构'], resources: ['while 死循环修复案例', '循环条件检查清单'], practice: '完成 3 道 while 循环补全题。', completion_rule: '正确率达到 80%，且能写出前三轮变量变化。', estimated_minutes: 30, ai_suggestion: '先检查初始值、条件和更新语句。', status: '进行中' },
+        { title: 'break / continue 对比练习', goal: '区分跳出循环和跳过本轮循环。', knowledge_points: ['break / continue'], resources: ['break / continue 对比卡'], practice: '完成 6 道输出结果判断题。', completion_rule: '能解释每次输出变化。', estimated_minutes: 20, ai_suggestion: '把每轮输出写在表格中。', status: '推荐' },
+        { title: '循环嵌套变量追踪', goal: '能跟踪内外层循环执行顺序。', knowledge_points: ['循环嵌套', 'for 循环'], resources: ['循环嵌套变量变化表'], practice: '补全九九乘法表程序。', completion_rule: '代码通过 3 个边界用例。', estimated_minutes: 35, ai_suggestion: '外层变量一列，内层变量一列。', status: '未开始' }
       ]
     },
     {
-      profile_type: '考试冲刺型',
-      summary: '围绕高频考点和错题分布安排测评、纠错和二次练习。',
-      ai_recommendation: '先做诊断测验，再按薄弱知识点刷题，最后生成错题复盘卡。',
+      profile_type: '教师干预路径',
+      summary: '教师端围绕需重点关注学生李明进行短时讲解和课后跟踪。',
+      ai_recommendation: '课堂讲解 10 分钟，课后布置 3 道 while 循环补全题。',
       tasks: [
-        { title: '章节诊断测验', goal: '定位循环、函数、文件操作三类高频失分点。', knowledge_points: ['循环结构', '函数', '文件操作'], resources: ['Python 章节诊断卷', '错题原因标签说明'], practice: '完成 8 道章节练习题。', completion_rule: '提交测验并查看错因分析。', estimated_minutes: 20, ai_suggestion: '不要立即看答案，先标注每道题的卡点。', status: '推荐' },
-        { title: '错题二刷', goal: '把错因从概念不清转化为可执行检查清单。', knowledge_points: ['文件操作', '异常处理'], resources: ['文件读写错题集', '异常处理情境卡'], practice: '重做错题并写出每题 1 条防错规则。', completion_rule: '二刷正确率达到 90%。', estimated_minutes: 35, ai_suggestion: '每道错题只记录一个主错因，避免复盘过载。', status: '未开始' }
-      ]
-    },
-    {
-      profile_type: '项目实践型',
-      summary: '用小项目串联列表、字典、文件和异常处理，强化迁移应用。',
-      ai_recommendation: '适合已有基础的学生，建议用项目产物替代单点刷题。',
-      tasks: [
-        { title: '成绩文件分析器', goal: '读取 CSV 成绩文件，输出统计结果和风险学生名单。', knowledge_points: ['列表', '字典', '文件操作', '异常处理'], resources: ['CSV 成绩分析 Notebook', '字典计数案例'], practice: '实现文件读取、异常兜底、平均分统计和结果写出。', completion_rule: '项目通过 5 个测试数据文件，提交运行截图。', estimated_minutes: 60, ai_suggestion: '先完成最小可运行版本，再补充异常处理和输出格式。', status: '推荐' }
+        { title: '10 分钟代码讲解', goal: '用一段 while 死循环示例讲清变量更新位置。', knowledge_points: ['while 循环'], resources: ['while 死循环讲解脚本'], practice: '课堂即时修改错误代码。', completion_rule: '李明能口头解释死循环原因。', estimated_minutes: 10, ai_suggestion: '从错误代码入手，不直接给最终答案。', status: '推荐' }
       ]
     }
   ]
 };
 
 export const chapterQuiz = {
-  quiz_id: 'python-chapter-1',
-  title: 'Python 程序设计章节练习',
-  chapter: '基础语法到文件操作',
+  quiz_id: 'python-loop-quiz-1',
+  title: 'Python 循环结构专项测验',
+  chapter: '循环结构',
   questions: [
-    { id: 'q1', type: 'single', stem: '以下哪个写法最适合安全读取文本文件？', options: ["open('a.txt').read()", "with open('a.txt', encoding='utf-8') as f", "eval(open('a.txt'))", "input('a.txt')"], answer: "with open('a.txt', encoding='utf-8') as f", knowledge_point: '文件操作' },
-    { id: 'q2', type: 'single', stem: 'while 循环最容易出现的典型错误是？', options: ['忘记更新循环变量', '变量名太短', '注释太少', '函数名重复'], answer: '忘记更新循环变量', knowledge_point: '循环结构' },
-    { id: 'q3', type: 'single', stem: '函数 return 的主要作用是？', options: ['打印结果', '结束程序', '返回计算结果给调用方', '创建变量'], answer: '返回计算结果给调用方', knowledge_point: '函数' }
+    { id: 'q1', type: 'single', stem: 'while 循环最容易出现的典型错误是？', options: ['忘记更新循环变量', '变量名太短', '注释太少', '缩进太整齐'], answer: '忘记更新循环变量', knowledge_point: 'while 循环' },
+    { id: 'q2', type: 'single', stem: 'continue 的作用是？', options: ['跳出整个循环', '跳过本轮剩余语句进入下一轮', '结束程序', '定义变量'], answer: '跳过本轮剩余语句进入下一轮', knowledge_point: 'break / continue' },
+    { id: 'q3', type: 'single', stem: '分析循环嵌套时最推荐先记录什么？', options: ['内外层变量变化', '电脑型号', '注释数量', '文件名'], answer: '内外层变量变化', knowledge_point: '循环嵌套' }
   ]
 };
 
@@ -80,86 +70,88 @@ export const fallbackQuizResult = {
   score: 67,
   correct_count: 2,
   total: 3,
-  weak_points: ['文件操作'],
+  weak_points: ['while 循环', '循环嵌套'],
   wrong_items: [
-    { question_id: 'q1', stem: '以下哪个写法最适合安全读取文本文件？', selected: "open('a.txt').read()", correct_answer: "with open('a.txt', encoding='utf-8') as f", knowledge_point: '文件操作', reason: '文件资源管理不熟', recommendation: '复习「文件操作」资源包，并完成 2 道同类变式题。' }
+    { question_id: 'q1', stem: 'while 循环最容易出现的典型错误是？', selected: '循环体太长', correct_answer: '忘记更新循环变量', knowledge_point: 'while 循环', reason: '没有把循环条件和变量更新联系起来', recommendation: '复习「while 死循环修复案例」，完成 3 道补全题。' }
   ],
   cause_analysis: [
-    { type: '概念理解', detail: '对文件上下文管理存在混淆。' },
-    { type: '边界意识', detail: '文件不存在、编码错误等边界检查不足。' }
+    { type: '概念理解', detail: '知道 while 的形式，但对终止条件和变量更新理解不稳定。' },
+    { type: '代码应用', detail: '读代码时没有逐轮跟踪变量变化。' }
   ],
   recommended_resources: [
-    { title: '文件读写分步讲义', knowledge_point: '文件操作', minutes: 18 },
-    { title: '异常处理情境卡', knowledge_point: '异常处理', minutes: 12 }
+    { title: 'while 死循环修复案例', knowledge_point: 'while 循环', minutes: 12 },
+    { title: '循环嵌套变量变化表', knowledge_point: '循环嵌套', minutes: 15 }
   ],
-  next_step: '系统已把薄弱知识点写入学习路径，建议完成错题二刷后再进入项目任务。'
+  next_step: '系统已把 while 循环补全题加入李明的学习路径，建议完成后再进入 break / continue 对比练习。'
 };
 
 export const classInsight = {
   metrics: [
-    { label: '班级完成率', value: 78, unit: '%', hint: '较上周 +6.4%', icon: '完', tone: 'green' as const },
-    { label: '平均正确率', value: 82, unit: '%', hint: '章节测验统计', icon: '测', tone: 'purple' as const },
-    { label: '学习活跃度', value: 91, unit: '%', hint: '答疑、练习、资源访问', icon: '活', tone: 'cyan' as const },
-    { label: '风险学生', value: 6, unit: '人', hint: '需要教师干预', icon: '险', tone: 'orange' as const }
+    { label: '班级完成率', value: 78, unit: '%', hint: '循环结构任务', icon: '完', tone: 'green' as const },
+    { label: '平均正确率', value: 74, unit: '%', hint: '专项测验统计', icon: '测', tone: 'purple' as const },
+    { label: '资源使用率', value: 68, unit: '%', hint: '补弱资源包', icon: '资', tone: 'cyan' as const },
+    { label: '学习预警', value: 6, unit: '人', hint: '李明为重点对象', icon: '预', tone: 'orange' as const }
   ],
   weakRanking: [
-    { name: '文件操作', value: 42 },
-    { name: '循环结构', value: 37 },
-    { name: '函数返回值', value: 31 },
-    { name: '异常处理', value: 28 }
+    { name: 'while 循环条件更新', value: 52 },
+    { name: '循环嵌套变量变化', value: 47 },
+    { name: 'break / continue 区分', value: 39 },
+    { name: 'for 循环边界判断', value: 32 }
   ],
   riskStudents: [
-    { name: '王五', risk: '高风险', progress: 42, weak: ['文件操作', '异常处理'], suggestion: '推送文件读写分步讲义，布置 15 分钟补救任务，提醒话术：先完成最小可运行代码，再补异常。' },
-    { name: '赵六', risk: '需关注', progress: 56, weak: ['循环结构'], suggestion: '安排循环边界二刷，课堂中点名讲解一次变量变化表。' },
-    { name: '孙七', risk: '需关注', progress: 61, weak: ['函数'], suggestion: '推荐函数封装案例包，要求提交参数和返回值说明。' }
+    { name: '李明', risk: '干预优先级：中', progress: 42, weak: ['while 循环', '循环嵌套', 'break / continue'], suggestion: '推送循环结构补弱资源包，安排 10 分钟代码讲解，布置 3 道 while 循环补全题。' },
+    { name: '陈思', risk: '需关注', progress: 56, weak: ['循环嵌套'], suggestion: '安排变量变化表练习。' },
+    { name: '赵雨', risk: '需关注', progress: 61, weak: ['break / continue'], suggestion: '完成控制语句输出判断题。' }
   ]
 };
 
 export const profileInsight = {
-  base_level: '中等偏弱',
-  learning_goal: '两周内补齐循环、函数和文件操作，完成成绩文件分析器小项目。',
-  preference: '案例驱动、短视频讲解、可运行 Notebook',
+  student_name: '李明',
+  base_level: '基础薄弱',
+  learning_goal: '掌握 Python 循环结构并完成基础代码实操。',
+  preference: '代码实操偏好型',
   progress: 68,
-  weak_points: ['文件操作', '循环结构', '异常处理'],
+  weak_points: ['while 循环', '循环嵌套', 'break / continue'],
   wrong_distribution: [
-    { name: '概念混淆', value: 38 },
-    { name: '边界遗漏', value: 31 },
-    { name: '代码规范', value: 18 },
-    { name: '审题偏差', value: 13 }
+    { name: '变量更新遗漏', value: 38 },
+    { name: '执行顺序混淆', value: 31 },
+    { name: '控制语句误用', value: 18 },
+    { name: '边界条件遗漏', value: 13 }
   ],
-  risk_level: '需关注',
-  intervention: ['推送文件读写资源包', '布置循环边界补救任务', '教师 1 对 1 提醒：先画变量变化表再写代码']
+  risk_level: '学习预警：中',
+  intervention: ['推送循环结构补弱资源包', '布置 while 循环补全题', '教师 10 分钟代码讲解']
 };
 
 export const courseRelation = {
-  knowledge_points: ['变量与数据类型', '条件语句', '循环结构', '函数', '列表', '字典', '文件操作', '异常处理'],
+  knowledge_points: ['基础语法', '条件判断', 'for 循环', 'while 循环', 'break / continue', '循环嵌套', '变量变化追踪', '循环综合实操'],
   resources: [
-    { title: '循环边界专项微课', related: ['循环结构', '条件语句'], type: '微课' },
-    { title: '函数封装案例包', related: ['函数'], type: '案例' },
-    { title: 'CSV 成绩分析 Notebook', related: ['列表', '字典', '文件操作'], type: 'Notebook' }
+    { title: '循环结构讲解文档', related: ['for 循环', 'while 循环'], type: '讲义' },
+    { title: 'while 死循环修复案例', related: ['while 循环'], type: '代码实操' },
+    { title: 'break / continue 专项练习', related: ['break / continue'], type: '练习' },
+    { title: '循环结构微课视频脚本', related: ['循环结构'], type: '视频脚本' }
   ],
   questions: [
-    { title: 'while 循环终止条件判断', related: ['循环结构'], difficulty: '基础' },
-    { title: '封装成绩统计函数', related: ['函数', '列表'], difficulty: '中等' },
-    { title: '读取 CSV 并处理异常', related: ['文件操作', '异常处理'], difficulty: '进阶' }
+    { title: 'while 循环终止条件判断', related: ['while 循环'], difficulty: '基础' },
+    { title: 'break / continue 输出判断', related: ['break / continue'], difficulty: '中等' },
+    { title: '循环嵌套变量追踪', related: ['循环嵌套'], difficulty: '进阶' }
   ]
 };
 
 export const adminReview = {
   items: [
-    { id: 'cr-001', title: '循环结构专项微课脚本', resource_type: '微课脚本', source: '教师工作台生成', risk_tags: ['需核对示例代码', '避免直接给答案'], status: '待审核', review_opinion: '等待课程负责人确认代码样例与教学目标一致。' },
-    { id: 'cr-002', title: '文件操作章节测验', resource_type: '测验', source: 'AI 生成测验', risk_tags: ['题目难度需校准'], status: '已通过', review_opinion: '已补充答案解析，可发布到学生端。' },
-    { id: 'cr-003', title: '异常处理学习建议', resource_type: '个性化推荐', source: '练后分析生成', risk_tags: ['诊断结论不可绝对化'], status: '已驳回', review_opinion: '建议语气过于确定，需改为教学辅助建议。' }
+    { id: 'cr-001', title: 'Python 循环结构个性化补弱资源包', resource_type: '资源包', source: 'ResourcePackageAgent', risk_tags: ['引用依据完整', '适配李明画像'], status: '通过', review_opinion: '可发布到学生端，引用依据为 Python 程序设计课程知识库 / 循环结构章节。' },
+    { id: 'cr-002', title: 'AI 学伴回答：while 循环为什么会死循环', resource_type: 'AI 学伴回答', source: 'TutorAgent', risk_tags: ['需补充变量更新示例'], status: '需修改', review_opinion: '建议增加代码片段和变量变化表。' },
+    { id: 'cr-003', title: 'while 死循环讲解内容', resource_type: '微课视频脚本', source: 'TeachingScriptAgent', risk_tags: ['需教师复核示例代码'], status: '人工复核', review_opinion: '教师确认后再进入发布流程。' }
   ],
-  policy: 'AI 生成内容仅作为教学辅助，关键资源、测评结果和干预结论需教师或管理员审核后使用。'
+  policy: 'AI 生成内容仅作为教学辅助，关键资源、测评结论和学生干预建议需教师或管理员审核后使用。'
 };
 
 export const platformQuality = {
   summary: {
     course_completion_rate: 76.8,
-    average_quiz_score: 82.4,
+    average_quiz_score: 74.2,
     resource_usage_rate: 68.5,
-    weak_point_concentration: 42.0,
+    weak_point_concentration: 52.0,
     teacher_ai_tool_uses: 286,
     content_review_pass_rate: 91.2
   },
@@ -170,10 +162,10 @@ export const platformQuality = {
     review_pass_rate: 91.2
   },
   quality_dimensions: [
-    { name: '课程完成率', value: 76.8, suggestion: '关注进度低于 50% 的课程。' },
-    { name: '测验均分', value: 82.4, suggestion: '保持章节测验难度梯度。' },
-    { name: '资源使用率', value: 68.5, suggestion: '提升薄弱知识点资源曝光。' },
-    { name: '薄弱知识点集中度', value: 42.0, suggestion: '集中在循环、文件、异常处理，建议专项治理。' }
+    { name: '循环结构任务完成率', value: 76.8, suggestion: '关注 while 循环补全题未完成学生。' },
+    { name: '专项测验均分', value: 74.2, suggestion: '继续降低循环嵌套入门题难度。' },
+    { name: '补弱资源使用率', value: 68.5, suggestion: '提高讲解文档和代码实操案例曝光。' },
+    { name: '薄弱知识点集中度', value: 52.0, suggestion: '集中治理 while 循环、循环嵌套和 break / continue。' }
   ],
-  ai_boundary: 'AI 生成内容仅作为教学辅助，关键教学资源、测评结论和学生干预建议必须经教师或管理员审核。'
+  ai_boundary: 'AI 生成内容仅作为教学辅助。数字人能力当前描述为讲解脚本 / TTS 或数字人 API 预留，不描述为完整实时数字人系统。'
 };

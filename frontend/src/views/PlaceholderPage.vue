@@ -11,7 +11,7 @@ const title = computed(() => String(route.meta.title || '规划中模块'));
 const description = computed(() => String(route.meta.description || '该模块已进入三端角色化菜单，后续接入具体业务能力。'));
 const nextSteps = computed(() => {
   const items = route.meta.nextSteps;
-  return Array.isArray(items) ? items.map(String) : ['接入真实业务接口', '补充列表、详情和操作流程', '保留 demo/fallback 能力边界说明'];
+  return Array.isArray(items) ? items.map(String) : ['接入真实业务接口', '补充列表、详情和操作流程', '保留能力边界说明'];
 });
 
 onMounted(() => {
@@ -46,7 +46,7 @@ onMounted(() => {
           <div v-if="nextSteps.length" class="list">
             <div v-for="item in nextSteps" :key="item" class="item compact">{{ item }}</div>
           </div>
-          <EmptyState v-else title="暂无规划项" description="后续根据比赛演示路线补齐。" />
+          <EmptyState v-else title="暂无规划项" description="后续根据产品路线补齐。" />
         </article>
       </div>
     </template>

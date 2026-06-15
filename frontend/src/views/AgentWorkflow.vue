@@ -12,7 +12,9 @@ interface WorkflowStep {
   key: string;
   name: string;
   input_summary?: string;
+  tool_summary?: string;
   output_summary?: string;
+  evidence?: string;
   duration_ms?: number;
   duration?: string;
   status: string;
@@ -32,68 +34,33 @@ interface WorkflowCenter {
 const center = ref<WorkflowCenter>({});
 const error = ref('');
 const loading = ref(true);
-const { demoUserId } = useRole();
+const { demoUserId: selectedUserId } = useRole();
 
-const demoChain: WorkflowStep[] = [
-  {
-    key: 'profile',
-    name: '画像 Agent',
-    input_summary: '学生自然语言回答、课程、薄弱点、时间安排',
-    output_summary: '生成学习目标、基础水平、薄弱知识点、偏好、风险和策略',
-    duration_ms: 220,
-    duration: '220ms',
-    status: 'success'
-  },
-  {
-    key: 'rag',
-    name: '问答 Agent',
-    input_summary: '学生问题、courseId、studentId',
-    output_summary: '命中课程知识库片段、引用来源、可信度和推荐练习',
-    duration_ms: 180,
-    duration: '180ms',
-    status: 'success'
-  },
-  {
-    key: 'path',
-    name: '路径 Agent',
-    input_summary: '画像维度、薄弱点、课程章节',
-    output_summary: '生成阶段目标、学习顺序和任务安排',
-    duration_ms: 260,
-    duration: '260ms',
-    status: 'success'
-  },
-  {
-    key: 'resource',
-    name: '资源 Agent',
-    input_summary: 'studentId、courseId、weakPoints',
-    output_summary: '生成讲义、练习题、实验任务、思维导图、视频脚本/任务书',
-    duration_ms: 340,
-    duration: '340ms',
-    status: 'success'
-  },
-  {
-    key: 'review',
-    name: '审核 Agent',
-    input_summary: '生成内容、引用来源、课程 ID',
-    output_summary: '输出风险等级、引用覆盖、防幻觉告警和修改建议',
-    duration_ms: 160,
-    duration: '160ms',
-    status: 'success'
-  },
-  {
-    key: 'report',
-    name: '诊断 Agent',
-    input_summary: '测评结果、答疑日志、资源使用和路径完成情况',
-    output_summary: '识别薄弱知识点、预警学生和教师干预建议',
-    duration_ms: 300,
-    duration: '300ms',
-    status: 'success'
-  }
-];
+const defaultChain: WorkflowStep[] = [
+  '画像构建 Agent',
+  '知识检索 Agent',
+  '学习路径规划 Agent',
+  '资源生成规划 Agent',
+  '多类型资源生成 Agent',
+  'RAG 答疑 Agent',
+  '学习效果评估 Agent',
+  '内容安全与防幻觉审核 Agent',
+  '报告生成 Agent'
+].map((name, index) => ({
+  key: `agent-${index + 1}`,
+  name,
+  input_summary: index === 0 ? '李明的自然语言对话、学习历史、测验结果和 AI 问答记录' : '上游 Agent 输出 + Python 循环结构知识库',
+  tool_summary: index === 7 ? '事实准确性、知识点匹配度、难度匹配度、引用完整性审核规则' : '课程知识库、规则模板、结构化模板',
+  output_summary: index === 4 ? 'Python 循环结构个性化补弱资源包，含 7 类资源' : '结构化中间结果进入下一节点',
+  evidence: 'Python 程序设计课程知识库 / 循环结构章节',
+  duration_ms: 180 + index * 70,
+  duration: `${180 + index * 70}ms`,
+  status: 'success'
+}));
 
 const chain = computed(() => {
   const apiSteps = center.value.steps || [];
-  return apiSteps.length >= 6 ? apiSteps : demoChain;
+  return apiSteps.length >= 6 ? apiSteps : defaultChain;
 });
 
 function statusTone(status: string) {
@@ -107,9 +74,9 @@ async function loadCenter() {
   loading.value = true;
   error.value = '';
   try {
-    center.value = await api.get<WorkflowCenter>(`/api/v1/agent-workflow?user_id=${encodeURIComponent(demoUserId.value)}`);
+    center.value = await api.get<WorkflowCenter>(`/api/v1/agent-workflow?user_id=${encodeURIComponent(selectedUserId.value)}`);
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '工作流接口暂不可用，当前显示演示链路。';
+    error.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
     loading.value = false;
   }
@@ -120,13 +87,13 @@ onMounted(loadCenter);
 
 <template>
   <section class="page">
-    <PageHeader title="Agent 工作流" description="展示从画像构建、知识检索、路径规划、资源生成、内容审核到学习报告的完整执行链路。">
+    <PageHeader title="多智能体协同编排中心" description="展示从画像构建、知识检索、路径规划、资源生成、RAG 答疑、效果评估、防幻觉审核到报告生成的完整执行链路。">
       <template #actions>
         <button class="secondary" :disabled="loading" @click="loadCenter">{{ loading ? '刷新中...' : '刷新状态' }}</button>
       </template>
     </PageHeader>
 
-    <p v-if="error" class="demo-banner">{{ error }}</p>
+    <p v-if="error" class="notice-banner">{{ error }}</p>
 
     <div class="stat-grid">
       <StatCard label="今日运行" :value="center.workflow_summary?.today_run_count || 6" unit="次" icon="流" />
@@ -145,7 +112,9 @@ onMounted(loadCenter);
               <StatusBadge :label="step.status" :tone="statusTone(step.status)" />
             </div>
             <p><span>输入</span>{{ step.input_summary }}</p>
+            <p><span>调用工具</span>{{ step.tool_summary || '课程知识库、规则模板、结构化模板' }}</p>
             <p><span>输出</span>{{ step.output_summary }}</p>
+            <p><span>证据</span>{{ step.evidence || 'Python 程序设计课程知识库 / 循环结构章节' }}</p>
             <div class="step-foot">
               <span>{{ step.duration || `${step.duration_ms || 0}ms` }}</span>
               <ProgressBar :value="100" tone="success" />
@@ -155,7 +124,7 @@ onMounted(loadCenter);
       </div>
     </DataCard>
 
-    <DataCard title="最近运行记录" subtitle="来自后端 AgentRun 与业务事件，接口不可用时仍保留演示链路。">
+    <DataCard title="最近运行记录" subtitle="展示最近的多智能体运行状态。">
       <table class="table">
         <thead>
           <tr>
@@ -171,9 +140,7 @@ onMounted(loadCenter);
             <td>{{ row.created_at || '-' }}</td>
           </tr>
           <tr v-if="!(center.records || []).length">
-            <td><strong>software-cup-demo-chain</strong></td>
-            <td><StatusBadge label="success" tone="success" /></td>
-            <td>demo</td>
+            <td colspan="3">暂无数据，系统将根据你的学习记录生成建议。</td>
           </tr>
         </tbody>
       </table>

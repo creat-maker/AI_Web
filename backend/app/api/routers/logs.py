@@ -92,7 +92,7 @@ def _fallback_logs() -> list[dict[str, Any]]:
             created_at=now,
             type="qa",
             title="演示问答日志",
-            content="暂无真实问答记录，日志中心使用 demo/fallback 数据保持页面可演示。",
+            content="暂无真实问答记录，日志中心使用本地数据保持页面可查看。",
             level="INFO",
             module="TutorChat",
             status="demo",

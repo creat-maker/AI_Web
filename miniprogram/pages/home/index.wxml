@@ -2,14 +2,14 @@
   <view class="header cockpit-banner">
     <text class="eyebrow">学生学习驾驶舱</text>
     <text class="title">你好，{{studentName}}</text>
-    <text class="subtitle">EduMind 已根据你的学习画像生成今日学习计划</text>
+    <text class="subtitle">当前学习课程：{{course}}。系统发现你在循环结构上还需要加强。</text>
     <view class="cockpit-meta">
       <view class="meta-item">
-        <text class="meta-label">当前课程</text>
-        <text class="meta-value">{{course}}</text>
+        <text class="meta-label">当前章节</text>
+        <text class="meta-value">循环结构</text>
       </view>
       <view class="meta-item">
-        <text class="meta-label">综合掌握度</text>
+        <text class="meta-label">综合进度</text>
         <text class="meta-value">{{progress}}%</text>
       </view>
     </view>
@@ -17,7 +17,7 @@
       <text class="advice-label">今日建议</text>
       <text class="advice-text">{{todayAdvice}}</text>
     </view>
-    <button class="button-primary start-btn" data-path="/pages/path/index" bindtap="goPage">开始今日任务</button>
+    <button class="button-primary start-btn" data-path="/pages/path/index" bindtap="goPage">开始今日补弱任务</button>
   </view>
 
   <view class="section grid-2">
@@ -27,16 +27,23 @@
     </view>
   </view>
 
+  <view class="section natural-card-list">
+    <view class="natural-card" wx:for="{{homeCards}}" wx:key="title" data-path="{{item.path}}" bindtap="goPage">
+      <view class="row">
+        <text class="natural-title">{{item.title}}</text>
+        <text class="tag">{{item.label}}</text>
+      </view>
+      <text class="natural-content">{{item.content}}</text>
+      <text class="natural-action">{{item.action}}</text>
+    </view>
+  </view>
+
   <view class="section">
     <view class="section-head">
-      <text class="section-title">AI 个性化诊断</text>
-      <text class="tag">{{progress}}%</text>
+      <text class="section-title">薄弱知识点</text>
+      <text class="tag">持续跟踪</text>
     </view>
     <view class="card">
-      <text class="body-text">当前课程：{{course}}</text>
-      <view class="progress"><view class="progress-bar" style="width: {{progress}}%;"></view></view>
-      <view class="divider"></view>
-      <text class="muted">薄弱知识点</text>
       <view class="chip-row weak-row">
         <text class="chip" wx:for="{{weakPoints}}" wx:key="*this">{{item}}</text>
       </view>
@@ -51,8 +58,22 @@
           <text class="primary-text">{{item.title}}</text>
           <text class="muted">{{item.detail}}</text>
         </view>
-        <text class="tag {{item.status === '进行中' ? 'tag-warning' : item.status === '已安排' ? 'tag-success' : 'tag-muted'}}">{{item.status}}</text>
+        <text class="tag">{{item.status}}</text>
       </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">推荐资源</text><text class="tag">循环结构</text></view>
+    <view class="card" wx:for="{{resources}}" wx:key="title">
+      <view class="row">
+        <view class="col">
+          <text class="primary-text">{{item.title}}</text>
+          <text class="muted">{{item.type}} / {{item.duration}}</text>
+        </view>
+        <text class="tag">{{item.icon}}</text>
+      </view>
+      <text class="body-text">{{item.reason}}</text>
     </view>
   </view>
 
@@ -60,25 +81,6 @@
     <view class="section-head"><text class="section-title">AI 学习建议</text></view>
     <view class="card">
       <text class="body-text">{{aiAdvice}}</text>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">个性化学习任务</text><text class="tag">今日任务</text></view>
-    <view class="card task-plan-card">
-      <text class="body-text task-plan-desc">根据你的学习画像，系统已为你生成今日学习任务。</text>
-      <view class="personal-task" wx:for="{{personalizedTasks}}" wx:key="title" data-path="{{item.path}}" bindtap="goPage">
-        <view class="task-status-dot"></view>
-        <view class="task-info">
-          <text class="primary-text task-name">{{item.title}}</text>
-          <view class="task-meta">
-            <text class="muted">{{item.time}}</text>
-            <text class="task-separator">·</text>
-            <text class="muted">状态：{{item.status}}</text>
-          </view>
-        </view>
-        <text class="tag {{item.priority === '高' ? 'tag-warning' : ''}}">优先级：{{item.priority}}</text>
-      </view>
     </view>
   </view>
 

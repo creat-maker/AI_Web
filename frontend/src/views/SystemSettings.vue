@@ -152,7 +152,7 @@ onMounted(loadSettings);
         </div>
       </DataCard>
 
-      <DataCard title="治理说明" subtitle="比赛演示边界">
+      <DataCard title="治理说明" subtitle="平台能力边界">
         <div class="list">
           <div class="item compact"><strong>接口路径</strong><StatusBadge label="/api/v1/settings" tone="info" /></div>
           <div class="item compact"><strong>敏感信息</strong><StatusBadge label="前端不展示 Key" tone="success" /></div>

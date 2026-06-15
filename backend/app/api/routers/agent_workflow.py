@@ -344,7 +344,7 @@ def _demo_rerun_steps(seed: AgentRun) -> list[dict[str, Any]]:
             "name": "报告生成",
             "status": "success",
             "input_summary": "沉淀本次运行产物。",
-            "output_summary": "生成可进入报告中心的 demo/fallback 报告摘要。",
+            "output_summary": "生成可进入报告中心的报告摘要。",
             "duration_ms": 520,
             "duration": "520ms",
             "error": "",

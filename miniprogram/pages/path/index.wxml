@@ -1,66 +1,30 @@
 <view class="page">
   <view class="header">
-    <text class="eyebrow">个性化学习路径</text>
-    <text class="title">Python 程序设计提升计划</text>
-    <text class="subtitle">系统围绕薄弱点拆分三个阶段，帮助张三从基础巩固进入专项训练和综合测验。</text>
+    <text class="eyebrow">一人一堂学习路径</text>
+    <text class="title">{{pathTitle}}</text>
+    <text class="subtitle">系统已根据你的学习情况生成个性化路径，建议优先完成 while 循环专项练习，再推进 break / continue 和循环嵌套。</text>
+    <text class="subtitle">{{updateMessage}}</text>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">薄弱点定位</text></view>
-    <view class="card">
-      <view class="chip-row">
-        <text class="chip" wx:for="{{weakPoints}}" wx:key="*this">{{item}}</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">知识图谱诊断</text><text class="tag">Python 基础</text></view>
-    <view class="card graph-card">
-      <view class="graph-node root-node">
-        <view class="node-main">
-          <text class="primary-text">Python 基础</text>
-          <text class="muted">围绕语法理解、代码执行和综合应用持续诊断</text>
-        </view>
-        <text class="tag">68%</text>
-      </view>
-      <view class="graph-branch">
-        <view class="graph-item" wx:for="{{knowledgeGraph}}" wx:key="name">
-          <view class="graph-line"></view>
-          <view class="graph-node">
-            <view class="row">
-              <text class="primary-text node-title">{{item.name}}</text>
-              <text class="tag {{item.progress < 60 ? 'tag-warning' : item.progress >= 70 ? 'tag-success' : ''}}">{{item.progress}}%</text>
-            </view>
-            <text class="muted">状态：{{item.status}}</text>
-            <text class="muted">推荐动作：{{item.action}}</text>
-            <view class="progress"><view class="progress-bar" style="width: {{item.progress}}%;"></view></view>
-          </view>
-        </view>
-      </view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">阶段任务</text></view>
-    <view class="card stage-card" wx:for="{{stages}}" wx:key="name">
+    <view class="card" wx:for="{{learningPath}}" wx:key="title">
       <view class="row">
-        <text class="primary-text stage-name">{{item.name}}</text>
-        <text class="tag {{item.status === '已完成' ? 'tag-success' : item.status === '进行中' ? 'tag-warning' : 'tag-muted'}}">{{item.status}}</text>
-      </view>
-      <text class="body-text stage-goal">{{item.goal}}</text>
-      <view class="progress"><view class="progress-bar" style="width: {{item.progress}}%;"></view></view>
-      <view class="task-list">
-        <view class="task-item" wx:for="{{item.tasks}}" wx:for-item="task" wx:key="*this">
-          <text class="task-dot"></text>
-          <text class="muted">{{task}}</text>
+        <view class="col">
+          <text class="primary-text">{{item.title}}</text>
+          <text class="muted">{{item.profileType}}</text>
         </view>
+        <text class="tag">{{item.status}}</text>
       </view>
+      <view class="progress"><view class="progress-bar" style="width: {{item.percent}}%;"></view></view>
+      <text class="body-text">目标：{{item.goal}}</text>
+      <text class="body-text">知识点：{{item.knowledge}}</text>
+      <text class="body-text">资源：{{item.resource}}</text>
+      <text class="body-text">练习：{{item.practice}}</text>
+      <text class="muted">AI 建议：{{item.aiAdvice}}</text>
     </view>
   </view>
 
   <view class="section action-grid">
-    <button class="button-secondary" bindtap="goResources">进入专项资源</button>
-    <button class="button-primary" bindtap="goQuiz">开始测验</button>
+    <button class="button-primary" bindtap="goResources">查看个性化资源包</button>
   </view>
 </view>

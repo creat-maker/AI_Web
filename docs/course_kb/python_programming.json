@@ -2,8 +2,25 @@
   "courseId": "python-programming",
   "courseName": "Python 程序设计",
   "version": "demo-2026-06",
-  "description": "EduMind 轻量 RAG 演示知识库，覆盖 Python 基础语法、函数、文件处理、异常处理、递归和数据结构入门。",
+  "description": "EduMind 轻量 RAG 演示知识库，主演示课程为 Python 程序设计，主演示章节为循环结构，覆盖 if 条件判断、for 循环、while 循环、range 函数、break / continue 和循环嵌套。",
   "chapters": [
+    {
+      "chapter": "第 3 章 控制流与循环结构",
+      "sections": [
+        {
+          "section": "循环结构",
+          "sourceFile": "data/course_knowledge/python_programming/chapter_03_control_flow.md",
+          "knowledgePoints": ["if 条件判断", "for 循环", "while 循环", "range 函数", "break", "continue", "循环嵌套"],
+          "lecture": "循环结构用于重复执行代码。for 循环适合遍历序列或明确次数的任务，while 循环适合由条件控制的未知次数任务。range 函数常用于生成整数序列。break 用于提前结束当前循环，continue 用于跳过本轮剩余逻辑。循环嵌套常用于表格、矩阵和组合枚举。while 死循环通常来自循环变量没有更新、条件永远成立，或 continue 跳过了更新语句。",
+          "exercises": [
+            "用 while 输出 0 到 4，并说明每一轮变量如何变化。",
+            "用双层 for 循环输出九九乘法表。",
+            "修改一段会死循环的 while 代码，使其能正常结束。"
+          ],
+          "labTask": "完成 Python 循环结构个性化补弱任务：猜数字 while 案例、for / while 对比练习、break / continue 调试题和循环嵌套输出题。"
+        }
+      ]
+    },
     {
       "chapter": "第 1 章 Python 基础与环境",
       "sections": [

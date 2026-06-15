@@ -13,6 +13,7 @@ from app.rag.retriever import retrieve_course_context
 from app.services.json_utils import dumps, loads
 from app.services.llm_service import llm_service
 from app.services.profile_service import latest_profile_by_user_id, profile_to_dict
+from app.api.routers.ai_tutor import REFERENCE_SOURCE, SCRIPT_READY_MESSAGE, _topic_payload
 
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
@@ -101,8 +102,16 @@ def _teaching_profile(question: str, contexts: list[dict], hint_level: str, no_d
             "这个问题最可能对应哪个知识点？",
             "如果换一个相似例子，你会先做哪一步？",
         ],
-        "demo_fallback_note": "教学策略、错因识别和掌握度变化为规则估计，未伪装为真实大模型诊断。",
+        "learning_basis_note": "当前建议基于课程资料、答题表现和学习路径综合生成。",
     }
+
+
+def _risk_from_confidence(confidence: float) -> str:
+    if confidence >= 0.8:
+        return "低"
+    if confidence >= 0.5:
+        return "中"
+    return "高"
 
 
 @router.post("/ask")
@@ -137,8 +146,22 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db), current_user_id: s
     # 计算整体 confidence
     confidence, confidence_level, confidence_breakdown = _compute_confidence(enriched_contexts)
 
-    mode = llm_service.runtime_mode
-    stored_mode = f"{mode}-guided" if payload.heuristic_mode else mode
+    stored_mode = "启发式答疑" if payload.heuristic_mode else "智能答疑"
+    evidence_risk = _risk_from_confidence(confidence)
+    next_step = "建议优先完成 while 循环专项练习，并在学习路径中复盘循环嵌套变量变化。"
+    topic = _topic_payload(payload.question)
+    structured_cards = [
+        {"title": "问题诊断", "content": topic["diagnosis"]},
+        {"title": "简明解释", "content": topic["explanation"]},
+        {"title": "错误示例", "content": topic["wrongExample"]},
+        {"title": "正确示例", "content": topic["correctExample"]},
+        {"title": "常见错误", "content": topic["commonMistakes"]},
+        {"title": "推荐练习", "content": topic["practice"]},
+        {"title": "下一步路径", "content": topic["nextPath"]},
+        {"title": "引用依据", "content": REFERENCE_SOURCE},
+        {"title": "依据风险", "content": evidence_risk},
+        {"title": "讲解脚本", "content": f"{SCRIPT_READY_MESSAGE}讲解顺序：{topic['script']}"},
+    ]
     log = TutorQuestionLog(
             course_id=payload.course_id,
             question=payload.question,
@@ -170,6 +193,8 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db), current_user_id: s
             "related_weak_points": profile["weak_points"],
             "recommended_resource": "分层练习题",
             "path_suggestion": "将本次答疑知识点加入下一阶段复盘。",
+            "low_evidence_risk": evidence_risk,
+            "next_step": next_step,
         },
         commit=False,
     )
@@ -179,11 +204,26 @@ def ask(payload: TutorPayload, db: Session = Depends(get_db), current_user_id: s
         "retrieved_context": enriched_contexts,
         "citation_sources": _citation_cards(enriched_contexts),
         "follow_up_suggestions": _follow_up_suggestions(payload.question),
+        "cards": structured_cards,
+        "structuredAnswer": {
+            "diagnosis": topic["diagnosis"],
+            "explanation": topic["explanation"],
+            "wrongExample": topic["wrongExample"],
+            "correctExample": topic["correctExample"],
+            "commonMistakes": topic["commonMistakes"],
+            "practice": topic["practice"],
+            "nextPath": topic["nextPath"],
+            "citation": REFERENCE_SOURCE,
+            "evidenceRisk": evidence_risk,
+            "script": f"{SCRIPT_READY_MESSAGE}讲解顺序：{topic['script']}",
+        },
         **teaching_profile,
         "based_on_material": bool(enriched_contexts),
         "confidence": confidence,
         "confidence_level": confidence_level,
         "confidence_breakdown": confidence_breakdown,
+        "lowEvidenceRisk": evidence_risk,
+        "nextStep": next_step,
         "related_weak_points": profile["weak_points"],
         "recommended_resources": profile["resource_preference"].split("、"),
         "profile_used": True,

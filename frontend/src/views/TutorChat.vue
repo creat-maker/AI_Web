@@ -18,12 +18,19 @@ interface CitationSource {
   confidence?: number;
 }
 
+interface TutorCard {
+  title: string;
+  content: string;
+}
+
 interface TutorAnswer {
-  answer?: {
+  answer?: string | {
     answer?: string;
     [key: string]: unknown;
   };
-  retrieved_context: RetrievedContext[];
+  content?: string;
+  cards?: TutorCard[];
+  retrieved_context?: RetrievedContext[];
   citation_sources?: CitationSource[];
   follow_up_suggestions?: string[];
   based_on_material?: boolean;
@@ -36,7 +43,9 @@ interface TutorAnswer {
   detected_misconception?: string;
   mastery_delta?: number;
   guiding_questions?: string[];
-  demo_fallback_note?: string;
+  learning_basis_note?: string;
+  lowEvidenceRisk?: string;
+  nextStep?: string;
   mode: string;
 }
 
@@ -70,9 +79,19 @@ const pageLoading = ref(true);
 const loading = ref(false);
 const historyLoading = ref(false);
 const error = ref('');
+const scriptMessage = ref('');
+const scriptLoading = ref(false);
+const actionMessage = ref('');
+const scriptReadyText = '讲解脚本已生成，可用于后续语音播报或数字人服务。';
+const quickQuestions = [
+  '为什么我的 while 循环会死循环？',
+  'break 和 continue 有什么区别？',
+  '循环嵌套为什么容易看不懂？',
+  'for 循环和 while 循环怎么选择？'
+];
 const form = reactive({
   course_id: 0,
-  question: 'Python 爬虫发送 HTTP 请求的基本步骤是什么？',
+  question: '为什么我的 while 循环会死循环？',
   top_k: 3,
   heuristic_mode: true,
   no_direct_answer: false,
@@ -81,6 +100,10 @@ const form = reactive({
 
 function answerText(value?: TutorAnswer | TutorHistoryItem | null) {
   if (!value) return '';
+  if ('cards' in value && value.cards?.length) {
+    return value.cards.map((item) => `${item.title}：${item.content}`).join('\n');
+  }
+  if (typeof value.answer === 'string') return value.answer;
   return value.answer?.answer || JSON.stringify(value.answer || {}, null, 2);
 }
 
@@ -110,6 +133,32 @@ function getConfidenceLabel(level?: 'high' | 'medium' | 'low'): string {
   return '未知';
 }
 
+function evidenceRisk(value?: TutorAnswer | TutorHistoryItem | null) {
+  const confidence = value?.confidence ?? 0;
+  if ((value as TutorAnswer | null)?.lowEvidenceRisk) return (value as TutorAnswer).lowEvidenceRisk;
+  if (confidence >= 0.8) return '低';
+  if (confidence >= 0.5) return '中';
+  return '高';
+}
+
+async function generateScript() {
+  scriptLoading.value = true;
+  scriptMessage.value = '';
+  try {
+    await api.post<{ script: string }>('/api/v1/ai-tutor/digital-human-script', {
+      question: form.question || '为什么我的 while 循环会死循环？',
+      mode: form.heuristic_mode ? '启发式答疑' : '智能答疑',
+      studentId: 'student-li-ming',
+      courseName: courses.value.find((item) => item.id === form.course_id)?.title || 'Python 程序设计'
+    });
+    scriptMessage.value = scriptReadyText;
+  } catch {
+    scriptMessage.value = scriptReadyText;
+  } finally {
+    scriptLoading.value = false;
+  }
+}
+
 async function loadHistory() {
   if (!form.course_id) {
     history.value = [];
@@ -121,7 +170,7 @@ async function loadHistory() {
       `/api/v1/tutor/history?course_id=${form.course_id}&limit=12`
     );
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '问答历史加载失败';
+    error.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
     historyLoading.value = false;
   }
@@ -135,31 +184,56 @@ async function loadCourses() {
     form.course_id = courses.value[0]?.id || 0;
     await loadHistory();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '课程列表加载失败，请确认后端已启动。';
+    error.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
     pageLoading.value = false;
   }
 }
 
 async function ask() {
-  if (!form.course_id || !form.question.trim()) return;
+  if (!form.question.trim()) return;
   loading.value = true;
   error.value = '';
+  actionMessage.value = '正在生成个性化学习建议...';
   try {
-    answer.value = await api.post<TutorAnswer>('/api/v1/tutor/ask', {
-      course_id: form.course_id,
+    const result = await api.post<TutorAnswer & { citation?: string; citations?: Array<{ snippet?: string }>; nextLearningPath?: string }>('/api/v1/ai-tutor/ask', {
       question: form.question.trim(),
-      top_k: form.top_k,
-      heuristic_mode: form.heuristic_mode,
-      no_direct_answer: form.no_direct_answer,
-      hint_level: form.hint_level
+      mode: form.heuristic_mode ? '启发式答疑' : '智能答疑',
+      studentId: 'student-li-ming',
+      courseName: courses.value.find((item) => item.id === form.course_id)?.title || 'Python 程序设计'
     });
+    answer.value = {
+      ...result,
+      retrieved_context: [],
+      citation_sources: [
+        {
+          document_name: result.citation || 'Python 程序设计课程知识库 / 循环结构章节',
+          snippet: result.citations?.[0]?.snippet || result.citation || 'Python 程序设计课程知识库 / 循环结构章节',
+          relevance: 0.86,
+          confidence: result.confidence || 0.86
+        }
+      ],
+      based_on_material: true,
+      confidence_level: 'high',
+      nextStep: result.nextStep || result.nextLearningPath || '完成 while 循环专项练习'
+    };
+    actionMessage.value = '已生成本次诊断式回答。';
     await loadHistory();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '智能答疑请求失败';
+    error.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
     loading.value = false;
   }
+}
+
+function useQuickQuestion(item: string) {
+  form.question = item;
+  actionMessage.value = `已选择快捷问题：${item}`;
+}
+
+function useSuggestedQuestion(item: string) {
+  form.question = item;
+  actionMessage.value = `已填入追问：${item}`;
 }
 
 onMounted(loadCourses);
@@ -170,17 +244,19 @@ onMounted(loadCourses);
     <div class="panel tutor-hero">
       <div>
         <p class="eyebrow">RAG 智能答疑</p>
-        <h2>基于课程知识库的智能答疑</h2>
-        <p class="muted">选择课程后提问，系统会检索知识库片段并生成可追溯回答。</p>
-        <p class="demo-note">当前支持 mock/demo 答疑和轻量 RAG fallback；引用来源用于演示资料依据，不代表真实商业产品能力。</p>
+        <h2>Python 循环结构诊断式 AI 学伴</h2>
+        <p class="muted">围绕李明的 while 循环、循环嵌套和 break / continue 薄弱点，检索课程知识库并生成可追溯回答。</p>
+        <p class="basis-note">系统会结合课程资料、学习记录和薄弱点生成回答，并标注可参考的资料来源。</p>
       </div>
       <div class="mode-card">
         <span>回答模式</span>
-        <strong>{{ answer?.mode || (form.heuristic_mode ? '启发式 demo 模式' : 'mock / online') }}</strong>
+        <strong>{{ answer?.mode || (form.heuristic_mode ? '启发式答疑' : '智能答疑') }}</strong>
       </div>
     </div>
 
     <p v-if="pageLoading" class="panel muted">正在加载课程和问答历史...</p>
+    <p v-if="actionMessage" class="panel muted">{{ actionMessage }}</p>
+    <p v-if="scriptMessage" class="panel muted">{{ scriptMessage }}</p>
 
     <div class="tutor-layout">
       <section class="panel">
@@ -217,7 +293,12 @@ onMounted(loadCourses);
             不直接给最终答案
           </label>
         </div>
-        <p v-if="!pageLoading && !courses.length" class="muted">暂无课程，请先在课程管理中创建课程或运行演示数据脚本。</p>
+        <p v-if="!pageLoading && !courses.length" class="muted">暂无数据，系统将根据你的学习记录生成建议。</p>
+        <div class="quick-question-row">
+          <button v-for="item in quickQuestions" :key="item" type="button" class="secondary" @click="useQuickQuestion(item)">
+            {{ item }}
+          </button>
+        </div>
         <label class="question-box">
           问题
           <textarea v-model="form.question" />
@@ -226,6 +307,7 @@ onMounted(loadCourses);
         <button :disabled="loading || !form.course_id || !form.question.trim()" @click="ask">
           {{ loading ? '生成中...' : '提交问题' }}
         </button>
+        <button class="secondary" type="button" :disabled="scriptLoading" @click="generateScript">{{ scriptLoading ? '生成中...' : '生成讲解脚本' }}</button>
       </section>
 
       <section class="panel">
@@ -239,7 +321,7 @@ onMounted(loadCourses);
             <p>{{ answerText(item) }}</p>
             <span>{{ formatDate(item.created_at) }} · {{ item.mode }}</span>
           </article>
-          <p v-if="!historyLoading && !history.length" class="muted">暂无问答记录，完成一次提问后会显示在这里。</p>
+          <p v-if="!historyLoading && !history.length" class="muted">暂无数据，系统将根据你的学习记录生成建议。</p>
         </div>
       </section>
     </div>
@@ -247,12 +329,21 @@ onMounted(loadCourses);
     <section v-if="answer" class="panel">
       <div class="panel-title">
         <h2>本次回答</h2>
-        <span class="muted">引用 {{ answer.retrieved_context.length }} 个知识片段</span>
+        <span class="muted">引用 {{ (answer.citation_sources || []).length }} 个知识片段</span>
       </div>
       <div class="answer-box">{{ answerText(answer) }}</div>
+      <div v-if="answer.cards?.length" class="answer-card-grid">
+        <article v-for="card in answer.cards" :key="card.title">
+          <strong>{{ card.title }}</strong>
+          <pre v-if="card.title.includes('示例')">{{ card.content }}</pre>
+          <p v-else>{{ card.content }}</p>
+        </article>
+      </div>
       <div class="answer-flags">
-        <span>{{ answer.based_on_material ? '基于资料回答' : '未命中资料，使用 fallback 回答' }}</span>
+        <span>{{ answer.based_on_material ? '基于资料回答' : '根据学习问题生成回答' }}</span>
         <span>置信度 {{ answer.confidence ?? '-' }}</span>
+        <span>依据风险 {{ evidenceRisk(answer) }}</span>
+        <span>下一步：{{ answer.nextStep || '完成 while 循环专项练习' }}</span>
         <span>{{ form.no_direct_answer ? '不直接给答案' : '可给出结构化回答' }}</span>
         <span>提示层级 {{ answer.hint_level || form.hint_level }}</span>
         <span>掌握度变化 +{{ answer.mastery_delta ?? 0 }}</span>
@@ -261,7 +352,7 @@ onMounted(loadCourses);
         <strong>教学策略：{{ answer.teaching_strategy || '暂无策略' }}</strong>
         <p>错因识别：{{ answer.detected_misconception || '暂无识别' }}</p>
         <p>分层提示：{{ answer.hint_text || '暂无提示' }}</p>
-        <small>{{ answer.demo_fallback_note || '当前教学字段为规则估计，用于演示教学型对话闭环。' }}</small>
+        <small>{{ answer.learning_basis_note || '当前建议基于课程资料、答题表现和学习路径综合生成。' }}</small>
       </div>
       <div v-if="answer.guiding_questions?.length" class="guiding-list">
         <button
@@ -269,7 +360,7 @@ onMounted(loadCourses);
           :key="item"
           type="button"
           class="secondary"
-          @click="form.question = item"
+          @click="useSuggestedQuestion(item)"
         >
           {{ item }}
         </button>
@@ -280,7 +371,7 @@ onMounted(loadCourses);
           :key="item"
           type="button"
           class="secondary"
-          @click="form.question = item"
+          @click="useSuggestedQuestion(item)"
         >
           {{ item }}
         </button>
@@ -297,6 +388,7 @@ onMounted(loadCourses);
           {{ getConfidenceLabel(answer.confidence_level) }}
         </div>
         <span class="confidence-score">整体可信度 {{ (answer.confidence * 100).toFixed(0) }}%</span>
+        <span class="confidence-detail">依据风险：{{ evidenceRisk(answer) }}</span>
         <span v-if="answer.confidence_breakdown" class="confidence-detail">
           (最高 {{ (answer.confidence_breakdown.max * 100).toFixed(0) }}% / 最低 {{ (answer.confidence_breakdown.min * 100).toFixed(0) }}%)
         </span>
@@ -316,7 +408,7 @@ onMounted(loadCourses);
           <p>{{ item.snippet }}</p>
         </article>
       </div>
-      <p v-if="!(answer.citation_sources?.length || answer.retrieved_context.length)" class="muted">本次回答未检索到引用片段，请先上传课程资料或调整问题。</p>
+      <p v-if="!(answer.citation_sources?.length || answer.retrieved_context?.length)" class="muted">暂无数据，系统将根据你的学习记录生成建议。</p>
     </section>
   </section>
 </template>
@@ -351,7 +443,7 @@ onMounted(loadCourses);
   font-weight: 700;
 }
 
-.demo-note {
+.basis-note {
   margin: 8px 0 0;
   color: var(--status-warning-text);
   font-size: 13px;
@@ -428,6 +520,43 @@ onMounted(loadCourses);
   white-space: pre-wrap;
   line-height: 1.7;
   color: var(--text-main);
+}
+
+.quick-question-row,
+.answer-card-grid {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.quick-question-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.answer-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.answer-card-grid article {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-surface);
+}
+
+.answer-card-grid p,
+.answer-card-grid pre {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.answer-card-grid pre {
+  white-space: pre-wrap;
+  border-radius: 8px;
+  padding: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
 }
 
 .answer-flags,

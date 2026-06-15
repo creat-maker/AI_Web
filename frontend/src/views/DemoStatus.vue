@@ -50,11 +50,11 @@ const roleDurations: Record<DemoRole, string> = {
 const roleScripts: Record<DemoRole, string[]> = {
   student: [
     '学生进入系统后，先看到个人学习总览，随后进入课程、路径、答疑、测验和报告，形成完整学习闭环。',
-    '课程页展示四门核心演示课程，学习路径页承接画像与资源生成结果。',
+    '课程页展示核心课程，学习路径页承接画像与资源生成结果。',
     '智能答疑演示基于课程资料的引用回答，测验与报告页展示结果沉淀。'
   ],
   teacher: [
-    '教师先从班级概览识别风险学生和薄弱知识点，再进入课程、画像和路径页面进行干预。',
+    '教师先从班级概览识别需关注学生和薄弱知识点，再进入课程、画像和路径页面进行干预。',
     '测评分析页用于解释班级共性问题，报告中心用于沉淀学生和班级改进建议。',
     '教师端重点回答“如何从数据发现问题并完成教学干预”。'
   ],
@@ -106,7 +106,7 @@ async function loadPage() {
   try {
     data.value = await api.get<DemoStatus>('/api/v1/demo-status');
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '比赛演示状态加载失败。';
+    error.value = err instanceof Error ? err.message : '验收状态加载失败。';
   } finally {
     loading.value = false;
   }
@@ -144,8 +144,8 @@ onMounted(loadPage);
 <template>
   <section class="page role-aware-page">
     <article class="placeholder-hero">
-      <StatusBadge :label="`比赛演示状态：${statusLabel}`" :tone="statusTone" />
-      <h2>比赛演示闭环与最终验收</h2>
+      <StatusBadge :label="`演示状态：${statusLabel}`" :tone="statusTone" />
+      <h2>演示闭环与最终验收</h2>
       <p>用于答辩前确认三端路由、后端健康、演示数据、关键能力、Agent 工作流和最近验收报告。</p>
     </article>
 
@@ -168,7 +168,7 @@ onMounted(loadPage);
       <section class="panel">
         <div class="panel-title">
           <h2>统一演示数据口径</h2>
-          <span class="muted">前端 mock 与后端 seed 均围绕以下对象组织</span>
+          <span class="muted">前后端样例数据均围绕以下对象组织</span>
         </div>
         <div class="data-grid">
           <div class="item compact"><strong>学生</strong><span>{{ demoStudents.join('、') }}</span></div>
@@ -274,8 +274,8 @@ onMounted(loadPage);
           </div>
         </article>
         <article class="panel">
-          <h2>demo/mock/fallback 能力边界</h2>
-          <p class="demo-banner">以下能力用于比赛演示边界说明，不伪装成生产能力。</p>
+          <h2>演示能力边界</h2>
+          <p class="demo-banner">以下内容用于说明演示能力边界，不伪装成生产能力。</p>
           <div class="list">
             <div v-for="item in data.demo_fallback_capabilities" :key="item" class="item compact">{{ item }}</div>
           </div>

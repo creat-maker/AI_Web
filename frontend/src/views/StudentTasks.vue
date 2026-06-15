@@ -6,9 +6,9 @@ import StatusBadge from '../components/StatusBadge.vue';
 import StatCard from '../components/StatCard.vue';
 
 const tasks = [
-  { title: '完成爬虫案例练习', course: 'Python 爬虫基础与实践', due: '今天 23:59', progress: 75, status: '进行中' },
-  { title: '数据结构章节测验', course: '数据结构与算法', due: '明天 18:00', progress: 20, status: '未开始' },
-  { title: '阅读 RAG 系统原理', course: '人工智能导论', due: '明天 23:59', progress: 100, status: '已完成' }
+  { title: '完成 while 循环死循环修复练习', course: 'Python 程序设计', due: '今天 23:59', progress: 75, status: '进行中' },
+  { title: '循环结构章节测验', course: 'Python 程序设计', due: '明天 18:00', progress: 20, status: '未开始' },
+  { title: '复盘 break / continue 输出结果', course: 'Python 程序设计', due: '明天 23:59', progress: 100, status: '已完成' }
 ];
 </script>
 

@@ -39,7 +39,7 @@ def _chunk_preview(doc: CourseDocument) -> list[dict[str, object]]:
         except OSError:
             preview = ""
     if not preview:
-        preview = f"{doc.filename} 的 demo/fallback 切片预览，真实部署时来自解析后的 chunk 存储。"
+        preview = f"{doc.filename} 的切片预览，真实部署时来自解析后的 chunk 存储。"
     return [
         {
             "chunk_id": f"doc-{doc.id}-preview-1",
@@ -88,7 +88,7 @@ def _estimate_chunk_length(doc: CourseDocument) -> int:
 def _rewrite_query(question: str) -> str:
     keywords = [part.strip(" ?？。,.，") for part in question.split() if part.strip()]
     if not keywords:
-        return "demo/fallback query rewrite: 提取课程问题关键词"
+        return "课程问题关键词重写"
     return " ".join(keywords[:8])
 
 

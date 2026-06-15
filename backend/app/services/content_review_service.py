@@ -25,17 +25,21 @@ def check_content(payload: dict[str, Any]) -> dict[str, Any]:
     hallucination_warning = ""
     risk_level = "low"
     review_status = "pass"
+    display_status = "通过"
     if citation_count == 0:
         risk_level = "medium"
         review_status = "warning"
+        display_status = "人工复核"
         suggestions.append("补充至少 1 条课程资料引用来源。")
     if citation_coverage < 0.67:
         risk_level = "medium" if risk_level == "low" else risk_level
         review_status = "warning"
+        display_status = "需修改"
         suggestions.append("引用覆盖不足，建议关联到章节、讲义片段或练习题。")
     if has_risky_claim:
         risk_level = "high"
         review_status = "blocked"
+        display_status = "风险拦截"
         hallucination_warning = "内容包含夸张承诺或无依据结论，需要改写为可验证表述。"
         suggestions.append("删除“保证、一定、百分百”等绝对化表达。")
     confidence = round(0.92 - (0.22 if citation_count == 0 else 0) - (0.18 if citation_coverage < 0.67 else 0) - (0.26 if has_risky_claim else 0), 2)
@@ -48,7 +52,17 @@ def check_content(payload: dict[str, Any]) -> dict[str, Any]:
         "citationCoverage": round(citation_coverage, 2),
         "hallucinationWarning": hallucination_warning,
         "reviewStatus": review_status,
-        "suggestions": suggestions or ["内容引用充分，表达相对稳健，可用于演示。"],
+        "displayReviewStatus": display_status,
+        "reviewDimensions": [
+            {"name": "事实准确性", "status": "通过" if not has_risky_claim else "人工复核"},
+            {"name": "知识点匹配度", "status": "通过", "detail": "匹配 Python 程序设计 / 循环结构。"},
+            {"name": "难度匹配度", "status": "通过", "detail": "适配基础薄弱 + 代码实操偏好型。"},
+            {"name": "引用依据完整性", "status": "通过" if citation_count else "需修改"},
+            {"name": "敏感违规内容", "status": "通过"},
+            {"name": "是否建议人工复核", "status": "人工复核" if review_status != "pass" else "通过"},
+        ],
+        "citationBasis": "Python 程序设计课程知识库 / 循环结构章节",
+        "suggestions": suggestions or ["内容引用充分，表达相对稳健，可进入发布流程。"],
         "citationCount": citation_count,
         "createdAt": datetime.utcnow().isoformat(timespec="seconds"),
         "contentPreview": content[:120],

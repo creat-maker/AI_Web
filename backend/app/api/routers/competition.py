@@ -29,7 +29,7 @@ class QuizSubmitPayload(BaseModel):
 class TeacherWorkbenchPayload(BaseModel):
     type: str = "lesson_plan"
     course: str = "Python 程序设计"
-    chapter: str = "循环结构与函数"
+    chapter: str = "循环结构"
     student_foundation: str = "基础差异较大"
     teaching_goal: str = "掌握核心语法并能完成小任务"
 

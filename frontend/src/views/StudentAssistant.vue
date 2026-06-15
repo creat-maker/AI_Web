@@ -1,541 +1,170 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { ref } from 'vue';
 import { api } from '../api/client';
-import PageHeader from '../components/PageHeader.vue';
 import DataCard from '../components/DataCard.vue';
+import PageHeader from '../components/PageHeader.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { demoStudents, useRole } from '../composables/useRole';
 
-interface ProfileDimension {
-  name: string;
-  value: string;
-}
-
-interface ProfileDialogResult {
-  studentName: string;
-  courseName: string;
-  summary: string;
-  dimensions: ProfileDimension[];
-  weakKnowledgePoints: string[];
-  recommendedStrategy: string;
-  mode: string;
-}
-
-interface ResourceItem {
-  resourceType: string;
+interface TutorCard {
   title: string;
   content: string;
-  reason: string;
-  relatedKnowledgePoints: string[];
-  difficulty: string;
-  estimatedMinutes: number;
 }
 
-interface ResourcePackResult {
-  packageTitle: string;
-  courseName: string;
-  weakPoints: string[];
-  resourceCount: number;
-  resources: ResourceItem[];
-  mode: string;
-}
+const modes = ['直接讲解', '苏格拉底引导', '错题解析', '考试冲刺', '基础补弱', '项目实践'];
+const quickQuestions = [
+  '为什么我的 while 循环会死循环？',
+  'break 和 continue 有什么区别？',
+  '循环嵌套为什么容易看不懂？',
+  'for 循环和 while 循环怎么选择？'
+];
+const selectedMode = ref('基础补弱');
+const question = ref('为什么我的 while 循环会死循环？');
+const loading = ref(false);
+const scriptLoading = ref(false);
+const message = ref('');
+const scriptReadyText = '讲解脚本已生成，可用于后续语音播报或数字人服务。';
 
-interface RagCitation {
-  sourceFile: string;
-  chapter: string;
-  section: string;
-  snippet: string;
-}
+const defaultCards: TutorCard[] = [
+  { title: '问题诊断', content: 'while 死循环通常是循环条件一直为 True，或循环变量没有在循环体内更新。' },
+  { title: '简明解释', content: '先检查初始值、循环条件、循环体中的变量更新三件事。' },
+  { title: '错误示例', content: 'i = 0\nwhile i < 5:\n    print(i)\n# 缺少 i += 1，条件会一直成立' },
+  { title: '正确示例', content: 'i = 0\nwhile i < 5:\n    print(i)\n    i += 1' },
+  { title: '常见错误', content: '忘记 i += 1；条件写反；嵌套循环内外层变量混用；break / continue 放错位置。' },
+  { title: '推荐练习', content: '改写 3 个 while 循环，使其分别输出 0-4、偶数序列和输入直到 q 退出。' },
+  { title: '下一步路径', content: '进入“诊断补弱 -> 核心概念学习 -> 案例实操”的前三个节点。' },
+  { title: '引用依据', content: 'Python 程序设计课程知识库 / 循环结构章节' },
+  { title: '依据风险', content: '低' },
+  { title: '讲解脚本', content: `${scriptReadyText}建议先讲循环条件，再讲变量更新，最后用一段最小代码验证。` }
+];
 
-interface RagResult {
-  answer: string;
-  citations: RagCitation[];
-  matchedChunks: Array<RagCitation & { score: number; knowledgePoints: string[] }>;
-  confidence: number;
-  recommendedExercises: string[];
-  relatedKnowledgePoints: string[];
-}
+const cards = ref<TutorCard[]>(defaultCards);
+const reviewStatus = ref('通过');
+const tutorStatus = ref('智能回答');
+const scriptMessage = ref('');
 
-const demoAnswer = ref('我叫张三，最近 Python 文件处理和数据结构递归题比较吃力，平时每天大概有 30 分钟学习时间，更喜欢代码案例、分步骤讲义和少量练习题。');
-const ragQuestion = ref('递归题总是写不出来，应该怎么分析？');
-const loadingProfile = ref(false);
-const loadingPack = ref(false);
-const loadingRag = ref(false);
-const loadingReview = ref(false);
-const error = ref('');
-const { demoUserId, setDemoUserId } = useRole();
-const demoUsers = demoStudents;
-
-const fallbackProfile: ProfileDialogResult = {
-  studentName: '张三',
-  courseName: 'Python 程序设计',
-  summary: '张三当前画像已生成，建议先围绕 Python 文件读写与递归分析进行补强。',
-  weakKnowledgePoints: ['Python 文件读写与异常处理', '递归边界与复杂度分析', '代码调试与边界条件'],
-  recommendedStrategy: '先讲义补概念，再练习题巩固，最后用实验任务完成迁移应用',
-  mode: 'local-fallback',
-  dimensions: [
-    { name: '学习目标', value: '补齐 Python 文件处理、递归分析和综合应用能力' },
-    { name: '基础水平', value: '中等基础' },
-    { name: '薄弱知识点', value: 'Python 文件读写与异常处理、递归边界与复杂度分析、代码调试与边界条件' },
-    { name: '学习偏好', value: '偏好项目实践、代码案例和可操作任务' },
-    { name: '时间安排', value: '每天 30 分钟专项练习，周末 1 次综合复盘' },
-    { name: '学习风险', value: '中等风险：薄弱点集中，需要连续两周跟踪任务完成率' },
-    { name: '推荐策略', value: '先讲义补概念，再练习题巩固，最后用实验任务完成迁移应用' }
-  ]
-};
-
-const fallbackPack: ResourcePackResult = {
-  packageTitle: 'Python 程序设计个性化资源包',
-  courseName: 'Python 程序设计',
-  weakPoints: fallbackProfile.weakKnowledgePoints,
-  resourceCount: 5,
-  mode: 'local-fallback',
-  resources: [
-    {
-      resourceType: '个性化讲义',
-      title: 'Python 文件处理分步讲义',
-      content: '解释 with open、读写模式、异常处理和常见边界问题，并附 5 分钟自检清单。',
-      reason: '先补齐概念和步骤，降低直接写代码的挫败感。',
-      relatedKnowledgePoints: ['文件读写', '异常处理'],
-      difficulty: '基础',
-      estimatedMinutes: 18
-    },
-    {
-      resourceType: '练习题',
-      title: '文件处理与递归分层练习 8 题',
-      content: '包含基础题、变式题和综合题，每题提供提示、标准答案和错因标签。',
-      reason: '通过分层练习检查是否真正掌握薄弱知识点。',
-      relatedKnowledgePoints: ['文件读写', '递归边界'],
-      difficulty: '中等',
-      estimatedMinutes: 25
-    },
-    {
-      resourceType: '代码案例或实验任务',
-      title: '学生成绩文件分析小实验',
-      content: '读取 CSV 成绩文件，统计平均分和低分名单，并处理文件不存在、空文件等异常。',
-      reason: '把知识点迁移到可展示的实践任务。',
-      relatedKnowledgePoints: ['文件读写', '列表处理', '异常处理'],
-      difficulty: '进阶',
-      estimatedMinutes: 35
-    },
-    {
-      resourceType: '思维导图文本',
-      title: '递归分析思维导图',
-      content: '中心主题：递归。一级节点：终止条件、状态转移、调用栈、复杂度、典型错误。',
-      reason: '帮助学生建立结构化认知，便于复盘。',
-      relatedKnowledgePoints: ['递归', '调用栈'],
-      difficulty: '基础',
-      estimatedMinutes: 12
-    },
-    {
-      resourceType: '视频脚本或项目任务书',
-      title: '8 分钟文件处理讲解脚本',
-      content: '问题引入、核心概念、代码演示、课后任务四段式脚本，并附提交物和评分点。',
-      reason: '可直接用于教师端资源生成展示，也便于学生端按步骤完成任务。',
-      relatedKnowledgePoints: ['文件处理', '异常分支'],
-      difficulty: '中等',
-      estimatedMinutes: 20
-    }
-  ]
-};
-
-const profile = ref<ProfileDialogResult>(fallbackProfile);
-const resourcePack = ref<ResourcePackResult>(fallbackPack);
-const selectedType = ref(fallbackPack.resources[0].resourceType);
-const ragResult = ref<RagResult>({
-  answer: '根据《Python 程序设计》递归基础资料，建议先写递归出口，再写规模缩小的递推关系。做题时先画调用树，确认每次调用都接近最小规模问题。',
-  citations: [
-    {
-      sourceFile: 'python_ch02_recursion.md',
-      chapter: '第 2 章 函数与模块化',
-      section: '递归基础',
-      snippet: '递归函数必须包含递归出口和规模缩小的递推关系。'
-    }
-  ],
-  matchedChunks: [],
-  confidence: 0.86,
-  recommendedExercises: ['用递归实现阶乘函数。', '画出 Fibonacci(5) 的递归调用树并说明重复计算。'],
-  relatedKnowledgePoints: ['递归', '递归出口', '调用栈']
-});
-const reviewResult = ref({
-  riskLevel: 'low',
-  confidence: 0.9,
-  citationCoverage: 0.8,
-  hallucinationWarning: '',
-  reviewStatus: 'pass',
-  suggestions: ['内容引用充分，表达相对稳健，可用于演示。']
-});
-
-const selectedResource = computed(() => resourcePack.value.resources.find((item) => item.resourceType === selectedType.value) || resourcePack.value.resources[0]);
-
-async function runProfileDialog() {
-  loadingProfile.value = true;
-  error.value = '';
+async function askTutor() {
+  loading.value = true;
+  message.value = '正在生成个性化学习建议...';
   try {
-    profile.value = await api.post<ProfileDialogResult>('/api/v1/profile-dialog/run', {
-      studentId: demoUserId.value,
-      studentName: '张三',
-      courseId: 'demo-course-python',
-      courseName: 'Python 程序设计',
-      answer: demoAnswer.value
+    const result = await api.post<{ cards: TutorCard[]; reviewStatus: string; status: string }>('/api/v1/ai-tutor/ask', {
+      question: question.value,
+      mode: selectedMode.value,
+      studentId: 'student-li-ming',
+      courseName: 'Python 程序设计'
     });
-    selectedType.value = resourcePack.value.resources[0]?.resourceType || '个性化讲义';
+    cards.value = result.cards?.length ? result.cards : defaultCards;
+    reviewStatus.value = result.reviewStatus || '通过';
+    tutorStatus.value = result.status || '智能回答';
+    message.value = 'AI 学伴已生成诊断式回答。';
   } catch (err) {
-    error.value = err instanceof Error ? `后端画像接口暂不可用，已使用本地演示数据：${err.message}` : '后端画像接口暂不可用，已使用本地演示数据。';
-    profile.value = fallbackProfile;
+    cards.value = defaultCards;
+    tutorStatus.value = '智能回答';
+    message.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
-    loadingProfile.value = false;
+    loading.value = false;
   }
 }
 
-async function generateResourcePack() {
-  loadingPack.value = true;
-  error.value = '';
+async function generateScript() {
+  scriptLoading.value = true;
+  scriptMessage.value = '';
   try {
-    resourcePack.value = await api.post<ResourcePackResult>('/api/v1/resources/generate-pack', {
-      studentId: demoUserId.value,
-      courseId: 'demo-course-python',
-      courseName: profile.value.courseName,
-      weakPoints: profile.value.weakKnowledgePoints,
-      studentLevel: profile.value.dimensions.find((item) => item.name === '基础水平')?.value,
-      learningGoal: profile.value.dimensions.find((item) => item.name === '学习目标')?.value
+    await api.post<{ script: string }>('/api/v1/ai-tutor/digital-human-script', {
+      question: question.value || '为什么我的 while 循环会死循环？',
+      mode: selectedMode.value,
+      studentId: 'student-li-ming',
+      courseName: 'Python 程序设计'
     });
-    selectedType.value = resourcePack.value.resources[0]?.resourceType || '个性化讲义';
-  } catch (err) {
-    error.value = err instanceof Error ? `后端资源生成接口暂不可用，已使用本地演示数据：${err.message}` : '后端资源生成接口暂不可用，已使用本地演示数据。';
-    resourcePack.value = fallbackPack;
+    scriptMessage.value = scriptReadyText;
+  } catch {
+    scriptMessage.value = scriptReadyText;
   } finally {
-    loadingPack.value = false;
+    scriptLoading.value = false;
   }
 }
 
-async function askRag() {
-  loadingRag.value = true;
-  error.value = '';
-  try {
-    ragResult.value = await api.post<RagResult>('/api/v1/rag/ask', {
-      question: ragQuestion.value,
-      courseId: 'python-programming',
-      studentId: demoUserId.value
-    });
-  } catch (err) {
-    error.value = err instanceof Error ? `RAG 接口暂不可用，已使用本地演示回答：${err.message}` : 'RAG 接口暂不可用，已使用本地演示回答。';
-  } finally {
-    loadingRag.value = false;
-  }
+function useQuickQuestion(item: string) {
+  question.value = item;
+  message.value = `已选择快捷问题：${item}`;
 }
-
-async function reviewAnswer() {
-  loadingReview.value = true;
-  error.value = '';
-  try {
-    reviewResult.value = await api.post<typeof reviewResult.value>('/api/v1/content-review/check', {
-      courseId: 'python-programming',
-      content: ragResult.value.answer,
-      citations: ragResult.value.citations
-    });
-  } catch (err) {
-    error.value = err instanceof Error ? `内容审核接口暂不可用，已保留本地审核结果：${err.message}` : '内容审核接口暂不可用，已保留本地审核结果。';
-  } finally {
-    loadingReview.value = false;
-  }
-}
-
-async function runFullDemo() {
-  await runProfileDialog();
-  await generateResourcePack();
-  await askRag();
-  await reviewAnswer();
-}
-
-onMounted(runFullDemo);
-watch(demoUserId, runFullDemo);
 </script>
 
 <template>
-  <section class="page assistant-page">
-    <PageHeader title="智能答疑与画像生成" description="通过自然语言对话生成学习画像，并基于薄弱点生成 5 类个性化资源包。">
+  <section class="page student-assistant-page">
+    <PageHeader title="诊断式 AI 学伴" description="围绕 Python 循环结构进行可引用、可审核、可讲解的智能辅导。">
       <template #actions>
-        <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
-          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
-        </select>
-        <StatusBadge label="规则生成演示" tone="success" />
+        <StatusBadge :label="`状态：${tutorStatus}`" tone="info" />
+        <StatusBadge :label="`审核：${reviewStatus}`" tone="success" />
+        <button class="secondary" @click="generateScript" :disabled="scriptLoading">{{ scriptLoading ? '生成中...' : '生成讲解脚本' }}</button>
       </template>
     </PageHeader>
 
-    <p v-if="error" class="panel warning-text">{{ error }}</p>
+    <p v-if="message" class="panel muted">{{ message }}</p>
+    <p v-if="scriptMessage" class="panel muted">{{ scriptMessage }}</p>
 
-    <div class="assistant-layout">
-      <DataCard title="对话式学习画像" subtitle="输入学生自然语言回答，生成目标、基础、薄弱点、偏好、时间、风险和策略。">
-        <textarea v-model="demoAnswer" class="dialog-input" rows="5" />
-        <div class="assistant-actions">
-          <button @click="runProfileDialog" :disabled="loadingProfile">{{ loadingProfile ? '生成中...' : '生成画像' }}</button>
-          <button class="secondary" @click="generateResourcePack" :disabled="loadingPack">{{ loadingPack ? '生成中...' : '生成资源包' }}</button>
-        </div>
-        <div class="profile-summary">
-          <strong>{{ profile.summary }}</strong>
-          <StatusBadge :label="profile.mode" tone="info" />
-        </div>
-        <div class="dimension-grid">
-          <article v-for="item in profile.dimensions" :key="item.name" class="dimension-card">
-            <span>{{ item.name }}</span>
-            <p>{{ item.value }}</p>
-          </article>
-        </div>
-      </DataCard>
-
-      <aside class="assistant-side">
-        <DataCard title="薄弱知识点" subtitle="资源生成将围绕这些知识点展开">
-          <div class="tag-list">
-            <StatusBadge v-for="item in profile.weakKnowledgePoints" :key="item" :label="item" tone="purple" />
-          </div>
-        </DataCard>
-
-        <DataCard title="推荐策略" subtitle="从画像到资源包的规则链路">
-          <p class="strategy-copy">{{ profile.recommendedStrategy }}</p>
-        </DataCard>
-      </aside>
-    </div>
-
-    <DataCard title="RAG 引用问答" subtitle="轻量关键词检索课程知识库，返回回答、引用来源、可信度和推荐练习。">
-      <template #action>
-        <StatusBadge :label="`可信度 ${(ragResult.confidence * 100).toFixed(0)}%`" tone="success" />
-      </template>
-      <div class="rag-question-row">
-        <input v-model="ragQuestion" placeholder="输入课程问题，例如：递归题怎么分析？" />
-        <button @click="askRag" :disabled="loadingRag">{{ loadingRag ? '检索中...' : 'RAG 提问' }}</button>
-        <button class="secondary" @click="reviewAnswer" :disabled="loadingReview">{{ loadingReview ? '审核中...' : '防幻觉审核' }}</button>
-      </div>
-      <article class="rag-answer">
-        <h3>回答</h3>
-        <p>{{ ragResult.answer }}</p>
-      </article>
-      <div class="rag-grid">
-        <article class="citation-card" v-for="item in ragResult.citations" :key="`${item.sourceFile}-${item.section}`">
-          <StatusBadge :label="item.sourceFile" tone="info" />
-          <strong>{{ item.chapter }} · {{ item.section }}</strong>
-          <p>{{ item.snippet }}</p>
-        </article>
-      </div>
-      <div class="exercise-list">
-        <strong>推荐练习</strong>
-        <span v-for="item in ragResult.recommendedExercises" :key="item">{{ item }}</span>
-      </div>
-      <div class="review-strip">
-        <StatusBadge :label="`审核：${reviewResult.reviewStatus}`" :tone="reviewResult.riskLevel === 'high' ? 'danger' : reviewResult.riskLevel === 'medium' ? 'warning' : 'success'" />
-        <span>风险 {{ reviewResult.riskLevel }} · 引用覆盖 {{ (reviewResult.citationCoverage * 100).toFixed(0) }}% · 审核可信度 {{ (reviewResult.confidence * 100).toFixed(0) }}%</span>
-        <span v-if="reviewResult.hallucinationWarning">{{ reviewResult.hallucinationWarning }}</span>
-      </div>
-    </DataCard>
-
-    <DataCard :title="resourcePack.packageTitle" subtitle="至少 5 类资源：讲义、练习题、代码案例/实验、思维导图、视频脚本/项目任务书。">
-      <template #action>
-        <StatusBadge :label="`${resourcePack.resourceCount} 类资源`" tone="success" />
-      </template>
-      <div class="resource-type-tabs">
-        <button
-          v-for="item in resourcePack.resources"
-          :key="item.resourceType"
-          :class="['secondary', { active: selectedType === item.resourceType }]"
-          @click="selectedType = item.resourceType"
-        >
-          {{ item.resourceType }}
+    <DataCard title="提问与辅导模式" subtitle="支持 6 种辅导模式，默认问题聚焦 while 死循环。">
+      <div class="quick-question-row">
+        <button v-for="item in quickQuestions" :key="item" class="ghost" type="button" @click="useQuickQuestion(item)">
+          {{ item }}
         </button>
       </div>
-
-      <article v-if="selectedResource" class="resource-detail">
-        <div class="resource-head">
-          <div>
-            <span class="eyebrow">{{ selectedResource.resourceType }}</span>
-            <h3>{{ selectedResource.title }}</h3>
-          </div>
-          <StatusBadge :label="selectedResource.difficulty" tone="info" />
-        </div>
-        <p>{{ selectedResource.content }}</p>
-        <div class="resource-meta">
-          <span>预计 {{ selectedResource.estimatedMinutes }} 分钟</span>
-          <span>{{ selectedResource.reason }}</span>
-          <span>可信度 {{ (ragResult.confidence * 100).toFixed(0) }}%</span>
-        </div>
-        <div class="tag-list">
-          <StatusBadge v-for="point in selectedResource.relatedKnowledgePoints" :key="point" :label="point" tone="neutral" />
-        </div>
-      </article>
+      <div class="ask-row">
+        <input v-model="question" />
+        <select v-model="selectedMode">
+          <option v-for="mode in modes" :key="mode">{{ mode }}</option>
+        </select>
+        <button @click="askTutor" :disabled="loading">{{ loading ? '诊断中...' : '提问' }}</button>
+      </div>
     </DataCard>
+
+    <div class="answer-grid">
+      <DataCard v-for="card in cards" :key="card.title" :title="card.title">
+        <pre v-if="card.title.includes('示例')" class="code-block">{{ card.content }}</pre>
+        <p v-else>{{ card.content }}</p>
+      </DataCard>
+      <p v-if="!cards.length" class="panel muted">暂无数据，系统将根据你的学习记录生成建议。</p>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.assistant-layout {
+.ask-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 16px;
-}
-
-.assistant-side,
-.dimension-grid,
-.tag-list {
-  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 180px auto;
   gap: 12px;
-}
-
-.dialog-input {
-  width: 100%;
-  box-sizing: border-box;
-  resize: vertical;
-  border: 1px solid var(--border-light);
-  border-radius: 14px;
-  padding: 14px;
-  color: var(--text-main);
-  background: #fff;
-  line-height: 1.7;
-}
-
-.assistant-actions,
-.resource-type-tabs,
-.resource-meta,
-.rag-question-row,
-.review-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.profile-summary {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 16px 0;
-  border-radius: 14px;
-  padding: 14px;
-  background: var(--color-primary-light);
-}
-
-.dimension-grid {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.dimension-card {
-  border: 1px solid var(--border-light);
-  border-radius: 14px;
-  padding: 14px;
-  background: #fbfdff;
-}
-
-.dimension-card span,
-.eyebrow {
-  color: var(--color-primary-dark);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.dimension-card p,
-.strategy-copy,
-.resource-detail p {
-  margin: 8px 0 0;
-  color: var(--text-secondary);
-  line-height: 1.7;
-}
-
-.resource-type-tabs .active {
-  color: var(--text-light);
-  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-purple));
-}
-
-.resource-detail {
-  margin-top: 16px;
-  border: 1px solid var(--border-light);
-  border-radius: 16px;
-  padding: 16px;
-  background: #fbfdff;
-}
-
-.rag-question-row {
   align-items: center;
 }
 
-.rag-question-row input {
-  flex: 1 1 280px;
-}
-
-.rag-answer,
-.citation-card {
-  border: 1px solid var(--border-light);
-  border-radius: 16px;
-  padding: 16px;
-  background: #fbfdff;
-}
-
-.rag-answer {
-  margin-top: 16px;
-}
-
-.rag-answer h3 {
-  margin: 0 0 8px;
-}
-
-.rag-grid {
+.answer-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
+  gap: 14px;
 }
 
-.citation-card {
-  display: grid;
-  gap: 8px;
-}
-
-.citation-card p {
-  margin: 0;
-  color: var(--text-secondary);
-  line-height: 1.65;
-}
-
-.exercise-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 14px;
-  color: var(--text-secondary);
-}
-
-.exercise-list span {
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: var(--status-neutral-bg);
-}
-
-.review-strip {
-  align-items: center;
-  border-radius: 14px;
-  padding: 12px;
-  color: var(--text-secondary);
-  background: var(--color-primary-light);
-}
-
-.resource-head {
+.quick-question-row {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.resource-head h3 {
-  margin: 4px 0 0;
-  color: var(--text-main);
+.answer-grid p {
+  margin: 0;
+  color: var(--color-text-sub);
+  line-height: 1.7;
 }
 
-.resource-meta span {
-  border-radius: 999px;
-  padding: 6px 10px;
-  color: var(--text-secondary);
-  background: var(--status-neutral-bg);
-  font-size: 12px;
-  font-weight: 700;
+.code-block {
+  margin: 0;
+  white-space: pre-wrap;
+  border-radius: 8px;
+  padding: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
 }
 
-@media (max-width: 1180px) {
-  .assistant-layout {
+@media (max-width: 820px) {
+  .ask-row {
     grid-template-columns: 1fr;
   }
 }

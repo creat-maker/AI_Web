@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 
-DEFAULT_WEAK_POINTS = ["极限计算", "递归分析", "函数封装"]
+DEFAULT_WEAK_POINTS = ["while 循环终止条件", "break / continue 区分", "循环嵌套变量变化"]
 
 
 def _join_answers(payload: dict[str, Any]) -> str:
@@ -27,14 +27,14 @@ def _detect_weak_points(text: str, incoming: list[str] | None = None) -> list[st
     mapping = [
         ("极限", "极限计算与等价变形"),
         ("导数", "导数应用题建模"),
-        ("递归", "递归边界与复杂度分析"),
+        ("死循环", "循环边界与变量更新"),
         ("栈", "栈和队列操作过程"),
         ("队列", "栈和队列操作过程"),
         ("英语", "英语长难句阅读"),
         ("阅读", "英语阅读定位"),
-        ("Python", "Python 函数封装与文件处理"),
-        ("函数", "Python 函数封装与文件处理"),
-        ("文件", "Python 文件读写与异常处理"),
+        ("Python", "Python 循环结构代码实操"),
+        ("函数", "循环结构综合实操"),
+        ("文件", "循环结构案例复盘"),
         ("代码", "代码调试与边界条件"),
     ]
     for keyword, point in mapping:
@@ -59,7 +59,7 @@ def run_profile_dialog(payload: dict[str, Any]) -> dict[str, Any]:
     text = _join_answers(payload)
     weak_points = _detect_weak_points(text, payload.get("weakPoints") or payload.get("weak_points"))
     preference = _detect_preference(text)
-    student_name = payload.get("studentName") or payload.get("student_name") or "张三"
+    student_name = payload.get("studentName") or payload.get("student_name") or "李明"
     course_name = payload.get("courseName") or payload.get("course_name") or "Python 程序设计"
     time_arrangement = "每天 30 分钟专项练习，周末 1 次综合复盘"
     if any(word in text for word in ["时间少", "忙", "碎片"]):
@@ -129,7 +129,7 @@ def generate_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
             "resourceType": "代码案例或实验任务",
             "title": f"{course_name} 小实验：从示例到迁移",
             "content": "给出可运行样例、待补全代码和扩展任务，要求学生解释关键步骤并提交运行截图或结果说明。",
-            "reason": "把知识点迁移到可展示的实践任务，适合比赛演示学习闭环。",
+            "reason": "把知识点迁移到可展示的实践任务，适合形成学习闭环。",
             "relatedKnowledgePoints": weak_points[:4],
             "difficulty": "进阶",
             "estimatedMinutes": 35,

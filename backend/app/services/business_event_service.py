@@ -75,7 +75,7 @@ def event_to_dict(item: SystemLog) -> dict[str, Any]:
         "status": data.get("status") or item.status,
         "created_at": item.created_at,
         "metadata": metadata,
-        "demo_fallback_note": data.get("demo_fallback_note", "业务事件来自 EduMind demo/fallback 事件服务。"),
+        "demo_fallback_note": data.get("demo_fallback_note", "业务事件来自 EduMind 事件服务。"),
     }
 
 

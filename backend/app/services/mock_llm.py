@@ -45,7 +45,7 @@ class MockLLM:
             {"name": "认知风格", "value": "示例优先、从运行结果反推概念", "evidence": f"学习偏好为{preference}"},
             {"name": "易错点偏好", "value": f"容易在{weak_text}相关任务中忽略边界条件和调试步骤", "evidence": "由薄弱点推断"},
             {"name": "资源偏好", "value": preference, "evidence": "来自对话输入"},
-            {"name": "练习节奏", "value": "短讲义后立即配套 10-20 分钟练习", "evidence": "面向比赛演示的默认学习节奏"},
+            {"name": "练习节奏", "value": "短讲义后立即配套 10-20 分钟练习", "evidence": "面向循环结构学习的默认练习节奏"},
             {"name": "风险等级", "value": "中" if weak_points else "低", "evidence": "由薄弱点数量估计"},
         ]
         return {
@@ -300,7 +300,7 @@ class MockLLM:
                 "进阶",
                 (
                     "阅读顺序：先看课程讲义对应小节，再看代码示例，最后检索官方文档关键词。\n\n"
-                    "推荐关键词：Python 数据结构、文件上下文管理器、HTTP 请求、网页解析、异常处理。\n"
+                    "推荐关键词：while 循环终止条件、变量更新、break / continue、循环嵌套、变量变化表。\n"
                     "阅读产出：写出 3 条“我原来不知道，但现在能解释”的知识点。"
                 ),
                 "为学有余力的学生提供继续探索的入口。",

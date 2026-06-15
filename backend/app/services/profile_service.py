@@ -105,8 +105,8 @@ def update_profile_by_learning(
 
     if event_type == "tutor" and question:
         keyword_map = {
-            "SQL": "SQL 查询",
-            "Python": "Python 函数",
+            "SQL": "循环条件判断",
+            "Python": "Python 循环结构",
             "RAG": "RAG",
             "接口": "接口基础",
             "部署": "系统部署",

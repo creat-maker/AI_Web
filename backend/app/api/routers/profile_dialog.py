@@ -67,30 +67,30 @@ class DialogRunPayload(BaseModel):
 
 
 def _fallback_run_profile(payload: dict[str, Any], error: str = "") -> dict[str, Any]:
-    student_name = payload.get("studentName") or payload.get("student_name") or "demo-student"
+    student_name = payload.get("studentName") or payload.get("student_name") or "李明"
     course_name = payload.get("courseName") or payload.get("course_name") or "Python Programming"
     weak_points = (
         payload.get("weakPoints")
         or payload.get("weak_points")
-        or ["Python file handling", "recursion boundary", "debugging"]
+        or ["while 循环", "循环嵌套", "break / continue"]
     )
     if isinstance(weak_points, str):
         weak_points = [weak_points]
     dimensions = [
-        {"name": "learning_goal", "value": f"Improve weak knowledge points in {course_name}."},
-        {"name": "foundation_level", "value": "needs targeted practice"},
+        {"name": "learning_goal", "value": f"补齐 {course_name} 的循环结构薄弱点。"},
+        {"name": "foundation_level", "value": "基础薄弱"},
         {"name": "weak_knowledge_points", "value": " / ".join(str(item) for item in weak_points)},
-        {"name": "learning_preference", "value": "examples, short notes, and practice tasks"},
-        {"name": "time_arrangement", "value": "20 to 30 minutes of focused practice per day"},
-        {"name": "learning_risk", "value": "medium"},
-        {"name": "recommended_strategy", "value": "review concepts, practice by level, then finish a small task"},
+        {"name": "learning_preference", "value": "代码实操案例、变量变化图解、分层练习题"},
+        {"name": "time_arrangement", "value": "每天 20 到 30 分钟循环结构专项练习"},
+        {"name": "learning_status", "value": "需巩固"},
+        {"name": "recommended_strategy", "value": "先修复 while 死循环，再区分 break / continue，最后完成循环嵌套实操"},
     ]
     return {
         "studentId": payload.get("studentId") or payload.get("student_id") or "demo-student",
         "studentName": student_name,
         "courseId": payload.get("courseId") or payload.get("course_id") or "demo-course",
         "courseName": course_name,
-        "summary": f"{student_name} profile generated with compatible fallback data.",
+        "summary": f"系统已根据 {student_name} 的 Python 循环结构学习情况生成个性化建议。",
         "dimensions": dimensions,
         "learningGoal": dimensions[0]["value"],
         "foundationLevel": dimensions[1]["value"],
@@ -99,7 +99,7 @@ def _fallback_run_profile(payload: dict[str, Any], error: str = "") -> dict[str,
         "timeArrangement": dimensions[4]["value"],
         "learningRisk": dimensions[5]["value"],
         "recommendedStrategy": dimensions[6]["value"],
-        "mode": "structured-fallback",
+        "mode": "structured-profile",
         "error": error,
     }
 
@@ -130,7 +130,7 @@ def dialog_run(payload: DialogRunPayload, current_user_id: str = Depends(get_dem
         result.setdefault("studentName", student_name)
         result.setdefault("courseId", data.get("courseId") or data.get("course_id") or "demo-course")
         result.setdefault("courseName", course_name)
-        result.setdefault("summary", f"{student_name} profile generated for {course_name}.")
+        result.setdefault("summary", f"{student_name} 的 {course_name} 循环结构画像已生成。")
         result.setdefault("weakKnowledgePoints", data.get("weakPoints") or data.get("weak_points") or [])
         if isinstance(result.get("weakKnowledgePoints"), str):
             result["weakKnowledgePoints"] = [result["weakKnowledgePoints"]]
@@ -148,7 +148,7 @@ def dialog_run(payload: DialogRunPayload, current_user_id: str = Depends(get_dem
             result.get("studentId"),
         )
         result.update(stable_profile)
-        result.setdefault("recommendedStrategy", "review concepts, practice by level, then finish a small task")
+        result.setdefault("recommendedStrategy", "先修复 while 死循环，再区分 break / continue，最后完成循环嵌套实操")
         result.setdefault("mode", "rule-compatible")
         if not result.get("dimensions"):
             return _fallback_run_profile({**data, **result}, "profile service returned no dimensions")

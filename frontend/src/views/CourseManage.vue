@@ -38,19 +38,19 @@ const typeFilter = ref('全部类型');
 const statusFilter = ref('全部状态');
 const classFilter = ref('全部班级');
 const form = reactive({
-  title: 'Python 爬虫基础与实践',
+  title: 'Python 程序设计',
   subject: '计算机',
   teacher_name: '王老师',
-  description: '面向计科大三的项目实践课程'
+  description: '面向计科大三的 Python 循环结构专项补弱课程'
 });
 
 const fallbackRows: CourseRow[] = [
-  { id: 1, title: 'Python 爬虫基础与实践', subject: '计算机', teacher_name: '王老师', className: '计科大三 1 班', students: 32, progress: 72, completion: 68, status: '进行中', updatedAt: '今天 10:20', type: '技术课程' },
-  { id: 2, title: '人工智能导论', subject: '人工智能', teacher_name: '张老师', className: '计科大三 2 班', students: 48, progress: 65, completion: 61, status: '进行中', updatedAt: '昨天 18:40', type: '基础课程' },
-  { id: 3, title: '数据结构与算法', subject: '计算机', teacher_name: '陈老师', className: '计科大二 1 班', students: 38, progress: 58, completion: 55, status: '进行中', updatedAt: '05-29 21:15', type: '基础课程' },
-  { id: 4, title: 'Web 开发技术', subject: '软件工程', teacher_name: '李老师', className: '计科大二 2 班', students: 30, progress: 41, completion: 36, status: '即将开始', updatedAt: '05-28 09:30', type: '技术课程' },
-  { id: 5, title: '机器学习与数据挖掘', subject: '人工智能', teacher_name: '刘老师', className: '计科大三 3 班', students: 44, progress: 100, completion: 94, status: '已结束', updatedAt: '05-20 16:00', type: '进阶课程' },
-  { id: 6, title: '计算机网络原理', subject: '计算机', teacher_name: '赵老师', className: '计科大二 3 班', students: 35, progress: 12, completion: 0, status: '草稿', updatedAt: '05-18 12:10', type: '基础课程' }
+  { id: 1, title: 'Python 程序设计', subject: '计算机', teacher_name: '王老师', className: '计科大三 1 班', students: 32, progress: 72, completion: 68, status: '进行中', updatedAt: '今天 10:20', type: '主线课程' },
+  { id: 2, title: '循环结构专项补弱课', subject: '计算机', teacher_name: '王老师', className: '计科大三 1 班', students: 32, progress: 56, completion: 48, status: '进行中', updatedAt: '今天 09:30', type: '章节专项' },
+  { id: 3, title: 'while 循环代码讲解课', subject: '计算机', teacher_name: '陈老师', className: '计科大三 1 班', students: 32, progress: 42, completion: 37, status: '进行中', updatedAt: '昨天 16:40', type: '补弱任务' },
+  { id: 4, title: 'break / continue 对比练习', subject: '计算机', teacher_name: '李老师', className: 'Python 程序设计 2 班', students: 30, progress: 35, completion: 28, status: '即将开始', updatedAt: '昨天 11:20', type: '章节专项' },
+  { id: 5, title: '循环嵌套变量追踪实训', subject: '计算机', teacher_name: '刘老师', className: '计科大三 1 班', students: 32, progress: 64, completion: 60, status: '进行中', updatedAt: '05-20 16:00', type: '代码实操' },
+  { id: 6, title: '形成性评价与学习报告', subject: '计算机', teacher_name: '王老师', className: '计科大三 1 班', students: 32, progress: 22, completion: 0, status: '草稿', updatedAt: '05-18 12:10', type: '评价报告' }
 ];
 
 function cleanText(value: string | undefined, fallback: string) {
@@ -165,7 +165,7 @@ onMounted(load);
       <div class="relation-board">
         <section>
           <h3>知识点</h3>
-          <span v-for="item in ['变量与数据类型', '条件语句', '循环结构', '函数', '列表', '字典', '文件操作', '异常处理']" :key="item">{{ item }}</span>
+          <span v-for="item in ['变量与数据类型', '条件语句', 'for 循环', 'while 循环', 'break / continue', '循环嵌套', '变量变化表', '形成性评价']" :key="item">{{ item }}</span>
         </section>
         <section>
           <h3>推荐资源</h3>
@@ -174,12 +174,12 @@ onMounted(load);
             <p>关联：循环结构、条件语句</p>
           </article>
           <article>
-            <strong>函数封装案例包</strong>
-            <p>关联：函数</p>
+            <strong>while 死循环修复案例</strong>
+            <p>关联：while 循环、变量更新</p>
           </article>
           <article>
-            <strong>CSV 成绩分析 Notebook</strong>
-            <p>关联：列表、字典、文件操作</p>
+            <strong>循环嵌套变量变化表</strong>
+            <p>关联：for 循环、循环嵌套</p>
           </article>
         </section>
         <section>
@@ -189,12 +189,12 @@ onMounted(load);
             <p>难度：基础 · 关联：循环结构</p>
           </article>
           <article>
-            <strong>封装成绩统计函数</strong>
-            <p>难度：中等 · 关联：函数、列表</p>
+            <strong>break / continue 输出判断</strong>
+            <p>难度：中等 · 关联：循环控制语句</p>
           </article>
           <article>
-            <strong>读取 CSV 并处理异常</strong>
-            <p>难度：进阶 · 关联：文件操作、异常处理</p>
+            <strong>循环嵌套补全题</strong>
+            <p>难度：进阶 · 关联：循环嵌套、变量追踪</p>
           </article>
         </section>
       </div>

@@ -24,9 +24,9 @@ interface WorkbenchResult {
 const form = reactive({
   type: 'lesson_plan',
   course: 'Python 程序设计',
-  chapter: '循环结构与函数',
-  student_foundation: '班级基础差异较大，部分学生循环边界和函数返回值薄弱',
-  teaching_goal: '掌握循环结构和函数封装，能完成成绩统计小任务'
+  chapter: '循环结构',
+  student_foundation: '班级基础差异较大，部分学生循环边界、变量更新和 break / continue 区分薄弱',
+  teaching_goal: '掌握 for、while、break / continue 和循环嵌套，能完成循环结构代码实操'
 });
 
 const result = ref<WorkbenchResult | null>(null);
@@ -36,7 +36,7 @@ const error = ref('');
 const typeCards = [
   { type: 'lesson_plan', title: 'AI 生成教案', desc: '生成教学目标、重难点、课堂活动和课后任务。' },
   { type: 'quiz', title: 'AI 生成测验', desc: '生成随堂题、知识点标签和练后诊断规则。' },
-  { type: 'analysis', title: 'AI 生成学情分析', desc: '生成薄弱点、风险学生和教师干预建议。' }
+  { type: 'analysis', title: 'AI 生成学情分析', desc: '生成薄弱点、学习预警和教师干预建议。' }
 ];
 
 function fallback(payloadType = form.type): WorkbenchResult {
@@ -48,11 +48,11 @@ function fallback(payloadType = form.type): WorkbenchResult {
     chapter: form.chapter,
     input_summary: `学生基础：${form.student_foundation}；教学目标：${form.teaching_goal}`,
     teaching_objectives: [form.teaching_goal, '识别本章薄弱知识点并形成可干预任务', '完成测评、诊断、推荐闭环记录'],
-    key_difficulties: ['循环边界条件', '函数参数与返回值', '文件操作异常兜底'],
+    key_difficulties: ['循环边界条件', '变量更新时机', 'break / continue 区分'],
     class_activities: ['5 分钟错题导入', '15 分钟案例拆解', '10 分钟随堂测验', '8 分钟同伴互评'],
-    in_class_quiz: ['判断 while 循环是否会终止', '把重复代码封装为函数', '指出文件读取代码的风险点'],
-    after_class_tasks: ['完成错题二刷', '提交成绩文件分析器最小版本', '在 AI 助教中追问 1 个薄弱知识点'],
-    teaching_suggestions: ['生成内容需教师审核后发布', '高风险学生优先推送补救任务', '测验结果仅作为诊断参考，不直接替代教师评价'],
+    in_class_quiz: ['判断 while 循环是否会终止', '写出前三轮变量变化', '区分 break 和 continue 的输出结果'],
+    after_class_tasks: ['完成错题二刷', '提交循环嵌套输出表', '在 AI 助教中追问 1 个薄弱知识点'],
+    teaching_suggestions: ['生成内容需教师审核后发布', '学习预警学生优先推送补救任务', '测验结果仅作为诊断参考，不直接替代教师评价'],
     review_required: true
   };
 }

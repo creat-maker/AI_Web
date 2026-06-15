@@ -6,7 +6,7 @@ import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
 const courses = [
-  { name: 'Python 爬虫基础与实践', teacher: '王老师', type: '技术课程', students: 1256, progress: 78, status: '进行中', updated: '05-30 10:25', alerts: 1 },
+  { name: 'Python 程序设计：循环结构', teacher: '王老师', type: '技术课程', students: 1256, progress: 78, status: '进行中', updated: '05-30 10:25', alerts: 1 },
   { name: '机器学习与数据挖掘', teacher: '张老师', type: '技术课程', students: 856, progress: 62, status: '进行中', updated: '05-30 09:48', alerts: 0 },
   { name: '数据结构与算法', teacher: '陈老师', type: '基础课程', students: 987, progress: 91, status: '待审核', updated: '05-29 21:15', alerts: 2 },
   { name: 'Web 前端开发', teacher: '李老师', type: '通识课程', students: 642, progress: 45, status: '即将开始', updated: '05-29 18:40', alerts: 0 },

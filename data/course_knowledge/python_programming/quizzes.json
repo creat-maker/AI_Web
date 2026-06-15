@@ -1,0 +1,22 @@
+{
+  "course": "Python 程序设计",
+  "chapter": "循环结构",
+  "questions": [
+    {
+      "id": "loop-q1",
+      "type": "single",
+      "stem": "while 循环发生死循环最常见的原因是？",
+      "options": ["忘记更新循环变量", "print 太多", "变量名太长", "注释不足"],
+      "answer": "忘记更新循环变量",
+      "knowledgePoint": "while 循环"
+    },
+    {
+      "id": "loop-q2",
+      "type": "single",
+      "stem": "break 的作用是？",
+      "options": ["结束当前循环", "跳过本轮", "定义函数", "创建列表"],
+      "answer": "结束当前循环",
+      "knowledgePoint": "break / continue"
+    }
+  ]
+}

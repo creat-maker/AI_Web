@@ -100,6 +100,24 @@ const profiles = ref<StudentProfileItem[]>([]);
 const loading = ref(true);
 const error = ref('');
 const operationMessage = ref('');
+const dialogInput = ref('我正在学 Python 程序设计，循环结构有点弱，尤其是 while 循环和循环嵌套，我更喜欢代码案例和图解，想尽快完成课程作业。');
+const dialogProfile = ref({
+  summary: '系统已根据你的学习情况生成个性化建议，你在循环结构上还需要加强。',
+  riskLevel: '学习状态：需巩固',
+  weakKnowledgePoints: ['while 循环', '循环嵌套', 'break / continue'],
+  resourcePreference: '代码实操案例、变量变化图解、分层练习题',
+  sourceDescription: '自然语言对话 + 学习历史 + 测验结果 + AI 问答记录',
+  dimensions: [
+    { name: '知识基础', value: '基础薄弱' },
+    { name: '认知风格', value: '代码案例 + 图解' },
+    { name: '学习目标', value: '完成课程作业和基础项目' },
+    { name: '学习进度', value: '46%' },
+    { name: '易错偏好', value: '循环条件更新遗漏、循环嵌套变量混用' },
+    { name: '资源偏好', value: '代码实操案例、变量变化图解、分层练习题' },
+    { name: '学习能力', value: '能跟随示例完成迁移，需要脚手架提示' },
+    { name: '学习状态', value: '需巩固' }
+  ]
+});
 const selectedId = ref<number | null>(null);
 const keyword = ref('');
 const lastUpdateResult = ref<ProfileUpdateResult | null>(null);
@@ -111,7 +129,7 @@ let trendChart: echarts.ECharts | null = null;
 const taskForm = reactive({
   student_profile_id: 0,
   course_id: 0,
-  weak_point: 'HTTP 请求',
+  weak_point: 'while 循环',
   task_type: '完成练习',
   due_date: ''
 });
@@ -119,36 +137,36 @@ const taskForm = reactive({
 const fallbackStudents: StudentView[] = [
   {
     id: 1,
-    name: '张三',
+    name: '李明',
     className: '计科大三 1 班',
     number: '2021123456',
-    score: 86,
+    score: 67,
     course_id: 1,
-    level: '优秀',
-    goal: '两周内掌握 Python 爬虫基础',
-    weakPoints: ['HTTP 请求', '异常处理', '数据存储'],
-    preference: '案例驱动',
+    level: '需巩固',
+    goal: '两周内补齐 Python 循环结构，完成课程作业和基础代码实操',
+    weakPoints: ['while 循环', '循环嵌套', 'break / continue'],
+    preference: '代码实操案例 + 变量变化图解',
     abilities: [
-      { name: '编程能力', value: 82 },
-      { name: '算法思维', value: 88 },
-      { name: '数据处理', value: 75 },
-      { name: '工程实践', value: 70 },
-      { name: '问题解决', value: 90 },
-      { name: '学习态度', value: 85 }
+      { name: '知识基础', value: 48 },
+      { name: 'for 循环', value: 70 },
+      { name: 'while 循环', value: 48 },
+      { name: 'break / continue', value: 55 },
+      { name: '循环嵌套', value: 43 },
+      { name: '代码实操', value: 62 }
     ],
-    trend: [58, 62, 68, 71, 76, 82, 86]
+    trend: [42, 45, 48, 52, 57, 63, 67]
   },
   {
     id: 2,
-    name: '李四',
+    name: '陈思',
     className: '计科大三 1 班',
     number: '2021123457',
     score: 79,
     course_id: 1,
     level: '良好',
-    goal: '强化数据结构应用',
-    weakPoints: ['栈与队列', '递归', '复杂度分析'],
-    preference: '任务驱动',
+    goal: '强化循环嵌套变量追踪能力',
+    weakPoints: ['循环嵌套', '变量变化表', 'for 循环边界'],
+    preference: '任务驱动 + 表格追踪',
     abilities: [
       { name: '编程能力', value: 76 },
       { name: '算法思维', value: 72 },
@@ -161,15 +179,15 @@ const fallbackStudents: StudentView[] = [
   },
   {
     id: 3,
-    name: '王五',
+    name: '赵雨',
     className: '计科大二 1 班',
     number: '2021123458',
     score: 66,
     course_id: 2,
     level: '需关注',
-    goal: '补齐基础语法与函数',
-    weakPoints: ['函数', '文件操作', '循环嵌套'],
-    preference: '视频讲解',
+    goal: '区分 break / continue 的循环控制场景',
+    weakPoints: ['break / continue', 'while 循环', '输出结果判断'],
+    preference: '短讲解 + 输出推演',
     abilities: [
       { name: '编程能力', value: 61 },
       { name: '算法思维', value: 58 },
@@ -220,9 +238,9 @@ function objectField<T>(profile: StudentProfileItem, key: string): T | undefined
 }
 
 function simulateWeakPoint() {
-  if (demoUserId.value === 'demo-advanced') return '接口联调';
-  if (demoUserId.value === 'demo-exam') return '审题陷阱';
-  return '接口参数传递';
+  if (demoUserId.value === 'demo-advanced') return '循环嵌套变量变化';
+  if (demoUserId.value === 'demo-exam') return 'break / continue 区分';
+  return 'while 循环条件更新';
 }
 
 function weakPointText(profile?: StudentProfileItem) {
@@ -248,7 +266,7 @@ const students = computed<StudentView[]>(() => {
       id: profile.id,
       user_id: fieldText(profile, 'user_id', demoUserId.value),
       name: cleanText(profile.student_name, fallback.name),
-      profileType: fieldText(profile, 'profile_type', '演示画像'),
+      profileType: fieldText(profile, 'profile_type', '个性化学习画像'),
       major: fieldText(profile, 'major', '未填写'),
       course_id: profile.course_id || fallback.course_id,
       level: cleanText(profile.current_level || profile.knowledge_level, fallback.level),
@@ -342,7 +360,7 @@ async function load() {
     courses.value = courseData;
     profiles.value = profileData;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '画像接口暂不可用，当前显示演示数据。';
+    error.value = err instanceof Error ? err.message : '画像接口暂不可用，当前显示本地学习数据。';
     profiles.value = [];
   } finally {
     loading.value = false;
@@ -384,6 +402,40 @@ async function simulateProfileUpdate() {
     await load();
   } catch (err) {
     operationMessage.value = err instanceof Error ? err.message : '模拟更新画像失败。';
+  }
+}
+
+async function runDialogProfile() {
+  operationMessage.value = '';
+  try {
+    const result = await api.post<typeof dialogProfile.value>('/api/v1/profile-dialog/run', {
+      studentId: demoUserId.value,
+      studentName: '李明',
+      courseId: 'python-programming',
+      courseName: 'Python 程序设计',
+      answer: dialogInput.value,
+      weakPoints: ['while 循环', '循环嵌套', 'break / continue']
+    });
+    dialogProfile.value = {
+      ...dialogProfile.value,
+      ...result,
+      dimensions: result.dimensions?.length ? result.dimensions : dialogProfile.value.dimensions
+    };
+    operationMessage.value = '对话式画像已生成。';
+  } catch (err) {
+    operationMessage.value = `画像接口暂不可用，保留本地学习数据：${err instanceof Error ? err.message : '未知错误'}`;
+  }
+}
+
+async function refreshDialogProfile() {
+  try {
+    dialogProfile.value = await api.post<typeof dialogProfile.value>('/api/v1/student-profile/refresh', {
+      user_id: demoUserId.value,
+      dialog: dialogInput.value
+    });
+    operationMessage.value = '画像已根据最新对话、学习历史、测验结果和 AI 问答记录刷新。';
+  } catch (err) {
+    operationMessage.value = `画像刷新接口暂不可用，保留本地学习数据：${err instanceof Error ? err.message : '未知错误'}`;
   }
 }
 
@@ -433,6 +485,29 @@ onBeforeUnmount(() => {
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
+    <DataCard title="对话式画像构建" subtitle="从自然语言对话抽取 8 维画像，并展示风险、薄弱知识点、资源偏好和画像来源。">
+      <textarea v-model="dialogInput" class="dialog-profile-input" rows="4"></textarea>
+      <div class="row-actions dialog-actions">
+        <button type="button" @click="runDialogProfile">生成画像</button>
+        <button type="button" class="secondary" @click="refreshDialogProfile">画像刷新</button>
+      </div>
+      <div class="profile-summary">
+        <strong>{{ dialogProfile.summary }}</strong>
+        <StatusBadge :label="dialogProfile.riskLevel" tone="warning" />
+      </div>
+      <div class="profile-dimension-list">
+        <article v-for="item in dialogProfile.dimensions" :key="item.name">
+          <span>{{ item.name }}</span>
+          <strong>{{ item.value }}</strong>
+        </article>
+      </div>
+      <div class="dialog-meta-grid">
+        <article><span>薄弱知识点</span><strong>{{ dialogProfile.weakKnowledgePoints.join('、') }}</strong></article>
+        <article><span>推荐资源偏好</span><strong>{{ dialogProfile.resourcePreference }}</strong></article>
+        <article><span>画像来源说明</span><strong>{{ dialogProfile.sourceDescription }}</strong></article>
+      </div>
+    </DataCard>
+
     <DataCard title="学生画像闭环摘要" subtitle="面向教师干预展示基础水平、学习目标、学习偏好、课程进度、薄弱知识点、错题分布和风险等级。">
       <div class="profile-loop-grid">
         <section class="profile-loop-main">
@@ -442,11 +517,11 @@ onBeforeUnmount(() => {
           </article>
           <article>
             <span>学习目标</span>
-            <strong>两周内补齐循环、函数和文件操作</strong>
+            <strong>两周内补齐 Python 循环结构</strong>
           </article>
           <article>
             <span>学习偏好</span>
-            <strong>案例驱动、短视频讲解、可运行 Notebook</strong>
+            <strong>代码实操案例、变量变化图解、分层练习题</strong>
           </article>
           <article>
             <span>风险等级</span>
@@ -459,9 +534,9 @@ onBeforeUnmount(() => {
             <ProgressBar :value="68" tone="primary" />
           </div>
           <div class="chip-row">
-            <span>文件操作</span>
-            <span>循环结构</span>
-            <span>异常处理</span>
+            <span>while 循环</span>
+            <span>循环嵌套</span>
+            <span>break / continue</span>
           </div>
           <div class="wrong-grid">
             <article><strong>38%</strong><span>概念混淆</span></article>
@@ -469,7 +544,7 @@ onBeforeUnmount(() => {
             <article><strong>18%</strong><span>代码规范</span></article>
             <article><strong>13%</strong><span>审题偏差</span></article>
           </div>
-          <div class="intervention-note">教师干预建议：推送文件读写资源包，布置循环边界补救任务，并用“先画变量变化表再写代码”的提醒话术进行一对一跟进。</div>
+          <div class="intervention-note">教师干预建议：推送 Python 循环结构个性化补弱资源包，安排 10 分钟 while 循环代码讲解，布置 3 道 while 循环补全题，并课后查看形成性评价报告。</div>
         </section>
       </div>
     </DataCard>
@@ -558,7 +633,7 @@ onBeforeUnmount(() => {
           <div v-if="selectedStudent.dialogExtraction" class="extraction-box">
             <strong>最近一次对话抽取过程</strong>
             <article>
-              <span>{{ selectedStudent.dialogExtraction.mode || '规则抽取演示' }}</span>
+              <span>{{ selectedStudent.dialogExtraction.mode || '规则抽取' }}</span>
               <p>学生原始回答：{{ selectedStudent.dialogExtraction.raw_answer }}</p>
               <p>抽取字段：{{ JSON.stringify(selectedStudent.dialogExtraction.extracted_fields) }}</p>
               <p>抽取置信度：{{ Math.round((selectedStudent.dialogExtraction.confidence || 0) * 100) }}%</p>
@@ -625,7 +700,8 @@ onBeforeUnmount(() => {
 .ability-list,
 .weak-list,
 .suggestion-grid,
-.profile-dimension-list {
+.profile-dimension-list,
+.dialog-meta-grid {
   display: grid;
   gap: 12px;
 }
@@ -635,7 +711,13 @@ onBeforeUnmount(() => {
   margin-top: 14px;
 }
 
+.dialog-meta-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 12px;
+}
+
 .profile-dimension-list article,
+.dialog-meta-grid article,
 .change-log-box,
 .update-compare-box,
 .evidence-box,
@@ -647,6 +729,7 @@ onBeforeUnmount(() => {
 }
 
 .profile-dimension-list span,
+.dialog-meta-grid span,
 .change-log-box p,
 .update-compare-box span,
 .evidence-box span,
@@ -655,9 +738,24 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-.profile-dimension-list strong {
+.profile-dimension-list strong,
+.dialog-meta-grid strong {
   display: block;
   margin-top: 6px;
+}
+
+.dialog-profile-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  line-height: 1.7;
+}
+
+.dialog-actions {
+  margin-top: 12px;
 }
 
 .change-log-box,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, competition, content_review, courses, dashboard, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, system_settings, tutor, user_profile_ws
+from app.api.routers import agent_workflow, ai_tutor, competition, content_review, courses, dashboard, decision_center, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, student_profile, system_settings, tutor, user_profile_ws
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -55,9 +55,11 @@ app.include_router(rag.router, prefix=API_PREFIX)
 app.include_router(content_review.router, prefix=API_PREFIX)
 app.include_router(profiles.router, prefix=API_PREFIX)
 app.include_router(profile_dialog.router, prefix=API_PREFIX)
+app.include_router(student_profile.router, prefix=API_PREFIX)
 app.include_router(learning_paths.router, prefix=API_PREFIX)
 app.include_router(resources.router, prefix=API_PREFIX)
 app.include_router(tutor.router, prefix=API_PREFIX)
+app.include_router(ai_tutor.router, prefix=API_PREFIX)
 app.include_router(quizzes.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
 app.include_router(agent_workflow.router, prefix=API_PREFIX)
@@ -66,6 +68,7 @@ app.include_router(logs.router, prefix=API_PREFIX)
 app.include_router(events.router, prefix=API_PREFIX)
 app.include_router(demo_status.router, prefix=API_PREFIX)
 app.include_router(competition.router, prefix=API_PREFIX)
+app.include_router(decision_center.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(user_profile_ws.router)
 

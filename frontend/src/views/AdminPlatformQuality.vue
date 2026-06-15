@@ -71,7 +71,7 @@ onMounted(load);
         </div>
       </DataCard>
 
-      <DataCard title="AI 能力边界" subtitle="比赛演示中的治理说明">
+      <DataCard title="AI 能力边界" subtitle="平台治理说明">
         <div class="boundary-box">
           <StatusBadge label="审核后使用" tone="warning" />
           <p>{{ data.ai_boundary }}</p>

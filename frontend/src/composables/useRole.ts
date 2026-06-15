@@ -8,13 +8,13 @@ const DEMO_USER_KEY = 'edumind.demoUserId';
 const availableRoles: UserRole[] = ['student', 'teacher', 'admin'];
 
 export const demoStudents = [
-  { id: 'demo-basic', label: '张同学｜基础补弱型', shortName: '张同学', profileType: '基础补弱型' },
-  { id: 'demo-advanced', label: '李同学｜项目提升型', shortName: '李同学', profileType: '项目提升型' },
-  { id: 'demo-exam', label: '王同学｜考试冲刺型', shortName: '王同学', profileType: '考试冲刺型' }
+  { id: 'demo-basic', label: '李明｜基础薄弱 + 代码实操偏好型', shortName: '李明', profileType: '基础薄弱 + 代码实操偏好型' },
+  { id: 'demo-advanced', label: '陈浩｜项目实践提升型', shortName: '陈浩', profileType: '项目实践提升型' },
+  { id: 'demo-exam', label: '王悦｜考试冲刺型', shortName: '王悦', profileType: '考试冲刺型' }
 ];
 
 export function demoStudentLabel(userId: string) {
-  return demoStudents.find((item) => item.id === userId)?.label || '张同学｜基础补弱型';
+  return demoStudents.find((item) => item.id === userId)?.label || '李明｜基础薄弱 + 代码实操偏好型';
 }
 
 function readInitialRole(): UserRole {

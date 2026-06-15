@@ -1,58 +1,52 @@
-const questions = [
-  {
-    id: 1,
-    title: '下面哪种情况更适合使用 while 循环？',
-    options: ['遍历一个固定列表', '不知道循环次数，只知道停止条件', '输出 1 到 10', '遍历字符串中的每个字符'],
-    answer: 1,
-    answerText: '不知道循环次数，只知道停止条件',
-    analysis: 'while 循环适合循环次数不固定，但停止条件明确的场景。'
-  },
-  {
-    id: 2,
-    title: '调用 def add(a, b=1): 时，哪个写法是正确的？',
-    options: ['add()', 'add(3)', 'add(a=1, 2)', 'add(1, b, 3)'],
-    answer: 1,
-    answerText: 'add(3)',
-    analysis: '参数 a 没有默认值，必须传入；b 有默认值，可以省略。'
-  },
-  {
-    id: 3,
-    title: '列表 nums = [1, 2, 3] 执行 nums.append(4) 后结果是？',
-    options: ['[4, 1, 2, 3]', '[1, 2, 3, 4]', '[1, 2, 4]', '返回一个新列表，原列表不变'],
-    answer: 1,
-    answerText: '[1, 2, 3, 4]',
-    analysis: 'append 会在原列表末尾追加元素，原列表变为 [1, 2, 3, 4]。'
-  }
+const { quizAnalysis, wrongQuestions, recommendedResources } = require('../../utils/demoData');
+
+const safeQuizAnalysis = quizAnalysis || {};
+const safeWrongQuestions = wrongQuestions && wrongQuestions.length ? wrongQuestions : [
+  { course: 'Python 程序设计', title: 'while 循环变量更新', answer: '检查循环体是否推进变量。', status: '待复习', cause: '循环终止条件不清' }
+];
+const safeResources = recommendedResources && recommendedResources.length ? recommendedResources : [
+  { title: 'while 循环条件更新专项练习', type: '专项练习', duration: '20 分钟', reason: '针对死循环和变量更新遗漏。' }
 ];
 
 Page({
   data: {
-    course: 'Python 程序设计',
-    questions,
-    selected: {},
+    title: '循环结构专项测验',
+    score: safeQuizAnalysis.score || 67,
+    accuracy: `${safeQuizAnalysis.score || 67}%`,
+    weakPoints: safeQuizAnalysis.weakPoints && safeQuizAnalysis.weakPoints.length ? safeQuizAnalysis.weakPoints : ['while 循环条件更新', '循环嵌套变量变化', 'break / continue 区分'],
+    causes: safeQuizAnalysis.causes && safeQuizAnalysis.causes.length ? safeQuizAnalysis.causes : ['循环终止条件不清'],
+    nextStep: safeQuizAnalysis.nextStep || '完成错题复盘后进入下一步补弱路径。',
+    recommendedResources: safeResources,
+    wrongQuestions: safeWrongQuestions,
     submitted: false,
-    score: 0
+    submitText: '提交测验并查看错因',
+    syncMessage: ''
   },
 
-  chooseAnswer(event) {
-    if (this.data.submitted) return;
-    const qid = event.currentTarget.dataset.qid;
-    const optionIndex = event.currentTarget.dataset.index;
-    this.setData({ ['selected.' + qid]: optionIndex });
+  onLoad() {
+    this.setData({
+      score: safeQuizAnalysis.score || 67,
+      accuracy: `${safeQuizAnalysis.score || 67}%`,
+      weakPoints: safeQuizAnalysis.weakPoints && safeQuizAnalysis.weakPoints.length ? safeQuizAnalysis.weakPoints : ['while 循环条件更新', '循环嵌套变量变化', 'break / continue 区分'],
+      causes: safeQuizAnalysis.causes && safeQuizAnalysis.causes.length ? safeQuizAnalysis.causes : ['循环终止条件不清'],
+      nextStep: safeQuizAnalysis.nextStep || '完成错题复盘后进入下一步补弱路径。',
+      recommendedResources: safeResources,
+      wrongQuestions: safeWrongQuestions
+    });
   },
 
   submitQuiz() {
-    let score = 0;
-    questions.forEach((question) => {
-      if (this.data.selected[question.id] === question.answer) {
-        score += 1;
-      }
+    if (this.data.submitted) return;
+    this.setData({
+      submitted: true,
+      submitText: '错因已生成，可查看报告',
+      syncMessage: '已同步更新学习建议'
     });
-    this.setData({ submitted: true, score });
-  },
-
-  resetQuiz() {
-    this.setData({ selected: {}, submitted: false, score: 0 });
+    wx.showToast({ title: '已生成错因分析', icon: 'success' });
+    setTimeout(() => {
+      wx.setStorageSync('reportFromQuiz', true);
+      wx.switchTab({ url: '/pages/report/index' });
+    }, 1300);
   },
 
   goReport() {

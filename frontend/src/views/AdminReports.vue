@@ -14,7 +14,7 @@ const templates = [
 
 const reports = [
   { name: 'EduMind 平台 5 月运营月报', type: '平台数据报告', time: '2024-05-31 18:00', status: '已完成', owner: 'Admin' },
-  { name: 'Python 爬虫课程质量报告', type: '课程质量报告', time: '2024-05-30 20:15', status: '待审核', owner: '王老师' },
+  { name: 'Python 循环结构课程质量报告', type: '课程质量报告', time: '2024-05-30 20:15', status: '待审核', owner: '王老师' },
   { name: 'AI 服务调用稳定性报告', type: 'AI 服务报告', time: '2024-05-30 11:42', status: '生成中', owner: '系统任务' },
   { name: '系统运行与告警周报', type: '系统运行报告', time: '2024-05-29 09:10', status: '失败', owner: '监控服务' }
 ];

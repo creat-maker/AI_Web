@@ -48,7 +48,7 @@ def create_item(payload: ProfilePayload, db: Session = Depends(get_db), current_
         db,
         event_type="profile_generated",
         title="学生画像已生成",
-        description=f"{profile.student_name} 的学习画像已生成，包含目标、水平、偏好、薄弱点和风险等级 demo/fallback 字段。",
+        description=f"{profile.student_name} 的学习画像已生成，包含目标、水平、偏好、薄弱点和学习状态字段。",
         actor_role="student",
         actor_name=profile.student_name,
         target_type="student_profile",

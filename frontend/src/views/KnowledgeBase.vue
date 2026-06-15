@@ -68,7 +68,7 @@ const { currentRole } = useRole();
 const courseId = ref<number>();
 const selectedFile = ref<File | null>(null);
 const docs = ref<CourseDocument[]>([]);
-const query = ref('Python 爬虫发送 HTTP 请求的基本步骤是什么？');
+const query = ref('while 循环为什么会出现死循环？');
 const results = ref<SearchResult[]>([]);
 const stats = ref<KnowledgeStats | null>(null);
 const ragDiagnostics = ref<RagDiagnostics | null>(null);
@@ -297,7 +297,7 @@ onMounted(loadCourses);
         <p class="eyebrow">{{ pageCopy.eyebrow }}</p>
         <h2>{{ pageCopy.title }}</h2>
         <p class="muted">{{ pageCopy.description }}</p>
-        <p class="demo-note">质量评分、引用命中率和切片预览包含 demo/fallback 统计，真实 RAG 接入后可替换为检索服务指标。</p>
+        <p class="demo-note">质量评分、引用命中率和切片预览包含轻量规则统计，真实 RAG 接入后可替换为检索服务指标。</p>
       </div>
       <label class="course-select">
         当前课程
@@ -410,7 +410,7 @@ onMounted(loadCourses);
     <section v-if="showDiagnostics" class="panel">
       <div class="panel-title">
         <h2>可信 RAG 质量诊断</h2>
-        <span class="muted">{{ diagnosticsLoading ? '诊断加载中...' : '启发式 demo/fallback 指标' }}</span>
+        <span class="muted">{{ diagnosticsLoading ? '诊断加载中...' : '启发式质量指标' }}</span>
       </div>
       <p class="demo-note">{{ ragDiagnostics?.demo_fallback_note || '当前指标基于本地记录和规则估计，不接入真实 RAGFlow。' }}</p>
       <div class="diagnostic-grid">
@@ -488,7 +488,7 @@ onMounted(loadCourses);
     <section v-else class="panel">
       <div class="panel-title">
         <h2>{{ currentRole === 'student' ? '引用来源说明' : '资源库质量摘要' }}</h2>
-        <span class="muted">demo/fallback 边界</span>
+        <span class="muted">能力边界</span>
       </div>
       <p class="demo-note">学生端和教师端默认弱化 RAG 技术指标；管理员端会展示完整可信 RAG 质量诊断。</p>
       <div class="role-grid">

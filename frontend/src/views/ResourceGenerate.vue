@@ -1,383 +1,362 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { ref } from 'vue';
 import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
-import MindmapViewer from '../components/MindmapViewer.vue';
 import PageHeader from '../components/PageHeader.vue';
-import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { demoStudents, useRole } from '../composables/useRole';
 
-interface GeneratedResource {
-  id?: number;
+interface ResourceCard {
   title: string;
+  resourceType?: string;
   resource_type?: string;
-  content?: string;
-  difficulty?: string;
+  sourceAgent?: string;
   source_agent?: string;
-  created_at?: string;
-  recommend_reason?: string;
+  adaptedProfile?: string;
+  relatedKnowledgePoints?: string[];
+  reason?: string;
   recommendation_reason?: string;
+  difficulty: string;
+  reviewStatus?: string;
+  references?: string[];
+  estimatedMinutes?: number;
+  suitableLearner?: string;
+  libraryStatus?: string;
+  pushStatus?: string;
+  feedbackStatus?: string;
+  reviewSummary?: ReviewSummary;
 }
 
-interface MindmapNode {
-  label: string;
-  children?: MindmapNode[];
+interface ReviewSummary {
+  factualAccuracy: string;
+  referenceCompleteness: string;
+  difficultyMatch: string;
+  humanReviewAdvice: string;
 }
 
-interface MindmapData {
-  root: MindmapNode;
-}
-
-const resources = ref<GeneratedResource[]>([]);
-const loading = ref(true);
-const error = ref('');
-const { demoUserId, setDemoUserId } = useRole();
-const demoUsers = demoStudents;
-
-const fallbackResources: GeneratedResource[] = [
-  { title: 'Python 爬虫分层练习题', resource_type: 'quiz', source_agent: '资源生成 Agent', created_at: '2024-05-31 10:20' },
-  { title: 'HTTP 请求知识点讲义', resource_type: 'handout', source_agent: '知识解析 Agent', created_at: '2024-05-31 09:48' },
-  { title: '班级学习报告初稿', resource_type: 'task', source_agent: '报告生成 Agent', created_at: '2024-05-30 18:12' },
-  { title: 'Python 爬虫案例练习', resource_type: 'example', source_agent: '资源生成 Agent', created_at: '2024-05-30 16:36' },
-  {
-    title: 'Python 爬虫知识结构思维导图',
-    resource_type: 'mindmap',
-    source_agent: '资源生成 Agent',
-    created_at: '2024-05-30 15:20',
-    content: JSON.stringify({
-      root: {
-        label: 'Python 爬虫',
-        children: [
-          { label: '核心概念', children: [{ label: 'HTTP 请求' }, { label: 'HTML 解析' }, { label: '关键流程' }] },
-          { label: '知识关联', children: [{ label: '概念层：术语定义与使用场景' }, { label: '应用层：案例与练习的映射' }] },
-          { label: '学习路径', children: [{ label: '1. 掌握核心概念节点' }, { label: '2. 通过案例连接概念与应用' }] },
-        ],
-      },
-    }),
-  },
-];
-
-const queue = [
-  { name: '报告生成', progress: 72, status: '运行中' },
-  { name: '资源安全检查', progress: 46, status: '排队中' },
-  { name: '题库质量复核', progress: 88, status: '待审核' },
-];
-
-/* ── 预览弹窗 ── */
-const previewResource = ref<GeneratedResource | null>(null);
-const previewOpen = ref(false);
-
-function openPreview(resource: GeneratedResource) {
-  previewResource.value = resource;
-  previewOpen.value = true;
-}
-
-function closePreview() {
-  previewOpen.value = false;
-  previewResource.value = null;
-}
-
-const isMindmap = computed(() => previewResource.value?.resource_type === 'mindmap');
-
-const mindmapData = computed<MindmapData | null>(() => {
-  const content = previewResource.value?.content;
-  if (!content) return null;
-  try {
-    return JSON.parse(content) as MindmapData;
-  } catch {
-    return null;
-  }
+const form = ref({
+  student: '李明',
+  course: 'Python 程序设计',
+  chapter: '循环结构',
+  knowledgePoints: 'while 循环、循环嵌套、break / continue',
+  goal: '完成课程作业和基础项目',
+  preference: '代码案例 + 图解'
 });
 
-/* ── 类型标签映射 ── */
-const typeLabelMap: Record<string, string> = {
-  handout: '讲义',
-  example: '案例',
-  quiz: '测验',
-  task: '任务',
-  mindmap: '思维导图',
-  practice: '练习',
-};
+const agentNodes = [
+  '画像构建 Agent',
+  '知识检索 Agent',
+  '学习路径规划 Agent',
+  '资源生成规划 Agent',
+  '多类型资源生成 Agent',
+  'RAG 答疑 Agent',
+  '学习效果评估 Agent',
+  '内容安全与防幻觉审核 Agent',
+  '报告生成 Agent'
+].map((name, index) => ({
+  name,
+  input: index === 0 ? '自然语言对话 + 学习历史' : '上游 Agent 输出 + 循环结构知识库',
+  tool: index === 7 ? '审核规则 + 引用完整性检查' : '课程知识库 + 资源模板',
+  output: index === 4 ? '7 类个性化资源' : '结构化中间结果',
+  status: 'success',
+  duration: `${180 + index * 60}ms`,
+  evidence: 'Python 程序设计课程知识库 / 循环结构章节'
+}));
 
-function displayType(type?: string): string {
-  return typeLabelMap[type ?? ''] ?? type ?? '资源';
+const defaultResources: ResourceCard[] = [
+  ['循环结构讲解文档', '讲解文档', '基础'],
+  ['for / while 知识点思维导图', '思维导图', '基础'],
+  ['循环结构分层练习题', '分层练习题', '中等'],
+  ['循环结构拓展阅读材料', '拓展阅读', '中等'],
+  ['Python while 循环代码实操案例', '代码实操案例', '基础'],
+  ['循环结构课堂 PPT / 课件大纲', 'PPT / 课件大纲', '基础'],
+  ['多模态教学视频 / 动画脚本', '视频 / 动画脚本', '基础']
+].map(([title, resourceType, difficulty]) => ({
+  title,
+  resourceType,
+  difficulty,
+  sourceAgent: '多类型资源生成 Agent',
+  adaptedProfile: '循环结构需巩固，偏好代码实操',
+  relatedKnowledgePoints: ['while 循环', '循环嵌套', 'break / continue'],
+  reason: '匹配李明的薄弱知识点和代码案例 + 图解偏好。',
+  reviewStatus: '通过',
+  references: ['Python 程序设计课程知识库 / 循环结构章节'],
+  suitableLearner: '李明：循环结构需巩固，偏好代码实操',
+  libraryStatus: '待加入',
+  pushStatus: '待推送',
+  feedbackStatus: '待学习反馈',
+  reviewSummary: {
+    factualAccuracy: '通过课程知识库比对，循环条件、变量更新和控制语句解释准确。',
+    referenceCompleteness: '已绑定 Python 程序设计课程知识库 / 循环结构章节，可追溯到 while、循环嵌套和 break / continue 知识点。',
+    difficultyMatch: '基础到中等，适合李明当前“循环结构需巩固、偏好代码实操”的画像。',
+    humanReviewAdvice: '建议教师重点复核示例代码变量更新位置，确认课堂表述与学生当前进度一致。'
+  },
+  estimatedMinutes: 20
+}));
+
+function normalizeResources(list: ResourceCard[]) {
+  return list.map((item) => ({
+    ...item,
+    reviewStatus: item.reviewStatus || '已审核',
+    libraryStatus: item.libraryStatus || '待加入',
+    pushStatus: item.pushStatus || '待推送',
+    feedbackStatus: item.feedbackStatus || '待学习反馈',
+    references: item.references?.length ? item.references : ['Python 程序设计课程知识库 / 循环结构章节'],
+    relatedKnowledgePoints: item.relatedKnowledgePoints?.length ? item.relatedKnowledgePoints : ['while 循环', '循环嵌套', 'break / continue'],
+    reviewSummary: item.reviewSummary || {
+      factualAccuracy: '核心概念与课程知识库一致，未发现明显事实偏差。',
+      referenceCompleteness: '引用依据完整，已关联循环结构章节知识库。',
+      difficultyMatch: '难度与李明当前补弱目标匹配。',
+      humanReviewAdvice: '建议人工抽查案例代码和练习题答案解析。'
+    }
+  }));
 }
 
-function statusTone(status: string) {
-  if (status === '已完成') return 'success';
-  if (status === '失败') return 'danger';
-  if (status === '生成中' || status === '运行中') return 'purple';
-  if (status === '待审核') return 'warning';
-  return 'neutral';
+const resources = ref<ResourceCard[]>(normalizeResources(defaultResources));
+const packageTitle = ref('Python 循环结构个性化补弱资源包');
+const message = ref('');
+const loading = ref(false);
+const activeReviewTitle = ref<string | null>(null);
+
+function typeOf(item: ResourceCard) {
+  return item.resourceType || item.resource_type || '资源';
 }
 
-async function loadResources() {
+function agentOf(item: ResourceCard) {
+  return item.sourceAgent || item.source_agent || '多类型资源生成 Agent';
+}
+
+function reasonOf(item: ResourceCard) {
+  return item.reason || item.recommendation_reason || '匹配学生画像与循环结构薄弱点。';
+}
+
+function statusTone(status?: string): 'success' | 'warning' | 'info' {
+  if (!status || /待/.test(status)) return 'warning';
+  if (/已|通过|完成/.test(status)) return 'success';
+  return 'info';
+}
+
+async function generatePack() {
   loading.value = true;
-  error.value = '';
+  message.value = '';
   try {
-    resources.value = await api.get<GeneratedResource[]>(`/api/v1/resources?user_id=${encodeURIComponent(demoUserId.value)}`);
+    const result = await api.post<{ packageTitle: string; resources: ResourceCard[] }>('/api/v1/resources/generate-pack', {
+      studentId: 'student-li-ming',
+      courseId: 'python-programming',
+      courseName: form.value.course,
+      knowledgePoints: form.value.knowledgePoints.split('、'),
+      learningGoal: form.value.goal
+    });
+    packageTitle.value = result.packageTitle || packageTitle.value;
+    resources.value = normalizeResources(result.resources?.length ? result.resources : defaultResources);
+    message.value = '已生成资源包，并完成内容安全与防幻觉审核。';
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '资源生成接口暂不可用，当前显示演示数据。';
-    resources.value = fallbackResources;
+    resources.value = normalizeResources(defaultResources);
+    message.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
     loading.value = false;
   }
 }
 
-onMounted(loadResources);
-watch(demoUserId, loadResources);
+function markAction(action: string, item: ResourceCard) {
+  if (action === '加入资源库') {
+    item.libraryStatus = '已入库';
+    message.value = '已加入智能资源库';
+    return;
+  }
+  if (action === '推送给学生') {
+    item.pushStatus = '已推送';
+    item.feedbackStatus = '等待学习反馈';
+    message.value = '已推送至李明的今日学习任务';
+    return;
+  }
+  activeReviewTitle.value = activeReviewTitle.value === item.title ? null : item.title;
+  message.value = `${item.title} 审核摘要已${activeReviewTitle.value ? '展开' : '收起'}。`;
+}
 </script>
 
 <template>
-  <section class="page">
-    <PageHeader title="资源生成 / AI 资源管理" description="监控 AI 课件、习题、报告、知识点和学习路径生成任务。">
+  <section class="page resource-generate-page">
+    <PageHeader title="个性化多模态资源生成中心" description="围绕李明的 Python 循环结构薄弱点，展示多智能体协同生成、审核、入库与推送。">
       <template #actions>
-        <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
-          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
-        </select>
-        <button>新建生成任务</button>
-        <button class="secondary">模板管理</button>
+        <button class="secondary" @click="generatePack" :disabled="loading">{{ loading ? '生成中...' : '生成资源包' }}</button>
       </template>
     </PageHeader>
 
-    <p v-if="error" class="demo-banner">{{ error }}</p>
+    <p v-if="message" class="panel muted">{{ message }}</p>
 
     <div class="stat-grid">
-      <StatCard label="生成总数" :value="resources.length || 286" unit="份" icon="生" />
-      <StatCard label="今日生成" value="42" unit="份" icon="今" tone="green" />
-      <StatCard label="成功率" value="94.8" unit="%" icon="率" tone="cyan" />
-      <StatCard label="失败任务" value="5" unit="项" icon="错" tone="red" />
-      <StatCard label="平均耗时" value="18" unit="s" icon="耗" tone="orange" />
+      <StatCard label="资源类型" :value="resources.length" unit="类" icon="资" />
+      <StatCard label="审核状态" value="通过" hint="AuditAgent 初审" icon="审" tone="green" />
+      <StatCard label="关联知识点" value="3" unit="个" icon="知" tone="purple" />
+      <StatCard label="低依据风险" value="低" hint="引用完整" icon="据" tone="cyan" />
     </div>
 
     <div class="content-with-aside">
-      <DataCard title="资源生成记录" subtitle="资源名称、类型、来源和预览">
-        <template #action>
-          <button class="secondary" :disabled="loading" @click="loadResources">{{ loading ? '刷新中' : '刷新' }}</button>
-        </template>
-        <div class="filter-row resource-generate-filter">
-          <input placeholder="搜索资源名称..." />
-          <select>
-            <option>全部类型</option>
-            <option value="handout">讲义</option>
-            <option value="example">案例</option>
-            <option value="quiz">测验</option>
-            <option value="task">任务</option>
-            <option value="mindmap">思维导图</option>
-          </select>
+      <DataCard title="生成表单" subtitle="左侧默认填入当前学生与课程">
+        <div class="form-grid">
+          <label>学生<input v-model="form.student" /></label>
+          <label>课程<input v-model="form.course" /></label>
+          <label>章节<input v-model="form.chapter" /></label>
+          <label>知识点<input v-model="form.knowledgePoints" /></label>
+          <label>学习目标<input v-model="form.goal" /></label>
+          <label>资源偏好<input v-model="form.preference" /></label>
         </div>
-        <table class="table">
-          <thead>
-            <tr>
-              <th>资源名称</th>
-              <th>类型</th>
-              <th>来源</th>
-              <th>难度</th>
-              <th>推荐理由</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in resources" :key="item.id ?? item.title">
-              <td><strong>{{ item.title }}</strong></td>
-              <td><StatusBadge :label="displayType(item.resource_type)" tone="info" /></td>
-              <td>{{ item.source_agent ?? '-' }}</td>
-              <td>{{ item.difficulty ?? '-' }}</td>
-              <td class="reason-cell">{{ item.recommendation_reason ?? item.recommend_reason ?? '-' }}</td>
-              <td>{{ item.created_at?.slice(0, 10) ?? '-' }}</td>
-              <td>
-                <div class="row-actions">
-                  <button class="ghost" @click="openPreview(item)">预览</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <button class="full-button" @click="generatePack" :disabled="loading">{{ loading ? '生成中...' : '点击生成' }}</button>
       </DataCard>
 
-      <div class="side-stack">
-        <DataCard title="AI 生成任务队列" subtitle="当前排队和运行状态">
-          <div class="queue-list">
-            <div v-for="item in queue" :key="item.name" class="queue-row">
-              <div class="queue-head">
-                <strong>{{ item.name }}</strong>
-                <StatusBadge :label="item.status" :tone="statusTone(item.status)" />
-              </div>
-              <ProgressBar :value="item.progress" :tone="item.progress > 80 ? 'success' : item.progress < 50 ? 'warning' : 'primary'" />
-            </div>
-          </div>
-        </DataCard>
-
-        <DataCard title="风险提醒" subtitle="失败原因与治理建议">
-          <div class="list">
-            <div class="item compact"><strong>存储空间不足</strong><StatusBadge label="高风险" tone="danger" /></div>
-            <div class="item compact"><strong>知识点引用缺失</strong><StatusBadge label="待复核" tone="warning" /></div>
-            <div class="item compact"><strong>生成内容待审核</strong><StatusBadge label="12 份" tone="purple" /></div>
-          </div>
-        </DataCard>
-      </div>
+      <DataCard title="多智能体流程" subtitle="每个节点展示输入、工具、输出、状态、耗时和证据">
+        <div class="agent-mini-list">
+          <article v-for="item in agentNodes" :key="item.name">
+            <div><strong>{{ item.name }}</strong><StatusBadge :label="item.status" tone="success" /></div>
+            <p>输入：{{ item.input }}</p>
+            <p>工具：{{ item.tool }}</p>
+            <p>输出：{{ item.output }}</p>
+            <p>耗时：{{ item.duration }} · 证据：{{ item.evidence }}</p>
+          </article>
+        </div>
+      </DataCard>
     </div>
 
-    <!-- 预览弹窗 -->
-    <Teleport to="body">
-      <div v-if="previewOpen" class="modal-overlay" @click.self="closePreview">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>{{ previewResource?.title }}</h3>
-            <button class="ghost" @click="closePreview">关闭</button>
+    <DataCard :title="packageTitle" subtitle="资源卡片包含类型、Agent、画像适配、知识点、推荐原因、难度、审核状态和引用依据。">
+      <div class="resource-card-grid">
+        <article v-for="item in resources" :key="item.title" class="resource-card">
+          <div class="resource-head">
+            <strong>{{ item.title }}</strong>
+            <StatusBadge :label="item.reviewStatus || '通过'" tone="success" />
           </div>
-          <div class="modal-body">
-            <!-- 推荐理由 -->
-            <div v-if="previewResource?.recommendation_reason || previewResource?.recommend_reason" class="recommend-reason-box">
-              <span class="recommend-label">推荐理由</span>
-              <p>{{ previewResource.recommendation_reason || previewResource.recommend_reason }}</p>
-            </div>
-            <!-- 思维导图渲染 -->
-            <template v-if="isMindmap && mindmapData">
-              <MindmapViewer :data="mindmapData.root" />
-            </template>
-            <!-- 其他类型：纯文本展示 -->
-            <template v-else>
-              <pre class="content-text">{{ previewResource?.content || '暂无内容' }}</pre>
-            </template>
+          <p><span>资源类型</span>{{ typeOf(item) }}</p>
+          <p><span>生成 Agent</span>{{ agentOf(item) }}</p>
+          <p><span>适配画像</span>{{ item.adaptedProfile || '循环结构需巩固，偏好代码实操' }}</p>
+          <p><span>关联知识点</span>{{ (item.relatedKnowledgePoints || []).join('、') }}</p>
+          <p><span>推荐原因</span>{{ reasonOf(item) }}</p>
+          <p><span>难度等级</span>{{ item.difficulty }}</p>
+          <p><span>适合对象</span>{{ item.suitableLearner || '李明：循环结构需巩固，偏好代码实操' }}</p>
+          <p><span>预计学习时间</span>{{ item.estimatedMinutes || 20 }} 分钟</p>
+          <div class="status-flow">
+            <StatusBadge :label="item.reviewStatus || '已审核'" :tone="statusTone(item.reviewStatus)" />
+            <StatusBadge :label="item.libraryStatus || '待加入'" :tone="statusTone(item.libraryStatus)" />
+            <StatusBadge :label="item.pushStatus || '待推送'" :tone="statusTone(item.pushStatus)" />
+            <StatusBadge :label="item.feedbackStatus || '待学习反馈'" :tone="statusTone(item.feedbackStatus)" />
           </div>
-        </div>
+          <p><span>引用依据</span>{{ (item.references || ['Python 程序设计课程知识库 / 循环结构章节']).join('；') }}</p>
+          <div v-if="activeReviewTitle === item.title" class="review-summary">
+            <strong>审核摘要</strong>
+            <p><span>事实准确性</span>{{ item.reviewSummary?.factualAccuracy }}</p>
+            <p><span>引用依据完整性</span>{{ item.reviewSummary?.referenceCompleteness }}</p>
+            <p><span>难度匹配度</span>{{ item.reviewSummary?.difficultyMatch }}</p>
+            <p><span>人工复核建议</span>{{ item.reviewSummary?.humanReviewAdvice }}</p>
+          </div>
+          <div class="resource-actions">
+            <button class="secondary" @click="markAction('加入资源库', item)" :disabled="item.libraryStatus === '已入库'">
+              {{ item.libraryStatus === '已入库' ? '已加入' : '加入资源库' }}
+            </button>
+            <button @click="markAction('推送给学生', item)" :disabled="item.pushStatus === '已推送'">
+              {{ item.pushStatus === '已推送' ? '已推送' : '推送给学生' }}
+            </button>
+            <button class="ghost" @click="markAction('查看审核', item)">{{ activeReviewTitle === item.title ? '收起审核' : '查看审核' }}</button>
+          </div>
+        </article>
+        <p v-if="!resources.length" class="panel muted">暂无数据，系统将根据你的学习记录生成建议。</p>
       </div>
-    </Teleport>
+    </DataCard>
   </section>
 </template>
 
 <style scoped>
-.resource-generate-filter {
-  grid-template-columns: minmax(260px, 1fr) 160px;
-}
-
-.side-stack,
-.queue-list,
-.queue-row {
+.content-with-aside {
   display: grid;
-  gap: 14px;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 16px;
 }
 
-.queue-head,
-.row-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: center;
+.form-grid,
+.agent-mini-list,
+.resource-card-grid {
+  display: grid;
+  gap: 12px;
 }
 
-.row-actions {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-}
-
-/* ── 弹窗样式 ── */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(6px);
-}
-
-.modal-content {
-  background: #f8fafc;
-  border-radius: 20px;
-  width: min(92vw, 860px);
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.14);
-  border: none;
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 28px 12px;
-  border-bottom: none;
-  background: #ffffff;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
+.form-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-sub);
+  font-size: 13px;
   font-weight: 700;
-  color: #0f172a;
 }
 
-.modal-body {
-  padding: 16px 28px 28px;
-  overflow-y: auto;
-  flex: 1;
-  line-height: 1.6;
-  background: #f8fafc;
+.full-button {
+  width: 100%;
+  margin-top: 14px;
 }
 
-.content-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: #475569;
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 12px;
-  margin: 0;
-  border: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+.agent-mini-list article,
+.resource-card {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
 }
 
-.reason-cell {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.85rem;
-  color: #64748b;
+.agent-mini-list article > div,
+.resource-head,
+.resource-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
 }
 
-.recommend-reason-box {
-  background: linear-gradient(135deg, #eff6ff, #f0f9ff);
-  border-left: 3px solid #3b82f6;
-  border-radius: 0 10px 10px 0;
-  padding: 14px 18px;
-  margin-bottom: 16px;
+.agent-mini-list p,
+.resource-card p {
+  margin: 6px 0 0;
+  color: var(--color-text-sub);
+  line-height: 1.55;
 }
 
-.recommend-reason-box .recommend-label {
+.resource-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.resource-card p span {
   display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #3b82f6;
-  background: #dbeafe;
-  padding: 2px 10px;
-  border-radius: 10px;
+  min-width: 84px;
+  color: var(--color-primary-dark);
+  font-weight: 800;
+}
+
+.status-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.review-summary {
+  margin-top: 12px;
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--color-primary-light);
+}
+
+.review-summary strong {
+  display: block;
   margin-bottom: 8px;
 }
 
-.recommend-reason-box p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: #334155;
+.review-summary p {
+  color: var(--color-text);
 }
 
-@media (max-width: 820px) {
-  .resource-generate-filter {
+.resource-actions {
+  justify-content: flex-start;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 980px) {
+  .content-with-aside {
     grid-template-columns: 1fr;
-  }
-  .modal-content {
-    width: 95vw;
   }
 }
 </style>

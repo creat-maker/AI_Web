@@ -50,6 +50,12 @@ def list_items(course_id: int | None = None, user_id: str | None = None, db: Ses
                 "source_agent": "ResourceAgent",
                 "recommend_reason": item["recommendation_reason"],
                 "recommendation_reason": item["recommendation_reason"],
+                "relatedKnowledgePoints": item.get("relatedKnowledgePoints", []),
+                "references": item.get("references", []),
+                "reviewStatus": item.get("reviewStatus", "通过"),
+                "libraryStatus": item.get("libraryStatus", "已入库"),
+                "pushStatus": item.get("pushStatus", "可推送"),
+                "estimatedMinutes": item.get("estimatedMinutes", 20),
                 "created_at": pack["profile"]["updated_at"],
             }
             for index, item in enumerate(pack["resources"], start=1)
@@ -125,6 +131,14 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
     if profile:
         data["profile"] = profile_to_dict(profile)
     pack = build_resource_pack(data) if active_user_id else generate_resource_pack(data)
+    for item in pack.get("resources", []):
+        item.setdefault("reviewStatus", "通过")
+        item.setdefault("displayReviewStatus", item["reviewStatus"])
+        item.setdefault("libraryStatus", "待加入")
+        item.setdefault("pushStatus", "待推送")
+        item.setdefault("suitableLearner", "李明：循环结构需巩固，偏好代码实操")
+        item.setdefault("estimatedMinutes", 20)
+        item.setdefault("references", ["Python 程序设计课程知识库 / 循环结构章节"])
     student = get_demo_student(active_user_id)
     record_event(
         db,

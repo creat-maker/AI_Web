@@ -63,19 +63,19 @@ const courseFilter = ref('全部课程');
 
 const classOptions = ['计科大三 1 班', '计科大三 2 班', '计科大二 1 班', '计科大二 2 班'];
 const fallbackStages = [
-  { name: '环境搭建与基础语法', target: '完成 Python 环境与基础语法复盘', status: 'done', recommend_reason: '' },
-  { name: '函数与 HTTP 请求', target: '理解函数封装与 requests 基础', status: 'done', recommend_reason: '' },
-  { name: '数据解析', target: '掌握正则与 BeautifulSoup', status: 'active', recommend_reason: '' },
-  { name: '数据存储与管理', target: '完成 CSV / SQLite 数据保存', status: 'todo', recommend_reason: '' },
-  { name: '反爬策略与应对', target: '了解请求头、频控和异常处理', status: 'todo', recommend_reason: '' }
+  { name: '诊断补弱', target: '定位 while 死循环、循环嵌套和 break / continue 的主要错因', status: 'done', recommend_reason: '最近测验中 while 死循环问题错误率较高' },
+  { name: '核心概念学习', target: '复习 for、while、range、break、continue 的适用场景', status: 'done', recommend_reason: 'AI 求助集中在循环条件更新和循环嵌套' },
+  { name: '案例实操', target: '完成猜数字、九九乘法表和列表统计代码案例', status: 'active', recommend_reason: '学生偏好代码案例和图解资源' },
+  { name: '练习测评', target: '完成循环结构分层练习并标注错因', status: 'todo', recommend_reason: '形成性评价需要验证补弱效果' },
+  { name: '项目拓展', target: '完成课程作业和基础项目中的循环结构任务', status: 'todo', recommend_reason: '对齐课程作业与基础项目目标' }
 ];
 
 const fallbackTasks: TaskRow[] = [
-  { id: 1, name: 'HTTP 请求专项练习', course: 'Python 爬虫基础与实践', due: '2026-06-02', completed: 28, total: 32, status: '进行中' },
-  { id: 2, name: '数据解析章节测验', course: 'Python 爬虫基础与实践', due: '2026-06-04', completed: 12, total: 32, status: '待批改' },
+  { id: 1, name: '李明 while 循环专项练习', course: 'Python 程序设计', due: '2026-06-12', completed: 18, total: 32, status: '进行中' },
+  { id: 2, name: '循环嵌套章节测验', course: 'Python 程序设计', due: '2026-06-13', completed: 10, total: 32, status: '待批改' },
   { id: 3, name: '栈与队列课后作业', course: '数据结构与算法', due: '2026-06-01', completed: 38, total: 38, status: '已完成' },
-  { id: 4, name: 'RAG 原理阅读任务', course: '人工智能导论', due: '2026-06-05', completed: 8, total: 48, status: '未开始' },
-  { id: 5, name: '异常处理补强训练', course: 'Python 爬虫基础与实践', due: '2026-05-30', completed: 18, total: 32, status: '逾期' }
+  { id: 4, name: 'break / continue 变式题', course: 'Python 程序设计', due: '2026-06-14', completed: 8, total: 32, status: '未开始' },
+  { id: 5, name: '循环结构补弱资源包反馈', course: 'Python 程序设计', due: '2026-06-15', completed: 6, total: 32, status: '逾期' }
 ];
 
 const courseOptions = computed(() => ['全部课程', ...Array.from(new Set([...courses.value.map((item) => item.title), ...fallbackTasks.map((item) => item.course)]))]);
@@ -193,7 +193,7 @@ onMounted(load);
 
 <template>
   <section class="page path-page">
-    <PageHeader title="学习路径与任务布置" description="按班级和课程维护学习路径，跟踪任务完成率与批改状态。">
+    <PageHeader title="教师视角路径管理" description="管理李明的 Python 循环结构专项补弱路径，跟踪任务完成率、路径更新原因和教师干预动作。">
       <template #actions>
         <button class="secondary" @click="adjustPath">动态调整路径</button>
         <button @click="demoAction('新建任务')">新建任务</button>
@@ -220,7 +220,7 @@ onMounted(load);
     </DataCard>
 
     <div class="path-layout">
-      <DataCard title="当前路径进度" :subtitle="`${classFilter} · ${courseFilter}`">
+      <DataCard title="李明的 Python 循环结构专项补弱路径" :subtitle="`${classFilter} · ${courseFilter}`">
         <template #action>
           <StatusBadge :label="`${pathProgress}%`" tone="purple" />
         </template>
@@ -244,7 +244,7 @@ onMounted(load);
         <div class="list">
           <div class="item">
             <strong>当前节点</strong>
-            <p>{{ stages.find((item) => item.status === 'active')?.name || '数据解析' }}</p>
+            <p>{{ stages.find((item) => item.status === 'active')?.name || '案例实操' }}</p>
           </div>
           <div class="item">
             <strong>推荐动作</strong>

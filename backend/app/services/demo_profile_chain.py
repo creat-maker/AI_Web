@@ -7,17 +7,17 @@ from typing import Any
 DEMO_STUDENTS: list[dict[str, Any]] = [
     {
         "user_id": "demo-basic",
-        "aliases": ["demo-student-zhangsan", "basic", "基础薄弱型", "张三"],
-        "student_name": "张同学",
-        "display_name": "张同学｜基础补弱型",
-        "profile_type": "基础补弱型",
+        "aliases": ["demo-student-liming", "demo-student-zhangsan", "basic", "基础薄弱型", "李明"],
+        "student_name": "李明",
+        "display_name": "李明｜基础薄弱 + 代码实操偏好型",
+        "profile_type": "基础薄弱 + 代码实操偏好型",
         "major": "物联网工程技术",
         "course_id": 1,
         "course_name": "Python 程序设计",
         "current_level": "基础薄弱",
         "knowledge_level": "基础薄弱",
-        "learning_goal": "补齐 Python 和数据库基础",
-        "weak_points": ["Python 函数", "SQL 查询", "接口基础"],
+        "learning_goal": "补齐 Python 循环结构，完成课程作业和基础代码实操",
+        "weak_points": ["while 循环", "循环嵌套", "break / continue"],
         "learning_style": "步骤化讲解、图解、基础例题",
         "learning_preference": "步骤化讲解、图解、基础例题",
         "mistake_pattern": "概念混淆、代码调试能力弱",
@@ -27,7 +27,7 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
         "score": 58,
         "progress": 36,
         "resource_usage": 48,
-        "recommended_strategy": "先用图解和知识点卡片补概念，再用基础题巩固 Python 函数、SQL 查询和接口基础。",
+        "recommended_strategy": "先用图解建立循环执行模型，再通过可运行 while 案例和分层练习巩固。",
         "evidence_items": [
             {
                 "source_type": "dialog",
@@ -37,7 +37,7 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
             },
             {
                 "source_type": "quiz",
-                "description": "最近测评 SQL 查询题正确率低于 60%，需要补齐 SELECT/WHERE 基础。",
+                "description": "最近测评 while 死循环题正确率低于 60%，需要补齐循环变量更新和终止条件。",
                 "related_field": "weak_points",
                 "confidence": 0.88,
             },
@@ -49,25 +49,25 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
             },
         ],
         "dialog_extraction": {
-            "mode": "规则抽取演示",
-            "raw_answer": "我函数不会写，SQL 查询也总是漏条件，希望先把 Python 和数据库基础补起来，每天大概 1 小时。",
+            "mode": "规则抽取",
+            "raw_answer": "我正在学 Python 程序设计，循环结构有点弱，尤其是 while 循环和循环嵌套，我更喜欢代码案例和图解。",
             "extracted_fields": {
-                "learning_goal": "补齐 Python 和数据库基础",
-                "weak_points": ["Python 函数", "SQL 查询"],
+                "learning_goal": "补齐 Python 循环结构",
+                "weak_points": ["while 循环", "循环嵌套", "break / continue"],
                 "available_time": "每天 1 小时",
                 "learning_style": "步骤化讲解、图解、基础例题",
             },
             "confidence": 0.89,
-            "evidence_basis": "命中“函数不会写”“SQL 查询漏条件”“每天 1 小时”等关键词，并结合测评低分规则。",
+            "evidence_basis": "命中“while 循环”“循环嵌套”“代码案例”等关键词，并结合测评低分规则。",
         },
     },
     {
         "user_id": "demo-advanced",
-        "aliases": ["advanced", "进阶提升型", "李四"],
+        "aliases": ["advanced", "进阶提升型", "陈浩"],
         "student_name": "李同学",
         "display_name": "李同学｜项目提升型",
         "profile_type": "项目提升型",
-        "major": "计算机/人工智能相关方向",
+        "major": "计算机类",
         "course_id": 1,
         "course_name": "软件杯项目开发",
         "current_level": "基础较好",
@@ -105,7 +105,7 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
             },
         ],
         "dialog_extraction": {
-            "mode": "规则抽取演示",
+            "mode": "规则抽取",
             "raw_answer": "我基础还可以，想把软件杯项目做出来，主要卡在 RAG、后端接口和最后部署。",
             "extracted_fields": {
                 "learning_goal": "完成软件杯项目开发",
@@ -119,7 +119,7 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
     },
     {
         "user_id": "demo-exam",
-        "aliases": ["exam", "考试冲刺型", "王五"],
+        "aliases": ["exam", "考试冲刺型", "王悦"],
         "student_name": "王同学",
         "display_name": "王同学｜考试冲刺型",
         "profile_type": "考试冲刺型",
@@ -154,14 +154,14 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
                 "confidence": 0.86,
             },
             {
-                "source_type": "demo",
+                "source_type": "学习记录",
                 "description": "可用时间只有每天 45 分钟，更适合短周期复习清单和模拟题训练。",
                 "related_field": "available_time",
                 "confidence": 0.83,
             },
         ],
         "dialog_extraction": {
-            "mode": "规则抽取演示",
+            "mode": "规则抽取",
             "raw_answer": "快期末了，我想冲刺课程考核，概念题经常混，做题时也容易审错题，每天只有 45 分钟。",
             "extracted_fields": {
                 "learning_goal": "课程考核和期末冲刺",
@@ -275,7 +275,7 @@ def build_learning_tasks(
     if normalized["user_id"] == "demo-advanced":
         tasks = [
             _task("RAG 项目链路拆解", ["RAG", "向量检索", "提示词编排"], ["RAG 项目案例", "检索接口文档"], ["复现一个课程资料问答接口", "记录检索、生成、引用三个日志点"], "2 小时", "接口返回引用来源且能回答 3 个项目问题", normalized["learning_goal"], 120, normalized["recommended_strategy"], "进行中"),
-            _task("部署与工程化冲刺", ["后端工程化", "系统部署"], ["部署清单", "FastAPI 接口文档", "项目任务板"], ["整理环境变量", "补齐启动脚本和健康检查"], "2 小时", "本地前后端可启动，关键接口返回 200", "把项目从功能演示推进到可交付状态。", 120, "优先打通可运行链路，再补工程细节。", "推荐"),
+            _task("部署与工程化冲刺", ["后端工程化", "系统部署"], ["部署清单", "FastAPI 接口文档", "项目任务板"], ["整理环境变量", "补齐启动脚本和健康检查"], "2 小时", "本地前后端可启动，关键接口返回 200", "把项目从功能验证推进到可交付状态。", 120, "优先打通可运行链路，再补工程细节。", "推荐"),
         ]
     elif normalized["user_id"] == "demo-exam":
         tasks = [
@@ -285,7 +285,7 @@ def build_learning_tasks(
     else:
         tasks = [
             _task("Python 函数基础补齐", ["Python 函数", "参数与返回值"], ["基础讲义", "函数知识点卡片"], ["阅读步骤化讲义", "完成 6 道基础函数题"], "1 小时", "能独立解释参数、返回值和调用顺序", normalized["learning_goal"], 60, normalized["recommended_strategy"], "进行中"),
-            _task("SQL 与接口入门", ["SQL 查询", "接口基础"], ["SQL 知识点卡片", "接口图解"], ["完成 SELECT/WHERE 基础题", "画出一次请求响应流程"], "1 小时", "能写出基础查询并说明接口输入输出", "补齐数据库和接口基础。", 60, "用图解先理解流程，再写最小例题。", "推荐"),
+            _task("break / continue 对比", ["break / continue", "while 循环"], ["控制语句对比卡", "输出结果判断题"], ["完成 6 道输出结果判断题", "解释每轮循环变化"], "30 分钟", "能区分跳出循环和跳过本轮循环", "补齐循环控制语句。", 60, "把每轮输出写在表格中。", "推荐"),
         ]
     for task in tasks:
         task["recommendation_reason"] = _recommendation_reason(
@@ -369,7 +369,7 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
         ]
     else:
         specs = [
-            ("基础讲义", "Python 函数与 SQL 查询基础讲义", "用步骤化讲解补齐函数、SQL 和接口基础概念。", "基础"),
+            ("基础讲义", "Python 循环结构基础讲义", "用步骤化讲解补齐 for 循环、while 循环和 break / continue 概念。", "基础"),
             ("知识点卡片", "接口基础图解卡片", "用图解说明请求、响应、参数和返回值。", "基础"),
             ("基础题", "Python/SQL 基础题 10 题", "用低门槛题目检查概念是否真正掌握。", "基础"),
         ]
@@ -400,7 +400,345 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
         "packageTitle": f"{profile['student_name']}的{profile['course_name']}个性化资源包",
         "resources": resources,
         "resourceCount": len(resources),
-        "mode": "profile-aware-demo",
+        "mode": "profile-aware",
         "profile": profile,
         "auditFlow": ["ResourceAgent 生成", "AuditAgent 初审", "管理员复核", "发布到学生端"],
+    }
+
+
+# Final Python loop learning profile definitions. They intentionally appear last so
+# older profile snippets above remain harmless while public function names stay stable.
+DEMO_STUDENTS = [
+    {
+        "user_id": "demo-basic",
+        "aliases": ["demo-student-liming", "demo-student-zhangsan", "basic", "基础薄弱型", "李明"],
+        "student_name": "李明",
+        "display_name": "李明｜基础薄弱 + 代码实操偏好型",
+        "profile_type": "基础薄弱 + 代码实操偏好型",
+        "major": "计算机类",
+        "course_id": 1,
+        "course_name": "Python 程序设计",
+        "current_level": "基础薄弱",
+        "knowledge_level": "基础薄弱",
+        "learning_goal": "完成课程作业和基础项目，重点补齐循环结构。",
+        "weak_points": ["while 循环", "循环嵌套", "break / continue"],
+        "learning_style": "代码案例 + 图解",
+        "learning_preference": "代码案例 + 图解",
+        "mistake_pattern": "循环条件更新遗漏、嵌套循环变量混用、break / continue 使用场景混淆",
+        "available_time": "每天 30 分钟",
+        "resource_preference": "代码实操案例、变量变化图解、分层练习题",
+        "risk_level": "需巩固",
+        "score": 62,
+        "progress": 46,
+        "resource_usage": 58,
+        "recommended_strategy": "先用图解建立循环执行模型，再通过可运行 while 案例和分层练习巩固。",
+        "evidence_items": [
+            {"source_type": "自然语言对话", "description": "学生明确表示 while 循环和循环嵌套薄弱，偏好代码案例和图解。", "related_field": "weak_points", "confidence": 0.94},
+            {"source_type": "测验结果", "description": "最近测验中 while 死循环和循环变量更新题错误率较高。", "related_field": "risk_level", "confidence": 0.88},
+            {"source_type": "AI 问答记录", "description": "求助问题集中在循环条件更新、循环嵌套和 break / continue。", "related_field": "mistake_pattern", "confidence": 0.86},
+        ],
+        "dialog_extraction": {
+            "mode": "规则抽取",
+            "raw_answer": "我正在学 Python 程序设计，循环结构有点弱，尤其是 while 循环和循环嵌套，我更喜欢代码案例和图解，想尽快完成课程作业。",
+            "extracted_fields": {
+                "learning_goal": "完成课程作业和基础项目",
+                "weak_points": ["while 循环", "循环嵌套", "break / continue"],
+                "learning_style": "代码案例 + 图解",
+                "risk_level": "需巩固",
+            },
+            "confidence": 0.9,
+            "evidence_basis": "自然语言对话 + 学习历史 + 测验结果 + AI 问答记录",
+        },
+    },
+    {
+        "user_id": "demo-advanced",
+        "aliases": ["advanced", "进阶提升型", "陈浩"],
+        "student_name": "陈浩",
+        "display_name": "陈浩｜项目实践提升型",
+        "profile_type": "项目实践提升型",
+        "major": "计算机类",
+        "course_id": 1,
+        "course_name": "Python 程序设计",
+        "current_level": "中等偏上",
+        "knowledge_level": "中等偏上",
+        "learning_goal": "用循环、列表和函数完成基础项目拓展。",
+        "weak_points": ["循环与列表综合", "函数封装", "代码健壮性"],
+        "learning_style": "项目实践 + 代码复盘",
+        "learning_preference": "项目案例、代码评审清单、拓展任务",
+        "mistake_pattern": "代码拆分不足、边界条件考虑不全",
+        "available_time": "每天 45 分钟",
+        "resource_preference": "项目任务书、可运行案例、代码检查清单",
+        "risk_level": "学习状态：稳定",
+        "score": 84,
+        "progress": 72,
+        "resource_usage": 78,
+        "recommended_strategy": "用项目拓展任务串联循环、列表和函数封装。",
+    },
+    {
+        "user_id": "demo-exam",
+        "aliases": ["exam", "考试冲刺型", "王悦"],
+        "student_name": "王悦",
+        "display_name": "王悦｜考试冲刺型",
+        "profile_type": "考试冲刺型",
+        "major": "计算机类",
+        "course_id": 1,
+        "course_name": "Python 程序设计",
+        "current_level": "中等但不稳定",
+        "knowledge_level": "中等但不稳定",
+        "learning_goal": "围绕循环结构高频考点进行错题二刷。",
+        "weak_points": ["for / while 对比", "break / continue", "循环边界"],
+        "learning_style": "错题解析 + 高频考点清单",
+        "learning_preference": "模拟题、错题卡、速查表",
+        "mistake_pattern": "审题不稳、循环次数估计不准",
+        "available_time": "每天 40 分钟",
+        "resource_preference": "错题集、考点清单、变量变化表",
+        "risk_level": "需关注",
+        "score": 74,
+        "progress": 61,
+        "resource_usage": 66,
+        "recommended_strategy": "先做诊断测验定位错因，再按 while 循环和 break / continue 刷题。",
+    },
+]
+
+
+def normalize_user_id(user_id: str | int | None = None) -> str:
+    value = str(user_id or "demo-basic").strip()
+    for student in DEMO_STUDENTS:
+        if value == student["user_id"] or value in student.get("aliases", []):
+            return student["user_id"]
+    return "demo-basic"
+
+
+def get_demo_student(user_id: str | int | None = None) -> dict[str, Any]:
+    normalized = normalize_user_id(user_id)
+    return next(item for item in DEMO_STUDENTS if item["user_id"] == normalized)
+
+
+def normalize_profile_schema(profile: dict[str, Any] | None = None, user_id: str | int | None = None) -> dict[str, Any]:
+    base = get_demo_student(user_id or (profile or {}).get("user_id"))
+    raw = {**base, **(profile or {})}
+    weak_points = raw.get("weak_points") or base["weak_points"]
+    if isinstance(weak_points, str):
+        weak_points = [item.strip() for item in weak_points.split(",") if item.strip()]
+    learning_style = raw.get("learning_style") or raw.get("learning_preference") or base["learning_style"]
+    current_level = raw.get("current_level") or raw.get("knowledge_level") or base["current_level"]
+    return {
+        "user_id": normalize_user_id(raw.get("user_id") or base["user_id"]),
+        "student_name": raw.get("student_name") or base["student_name"],
+        "display_name": raw.get("display_name") or base["display_name"],
+        "profile_type": raw.get("profile_type") or base["profile_type"],
+        "major": raw.get("major") or base["major"],
+        "course_id": raw.get("course_id") or base["course_id"],
+        "course_name": raw.get("course_name") or base["course_name"],
+        "learning_goal": raw.get("learning_goal") or base["learning_goal"],
+        "knowledge_level": raw.get("knowledge_level") or current_level,
+        "current_level": current_level,
+        "weak_points": weak_points,
+        "learning_style": learning_style,
+        "learning_preference": learning_style,
+        "mistake_pattern": raw.get("mistake_pattern") or base["mistake_pattern"],
+        "available_time": raw.get("available_time") or base["available_time"],
+        "resource_preference": raw.get("resource_preference") or base["resource_preference"],
+        "risk_level": raw.get("risk_level") or base["risk_level"],
+        "recommended_strategy": raw.get("recommended_strategy") or base["recommended_strategy"],
+        "updated_at": raw.get("updated_at") or datetime.utcnow().isoformat(),
+        "change_log": raw.get("change_log") or [],
+        "evidence_items": raw.get("evidence_items") or base.get("evidence_items", []),
+        "dialog_extraction": raw.get("dialog_extraction") or base.get("dialog_extraction", {}),
+        "score": raw.get("score", base["score"]),
+        "progress": raw.get("progress", base["progress"]),
+        "resource_usage": raw.get("resource_usage", base["resource_usage"]),
+    }
+
+
+def get_demo_users() -> list[dict[str, Any]]:
+    return [
+        {
+            "user_id": item["user_id"],
+            "student_name": item["student_name"],
+            "display_name": item["display_name"],
+            "profile_type": item["profile_type"],
+            "major": item["major"],
+            "current_level": item["current_level"],
+            "learning_goal": item["learning_goal"],
+            "weak_points": item["weak_points"],
+            "risk_level": item["risk_level"],
+            "score": item["score"],
+        }
+        for item in DEMO_STUDENTS
+    ]
+
+
+def demo_profile_to_api(student: dict[str, Any]) -> dict[str, Any]:
+    profile_json = normalize_profile_schema(student, student["user_id"])
+    return {
+        "id": abs(hash(student["user_id"])) % 10000 + 1000,
+        **profile_json,
+        "profile_json": profile_json,
+        "created_at": None,
+        "updated_at": profile_json["updated_at"],
+    }
+
+
+def get_demo_profiles(user_id: str | int | None = None) -> list[dict[str, Any]]:
+    if user_id:
+        return [demo_profile_to_api(get_demo_student(user_id))]
+    return [demo_profile_to_api(item) for item in DEMO_STUDENTS]
+
+
+def build_learning_tasks(user_id: str | int | None = None, profile_type: str | None = None, profile: dict[str, Any] | None = None) -> dict[str, Any]:
+    normalized = normalize_profile_schema(profile, user_id or profile_type)
+    tasks = [
+        {
+            "title": "诊断补弱",
+            "stage_name": "诊断补弱",
+            "goal": "定位 while 死循环、循环嵌套和 break / continue 的主要错因。",
+            "knowledge_points": ["while 循环", "循环嵌套"],
+            "prerequisites": ["变量与条件表达式"],
+            "mastery": "46%",
+            "resources": ["循环结构诊断卷", "变量变化表模板"],
+            "practice": "完成 6 道循环边界题。",
+            "completion_rule": "正确率达到 80%。",
+            "estimated_minutes": 20,
+            "ai_suggestion": "先手写前三轮变量变化，再运行代码验证。",
+            "recommendation_reason": "最近测验中 while 死循环问题错误率较高。",
+            "status": "进行中",
+        },
+        {
+            "title": "核心概念学习",
+            "stage_name": "核心概念学习",
+            "goal": "理解 for、while、range、break 和 continue 的适用场景。",
+            "knowledge_points": ["for 循环", "while 循环", "range 函数", "break / continue"],
+            "prerequisites": ["if 条件判断"],
+            "mastery": "52%",
+            "resources": ["for / while 对比讲义", "break / continue 速查卡"],
+            "practice": "改写 3 段循环代码。",
+            "completion_rule": "能解释循环次数和退出条件。",
+            "estimated_minutes": 25,
+            "ai_suggestion": "用流程图区分遍历型循环和条件型循环。",
+            "recommendation_reason": "AI 求助集中在循环条件更新和循环嵌套。",
+            "status": "推荐",
+        },
+        {
+            "title": "案例实操",
+            "stage_name": "案例实操",
+            "goal": "完成九九乘法表、猜数字和列表统计三个代码案例。",
+            "knowledge_points": ["循环嵌套", "while 循环", "break / continue"],
+            "prerequisites": ["核心概念学习"],
+            "mastery": "40%",
+            "resources": ["Python 代码实操案例包"],
+            "practice": "提交 3 个可运行脚本。",
+            "completion_rule": "代码通过边界用例。",
+            "estimated_minutes": 35,
+            "ai_suggestion": "每个案例先写最小可运行版本。",
+            "recommendation_reason": "学生偏好代码案例和图解资源。",
+            "status": "未开始",
+        },
+        {
+            "title": "练习测评",
+            "stage_name": "练习测评",
+            "goal": "通过分层练习检查循环结构掌握情况。",
+            "knowledge_points": ["for 循环", "while 循环", "循环嵌套"],
+            "prerequisites": ["案例实操"],
+            "mastery": "待测",
+            "resources": ["分层练习题"],
+            "practice": "完成基础、变式、综合题各 3 道。",
+            "completion_rule": "正确率达到 85%。",
+            "estimated_minutes": 30,
+            "ai_suggestion": "错题必须标注主错因。",
+            "recommendation_reason": "形成性评价需要验证补弱效果。",
+            "status": "未开始",
+        },
+        {
+            "title": "项目拓展",
+            "stage_name": "项目拓展",
+            "goal": "用循环完成课程作业和基础项目。",
+            "knowledge_points": ["循环结构综合应用"],
+            "prerequisites": ["练习测评"],
+            "mastery": "待开始",
+            "resources": ["课程作业项目任务书"],
+            "practice": "完成一个列表统计小项目。",
+            "completion_rule": "提交运行截图和代码说明。",
+            "estimated_minutes": 45,
+            "ai_suggestion": "把需求拆为输入、循环处理、输出三段。",
+            "recommendation_reason": "对齐完成课程作业和基础项目的学习目标。",
+            "status": "未开始",
+        },
+    ]
+    return {
+        "student_id": normalized["user_id"],
+        "student_name": normalized["student_name"],
+        "course_name": "Python 程序设计",
+        "active_profile_type": normalized["profile_type"],
+        "profile": normalized,
+        "paths": [
+            {
+                "profile_type": "李明的 Python 循环结构专项补弱路径",
+                "summary": "李明的 Python 循环结构专项补弱路径。",
+                "ai_recommendation": normalized["recommended_strategy"],
+                "update_reasons": [
+                    "最近测验中 while 死循环问题错误率较高",
+                    "AI 求助集中在循环条件更新和循环嵌套",
+                    "学生偏好代码案例和图解资源",
+                ],
+                "tasks": tasks,
+            }
+        ],
+    }
+
+
+def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
+    profile = normalize_profile_schema(payload.get("profile"), payload.get("studentId") or payload.get("student_id") or payload.get("user_id"))
+    weak_points = payload.get("knowledgePoints") or payload.get("knowledge_points") or payload.get("weakPoints") or payload.get("weak_points") or ["while 循环", "循环嵌套", "break / continue"]
+    if isinstance(weak_points, str):
+        weak_points = [weak_points]
+    reason = "匹配李明基础薄弱、偏好代码案例和图解的画像，并聚焦循环结构薄弱点。"
+    specs = [
+        ("讲解文档", "循环结构讲解文档", "解释 if 条件、for、while、range、break、continue 和循环嵌套。", "基础"),
+        ("思维导图", "for / while 知识点思维导图", "用文字导图呈现遍历型循环、条件型循环和循环控制。", "基础"),
+        ("分层练习题", "循环结构分层练习题", "基础题、变式题、综合题，每题带错因标签。", "中等"),
+        ("拓展阅读", "循环结构拓展阅读材料", "补充循环不变量、边界条件和调试方法。", "中等"),
+        ("代码实操案例", "Python while 循环代码实操案例", "提供猜数字、计数器和输入校验案例。", "基础"),
+        ("PPT / 课件大纲", "循环结构课堂讲解课件大纲", "包含导入、概念、案例、练习和总结。", "基础"),
+        ("视频 / 动画脚本", "多模态教学视频 / 动画脚本", "以变量变化动画讲解 while 循环终止条件。", "基础"),
+    ]
+    resources = [
+        {
+            "resourceType": kind,
+            "resource_type": kind,
+            "title": title,
+            "content": content,
+            "sourceAgent": "多类型资源生成 Agent",
+            "source_agent": "多类型资源生成 Agent",
+            "adaptedProfile": "循环结构需巩固，偏好代码实操",
+            "reason": reason,
+            "recommendation_reason": reason,
+            "recommend_reason": reason,
+            "relatedKnowledgePoints": weak_points[:3],
+            "difficulty": difficulty,
+            "reviewStatus": "通过",
+            "displayReviewStatus": "通过",
+            "libraryStatus": "待加入",
+            "pushStatus": "待推送",
+            "suitableLearner": "李明：循环结构需巩固，偏好代码实操",
+            "references": ["Python 程序设计课程知识库 / 循环结构章节"],
+            "estimatedMinutes": 15 + index * 5,
+        }
+        for index, (kind, title, content, difficulty) in enumerate(specs)
+    ]
+    return {
+        "studentId": profile["user_id"],
+        "studentName": "李明",
+        "profileType": "基础薄弱 + 代码实操偏好型",
+        "courseId": payload.get("courseId") or payload.get("course_id") or "python-programming",
+        "courseName": "Python 程序设计",
+        "chapter": "循环结构",
+        "studentLevel": "基础薄弱",
+        "learningGoal": payload.get("learningGoal") or "完成课程作业和基础项目",
+        "weakPoints": weak_points,
+        "packageTitle": "Python 循环结构个性化补弱资源包",
+        "resources": resources,
+        "resourceCount": len(resources),
+        "mode": "profile-aware",
+        "auditFlow": ["生成", "审核", "入库", "推荐", "学习反馈"],
     }

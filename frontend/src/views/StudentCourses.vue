@@ -1,154 +1,118 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { LineChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent } from 'echarts/components';
-import * as echarts from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
-import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import type { Course } from '../types';
 
-echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
-
-const courses = ref<Course[]>([]);
-const loading = ref(true);
-const error = ref('');
-const chartEl = ref<HTMLDivElement | null>(null);
-let chart: echarts.ECharts | null = null;
-
-const fallbackCourses = [
-  { id: 1, title: 'Python 爬虫基础与实践', subject: 'Python', teacher_name: '王老师', progress: 75, status: '进行中', last: '今天 10:24', hours: '18h 20m' },
-  { id: 2, title: '数据结构与算法', subject: '算法', teacher_name: '陈老师', progress: 60, status: '进行中', last: '昨天 19:40', hours: '15h 05m' },
-  { id: 3, title: '人工智能导论', subject: 'AI', teacher_name: '张老师', progress: 40, status: '进行中', last: '05-29 16:20', hours: '9h 30m' },
-  { id: 4, title: '计算机网络原理', subject: '网络', teacher_name: '李老师', progress: 100, status: '已完成', last: '05-20 21:10', hours: '24h 15m' }
+const courses = [
+  {
+    title: 'Python 程序设计',
+    subject: 'Python',
+    teacher: '王老师',
+    progress: 68,
+    status: '进行中',
+    last: '今天 10:24',
+    hours: '18h 20m',
+    focus: '当前学习重点：循环结构'
+  },
+  {
+    title: '循环结构专项补弱课',
+    subject: '循环',
+    teacher: 'AI 助教',
+    progress: 42,
+    status: '重点学习',
+    last: '今天 09:40',
+    hours: '4h 15m',
+    focus: 'while 循环、break / continue、循环嵌套'
+  },
+  {
+    title: 'Python 代码实操案例课',
+    subject: '实操',
+    teacher: '实训助教',
+    progress: 55,
+    status: '进行中',
+    last: '昨天 20:10',
+    hours: '7h 35m',
+    focus: '用短代码验证循环变量变化'
+  }
 ];
 
-function cleanText(value: string | undefined, fallback: string) {
-  if (!value || /[?]{2,}|�/.test(value)) return fallback;
-  return value;
-}
-
-const courseRows = computed(() => {
-  const source = courses.value.length ? courses.value.slice(0, 4) : fallbackCourses;
-  return source.map((course, index) => {
-    const fallback = fallbackCourses[index % fallbackCourses.length];
-    return {
-      id: course.id,
-      title: cleanText(course.title, fallback.title),
-      subject: cleanText(course.subject, fallback.subject),
-      teacher_name: cleanText(course.teacher_name, fallback.teacher_name),
-      progress: fallback.progress,
-      status: fallback.status,
-      last: fallback.last,
-      hours: fallback.hours
-    };
-  });
-});
-
-const statCards = computed(() => [
-  { label: '进行中课程', value: courseRows.value.filter((item) => item.status === '进行中').length, unit: '门', hint: '持续学习', icon: '课' },
-  { label: '已完成课程', value: courseRows.value.filter((item) => item.status === '已完成').length, unit: '门', hint: '获得结课记录', icon: '完', tone: 'green' as const },
-  { label: '累计学习时长', value: '128h', unit: '36m', hint: '本周 +12h', icon: '时', tone: 'purple' as const },
-  { label: '平均进度', value: Math.round(courseRows.value.reduce((sum, item) => sum + item.progress, 0) / courseRows.value.length), unit: '%', hint: '较上周 +8%', icon: '进', tone: 'cyan' as const }
-]);
+const chapterRows = [
+  { name: '基础语法', status: '已完成', progress: 82 },
+  { name: '条件判断', status: '已完成', progress: 76 },
+  { name: '循环结构', status: '重点学习', progress: 62 },
+  { name: 'break / continue', status: '补弱重点', progress: 48 },
+  { name: '循环嵌套', status: '补弱重点', progress: 42 },
+  { name: '变量变化追踪', status: '后续巩固', progress: 36 },
+  { name: '循环综合实操', status: '后续巩固', progress: 28 }
+];
 
 const recentRecords = [
-  { title: '完成 HTTP 请求章节练习', course: 'Python 爬虫基础与实践', time: '今天 10:24' },
-  { title: '阅读栈与队列章节资料', course: '数据结构与算法', time: '昨天 19:40' },
-  { title: '观看 RAG 系统导论视频', course: '人工智能导论', time: '05-29 16:20' }
+  { title: '完成 while 循环终止条件练习', course: 'Python 程序设计', time: '今天 10:24' },
+  { title: '阅读循环嵌套变量变化讲解', course: '循环结构专项补弱课', time: '今天 09:40' },
+  { title: '提交 break / continue 对比题', course: 'Python 代码实操案例课', time: '昨天 20:10' }
 ];
 
-function renderChart() {
-  if (!chartEl.value) return;
-  chart = chart || echarts.init(chartEl.value);
-  chart.setOption({
-    color: ['#2f6bff', '#22c55e'],
-    tooltip: { trigger: 'axis' },
-    grid: { left: 34, right: 16, top: 28, bottom: 28 },
-    xAxis: { type: 'category', boundaryGap: false, data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#edf2f8' } } },
-    series: [{ type: 'line', smooth: true, areaStyle: { opacity: 0.08 }, data: [35, 42, 48, 56, 61, 66, 72] }]
-  });
-}
-
-async function load() {
-  loading.value = true;
-  error.value = '';
-  try {
-    courses.value = await api.get<Course[]>('/api/v1/courses');
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : '课程接口暂不可用，当前显示演示数据。';
-    courses.value = [];
-  } finally {
-    loading.value = false;
-    await nextTick();
-    renderChart();
-  }
-}
-
-function resizeChart() {
-  chart?.resize();
-}
-
-onMounted(() => {
-  load();
-  window.addEventListener('resize', resizeChart);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', resizeChart);
-  chart?.dispose();
-});
+const statCards = [
+  { label: '进行中课程', value: 3, unit: '门', hint: '围绕当前学习计划', icon: '课' },
+  { label: '今日重点', value: '循环', unit: '结构', hint: '当前补弱重点', icon: '循', tone: 'purple' as const },
+  { label: '章节正确率', value: 62, unit: '%', hint: '需继续补强', icon: '测', tone: 'orange' as const },
+  { label: '学习时长', value: '18h', unit: '20m', hint: 'Python 程序设计累计', icon: '时', tone: 'green' as const }
+];
 </script>
 
 <template>
   <section class="page student-courses-page">
-    <PageHeader title="我的课程" description="查看已加入课程、学习进度、最近学习和继续学习入口。">
+    <PageHeader
+      title="我的课程"
+      description="当前学习课程为 Python 程序设计，今日重点为循环结构。"
+    >
       <template #actions>
         <button class="secondary">筛选课程</button>
-        <button>继续学习</button>
+        <button>继续学习循环结构</button>
       </template>
     </PageHeader>
-
-    <p v-if="loading" class="panel muted">正在加载我的课程...</p>
 
     <div class="stat-grid">
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
     <div class="student-course-layout">
-      <DataCard title="课程列表" subtitle="课程进度、学习时长和状态">
+      <DataCard title="课程列表" subtitle="围绕李明的 Python 循环结构补弱组织">
         <div class="course-card-grid">
-          <article v-for="course in courseRows" :key="course.id" class="course-card">
+          <article v-for="course in courses" :key="course.title" class="course-card">
             <span class="course-icon">{{ course.subject.slice(0, 1) }}</span>
             <div>
               <strong>{{ course.title }}</strong>
-              <p>{{ course.teacher_name }} · 最近学习 {{ course.last }}</p>
-              <ProgressBar :value="course.progress" :tone="course.status === '已完成' ? 'success' : 'primary'" />
+              <p>{{ course.teacher }} / 最近学习 {{ course.last }} / 累计 {{ course.hours }}</p>
+              <p class="focus">{{ course.focus }}</p>
+              <ProgressBar :value="course.progress" :tone="course.status === '重点学习' ? 'warning' : 'primary'" />
             </div>
             <div class="course-meta">
               <span>{{ course.progress }}%</span>
-              <StatusBadge :label="course.status" :tone="course.status === '已完成' ? 'success' : 'purple'" />
-              <button class="secondary">继续学习</button>
+              <StatusBadge :label="course.status" :tone="course.status === '重点学习' ? 'purple' : 'success'" />
             </div>
           </article>
         </div>
-        <EmptyState v-if="!courseRows.length" title="暂无课程" description="加入课程后会显示在这里。" />
       </DataCard>
 
-      <DataCard title="学习统计" subtitle="近 7 天课程进度变化">
-        <div ref="chartEl" class="chart-box"></div>
+      <DataCard title="章节重点" subtitle="Python 程序设计课程结构">
+        <div class="chapter-list">
+          <article v-for="chapter in chapterRows" :key="chapter.name" class="chapter-row">
+            <div>
+              <strong>{{ chapter.name }}</strong>
+              <StatusBadge :label="chapter.status" :tone="chapter.status === '重点学习' ? 'purple' : 'neutral'" />
+            </div>
+            <ProgressBar :value="chapter.progress" :tone="chapter.status === '重点学习' ? 'warning' : 'primary'" />
+          </article>
+        </div>
       </DataCard>
     </div>
 
-    <DataCard title="最近学习记录" subtitle="按时间展示课程学习动作">
+    <DataCard title="最近学习记录" subtitle="全部记录围绕循环结构学习目标">
       <div class="record-grid">
-        <article v-for="item in recentRecords" :key="`${item.title}-${item.time}`" class="item compact">
+        <article v-for="item in recentRecords" :key="item.title" class="record-row">
           <div>
             <strong>{{ item.title }}</strong>
             <p>{{ item.course }}</p>
@@ -163,41 +127,50 @@ onBeforeUnmount(() => {
 <style scoped>
 .student-course-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
   gap: 16px;
 }
 
 .course-card-grid,
+.chapter-list,
 .record-grid {
   display: grid;
   gap: 12px;
 }
 
-.course-card {
+.course-card,
+.record-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
   padding: 14px;
-  background: #fbfdff;
+  background: #fff;
 }
 
 .course-icon {
-  display: inline-grid;
+  display: grid;
   place-items: center;
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: 12px;
   color: #fff;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+  background: var(--color-primary);
+  font-weight: 900;
 }
 
-.course-card p {
-  margin: 6px 0 10px;
+.course-card p,
+.record-row p {
+  margin: 5px 0;
+  color: var(--text-secondary);
   font-size: 13px;
+}
+
+.focus {
+  color: var(--color-primary-dark);
+  font-weight: 700;
 }
 
 .course-meta {
@@ -208,12 +181,25 @@ onBeforeUnmount(() => {
 
 .course-meta > span {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
-@media (max-width: 1180px) {
+.chapter-row {
+  display: grid;
+  gap: 8px;
+}
+
+.chapter-row > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+@media (max-width: 1080px) {
   .student-course-layout,
-  .course-card {
+  .course-card,
+  .record-row {
     grid-template-columns: 1fr;
   }
 
