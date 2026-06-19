@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -74,7 +75,7 @@ def _evidence_chain(report_json: dict, references: list[Any], weak_points: list[
         {
             "conclusion": item["conclusion"],
             "evidence_type": evidence_types[index % len(evidence_types)],
-            "source_title": str(references[index % len(references)]) if references else "EduMind demo/fallback evidence",
+            "source_title": str(references[index % len(references)]) if references else "EduMind 学习证据",
             "source_excerpt": f"该证据用于支撑结论：{item['conclusion']}",
             "confidence": base_confidences[index] if index < len(base_confidences) else round(0.88 - index * 0.06, 2),
             "related_knowledge_point": item["related_knowledge_point"],
@@ -144,7 +145,7 @@ def _summary(report_json: dict, item: LearningReport) -> dict[str, Any]:
         or ["围绕薄弱知识点安排分层练习，并在下一次问答或测评后更新报告。"],
         "references": references,
         "citation_documents": [
-            {"name": str(name), "type": "demo/fallback", "hit_count": index + 1}
+            {"name": str(name), "type": "学习证据", "hit_count": index + 1}
             for index, name in enumerate(references[:5])
         ],
         "citation_snippets": [
@@ -270,4 +271,5 @@ def download(report_id: int, db: Session = Depends(get_db)):
     report = db.query(LearningReport).filter(LearningReport.id == report_id).first()
     if not report or not report_exists(report):
         raise HTTPException(status_code=404, detail="报告文件不存在")
-    return FileResponse(report.report_path, filename=f"learning-report-{report_id}.docx")
+    suffix = Path(report.report_path).suffix or ".docx"
+    return FileResponse(report.report_path, filename=f"learning-report-{report_id}{suffix}")

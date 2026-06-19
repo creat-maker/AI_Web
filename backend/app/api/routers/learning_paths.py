@@ -4,10 +4,13 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_demo_user_id
 from app.db.session import get_db
 from app.models import Course, LearningPath, StudentProfile
+from app.services.demo_profile_chain import build_learning_tasks
 from app.services.json_utils import loads
 from app.services.learning_path_service import adjust_learning_path, create_learning_path
+from app.services.profile_service import latest_profile_by_user_id, profile_to_dict
 
 
 router = APIRouter(prefix="/learning-paths", tags=["learning-paths"])
@@ -37,11 +40,37 @@ def path_to_dict(item: LearningPath) -> dict:
 
 
 @router.get("")
-def list_items(course_id: int | None = None, db: Session = Depends(get_db)):
+def list_items(course_id: int | None = None, user_id: str | None = None, db: Session = Depends(get_db)):
+    if user_id:
+        profile = latest_profile_by_user_id(db, user_id, course_id)
+        tasks = build_learning_tasks(user_id=user_id, profile=profile_to_dict(profile) if profile else None)
+        return [
+            {
+                "id": 0,
+                "course_id": course_id or 1,
+                "student_profile_id": tasks["student_id"],
+                "path_json": path,
+                "adjustment_log": [],
+                "created_at": None,
+            }
+            for path in tasks["paths"]
+        ]
     query = db.query(LearningPath)
     if course_id:
         query = query.filter(LearningPath.course_id == course_id)
     return [path_to_dict(item) for item in query.order_by(LearningPath.id.desc()).all()]
+
+
+@router.get("/recommend")
+def recommend_learning_path(
+    user_id: str | None = None,
+    profile_type: str | None = None,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_demo_user_id),
+):
+    active_user_id = user_id or current_user_id
+    profile = latest_profile_by_user_id(db, active_user_id)
+    return build_learning_tasks(user_id=active_user_id, profile_type=profile_type, profile=profile_to_dict(profile) if profile else None)
 
 
 @router.post("/generate")

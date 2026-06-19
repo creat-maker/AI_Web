@@ -1,56 +1,42 @@
-<view class="page profile-dialog-page">
+<view class="page">
   <view class="header">
-    <text class="eyebrow">智能画像构建</text>
-    <text class="title">对话式学习画像</text>
-    <text class="subtitle">通过自然对话，智能抽取你的学习画像，生成个性化学习方案。</text>
+    <text class="eyebrow">对话式画像构建</text>
+    <text class="title">李明的 Python 循环结构画像</text>
+    <text class="subtitle">通过对话识别学习目标、当前水平、薄弱点、学习偏好和风险等级。</text>
   </view>
 
   <view class="section">
-    <view class="section-head">
-      <text class="section-title">抽取进度</text>
-      <text class="tag {{filledCount >= 6 ? 'tag-success' : 'tag-warning'}}">{{filledCount}} / 6 维度</text>
-    </view>
-    <view class="card progress-card">
-      <view class="progress"><view class="progress-bar" style="width: {{progressPercent}}%;"></view></view>
-      <view class="dimension-list">
-        <view class="dim-item {{item.filled ? 'dim-filled' : ''}}" wx:for="{{dimensions}}" wx:key="key">
-          <text class="dim-check">{{item.filled ? '✓' : '○'}}</text>
-          <text class="dim-label">{{item.label}}</text>
-          <text wx:if="{{item.filled}}" class="dim-value">{{item.value}}</text>
-        </view>
+    <view class="section-head"><text class="section-title">画像维度</text></view>
+    <view class="grid-2">
+      <view class="stat-card" wx:for="{{dimensions}}" wx:key="name">
+        <text class="stat-label">{{item.name}}</text>
+        <text class="stat-value">{{item.value}}</text>
       </view>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head">
-      <text class="section-title">对话面板</text>
-      <text class="tag {{fromBackend ? 'tag-success' : 'tag-warning'}}">{{fromBackend ? '后端服务' : '离线服务'}}</text>
-    </view>
-    <view class="card chat-card">
-      <view wx:for="{{messages}}" wx:key="index" class="message {{item.role === 'user' ? 'message-user' : 'message-ai'}}">
-        <text class="message-role">{{item.role === 'user' ? studentName : 'AI 画像助手'}}</text>
-        <text class="message-content">{{item.content}}</text>
-      </view>
-      <view wx:if="{{loading}}" class="message message-ai">
-        <text class="message-role">AI 画像助手</text>
-        <text class="message-content">正在分析你的回答并抽取画像维度...</text>
-      </view>
-    </view>
-  </view>
-
-  <view wx:if="{{!completed}}" class="input-panel">
-    <textarea class="dialog-input" value="{{userInput}}" bindinput="onInput" maxlength="300" auto-height placeholder="请输入你的回答" />
-    <button class="button-primary send-btn" loading="{{loading}}" bindtap="sendMessage">发送</button>
-    <button wx:if="{{ready}}" class="button-secondary finish-btn" bindtap="finishDialog">完成画像</button>
-  </view>
-
-  <view wx:if="{{completed}}" class="section">
-    <view class="section-head"><text class="section-title">画像已生成</text><text class="tag tag-success">已完成</text></view>
+    <view class="section-head"><text class="section-title">识别出的薄弱点</text></view>
     <view class="card">
-      <text class="body-text">你的学习画像已构建完成，系统将根据画像生成个性化学习路径和推荐资源。</text>
-      <view class="divider"></view>
-      <button class="button-primary" bindtap="goPath">查看学习路径</button>
+      <view class="chip-row">
+        <text class="chip" wx:for="{{weakPoints}}" wx:key="*this">{{item}}</text>
+      </view>
     </view>
+  </view>
+
+  <view class="section chat-list">
+    <view class="card message-card {{item.role === 'user' ? 'user-message' : 'ai-message'}}" wx:for="{{messages}}" wx:key="content">
+      <text class="primary-text">{{item.role === 'user' ? '李明' : '画像助手'}}</text>
+      <text class="body-text">{{item.content}}</text>
+    </view>
+  </view>
+
+  <view class="section input-panel">
+    <input value="{{inputValue}}" bindinput="onInput" placeholder="补充你的循环结构学习困难" />
+    <button class="button-primary" bindtap="sendMessage">发送</button>
+  </view>
+
+  <view class="section action-grid">
+    <button class="button-primary" bindtap="goPath">查看一人一堂路径</button>
   </view>
 </view>

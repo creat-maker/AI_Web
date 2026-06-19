@@ -5,7 +5,7 @@ import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
 const users = [
-  { name: '张三', account: '2021123456', role: '学生', org: '计科大三 1 班', status: '启用', login: '05-31 09:20' },
+  { name: '李明', account: '2021123456', role: '学生', org: '计科大三 1 班', status: '启用', login: '05-31 09:20' },
   { name: '王老师', account: 'T2021001', role: '教师', org: '计算机科学与技术学院', status: '启用', login: '05-31 08:45' },
   { name: '李助教', account: 'A2023002', role: '助教', org: 'Python 课程组', status: '启用', login: '05-30 18:10' },
   { name: '赵管理员', account: 'admin01', role: '管理员', org: '平台运营中心', status: '启用', login: '05-30 15:42' },

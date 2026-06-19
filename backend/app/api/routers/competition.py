@@ -8,12 +8,13 @@ from pydantic import BaseModel, Field
 from app.services.competition_mock_service import (
     QUIZ,
     generate_teacher_workbench,
-    get_content_review_items,
     get_knowledge_graph,
     get_learning_tasks,
     get_platform_quality,
     submit_quiz_answers,
 )
+from app.services.demo_learning_service import build_content_review_items
+from app.services.demo_profile_chain import build_learning_tasks
 
 
 router = APIRouter(tags=["competition-closed-loop"])
@@ -28,7 +29,7 @@ class QuizSubmitPayload(BaseModel):
 class TeacherWorkbenchPayload(BaseModel):
     type: str = "lesson_plan"
     course: str = "Python 程序设计"
-    chapter: str = "循环结构与函数"
+    chapter: str = "循环结构"
     student_foundation: str = "基础差异较大"
     teaching_goal: str = "掌握核心语法并能完成小任务"
 
@@ -39,7 +40,9 @@ def knowledge_graph():
 
 
 @router.get("/student/learning-tasks")
-def student_learning_tasks(profile_type: str | None = None):
+def student_learning_tasks(profile_type: str | None = None, user_id: str | None = None):
+    if user_id:
+        return build_learning_tasks(user_id=user_id, profile_type=profile_type)
     return get_learning_tasks(profile_type)
 
 
@@ -60,7 +63,7 @@ def teacher_ai_workbench_generate(payload: TeacherWorkbenchPayload):
 
 @router.get("/admin/content-review")
 def admin_content_review():
-    return get_content_review_items()
+    return build_content_review_items()
 
 
 @router.get("/admin/platform-quality")

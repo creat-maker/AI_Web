@@ -5,7 +5,7 @@ import StatusBadge from '../components/StatusBadge.vue';
 
 const notes = [
   { title: '算法与数据结构的笔记', tag: '算法', time: '今天 10:24' },
-  { title: 'Python 爬虫异常处理', tag: 'Python', time: '昨天 18:30' },
+  { title: 'while 循环终止条件复盘', tag: 'Python', time: '昨天 18:30' },
   { title: 'RAG 检索增强生成', tag: 'AI', time: '05-29 20:10' }
 ];
 </script>

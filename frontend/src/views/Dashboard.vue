@@ -80,11 +80,11 @@ let growthChart: echarts.ECharts | null = null;
 let roleChart: echarts.ECharts | null = null;
 
 const courses = [
-  { name: 'Python 爬虫基础与实践', teacher: '王老师', type: '技术课程', students: 1256, progress: 78, status: '进行中' },
-  { name: '机器学习与数据挖掘', teacher: '张老师', type: '技术课程', students: 856, progress: 62, status: '进行中' },
-  { name: '前端开发入门到进阶', teacher: '李老师', type: '技术课程', students: 642, progress: 45, status: '进行中' },
-  { name: '数据结构与算法', teacher: '陈老师', type: '基础课程', students: 987, progress: 91, status: '进行中' },
-  { name: '数学建模与应用', teacher: '刘老师', type: '通识课程', students: 554, progress: 35, status: '即将开始' }
+  { name: 'Python 程序设计', teacher: '王老师', type: '主线课程', students: 1256, progress: 78, status: '进行中' },
+  { name: '循环结构专项补弱课', teacher: '王老师', type: '章节专项', students: 856, progress: 62, status: '进行中' },
+  { name: 'while 循环代码讲解课', teacher: '陈老师', type: '补弱任务', students: 642, progress: 45, status: '进行中' },
+  { name: 'break / continue 对比练习', teacher: '李老师', type: '章节专项', students: 987, progress: 54, status: '进行中' },
+  { name: '循环嵌套变量追踪实训', teacher: '刘老师', type: '代码实操', students: 554, progress: 35, status: '即将开始' }
 ];
 
 const statCards = computed(() => [
@@ -106,10 +106,10 @@ const serviceStatus = computed(() => {
     }));
   }
   return [
-    { name: '课务器状态', desc: '课程和任务服务响应正常', status: '正常' },
-    { name: '数据库', desc: 'SQLite fallback / demo 数据可用', status: '正常' },
-    { name: '存储服务', desc: '资源与报告目录可访问', status: '正常' },
-    { name: 'AI 服务', desc: '演示模式可降级运行', status: '正常' }
+    { name: '平台指标服务', desc: '画像、资源、路径、问答、审核指标可展示', status: '正常' },
+    { name: '循环结构资源包', desc: 'Python 程序设计课程数据可用', status: '正常' },
+    { name: '内容审核服务', desc: '通过、需修改、人工复核、风险拦截状态可展示', status: '正常' },
+    { name: 'AI 学伴服务', desc: 'while 循环问答演示模式可降级运行', status: '正常' }
   ];
 });
 
@@ -120,7 +120,7 @@ function statusText(status?: string) {
     failed: '失败',
     warning: '警告',
     ready: '正常',
-    demo: '演示数据',
+    demo: '本地数据',
     generated: '已生成',
     completed: '已完成'
   };
@@ -196,7 +196,7 @@ async function loadDashboard() {
     if (activityResult.status === 'fulfilled') activity.value = activityResult.value;
     if (demoResult.status === 'fulfilled') demoStatus.value = demoResult.value;
     if (summaryResult.status === 'rejected' && activityResult.status === 'rejected') {
-      error.value = '后端暂不可用，当前显示演示数据。';
+      error.value = '后端暂不可用，当前显示本地运营数据。';
     }
   } finally {
     loading.value = false;
@@ -224,7 +224,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="page admin-dashboard">
-    <PageHeader title="欢迎回来，Admin" description="今天是平台运营总览，重点关注课程、用户、AI 生成和系统健康度。">
+    <PageHeader title="欢迎回来，Admin" description="平台总览重点关注 Python 循环结构资源包、学习预警、内容审核和系统健康度。">
       <template #actions>
         <button class="secondary">2024-05-01 → 2024-05-31</button>
         <RouterLink class="btn" to="/resource-generation">新建生成任务</RouterLink>
@@ -266,13 +266,13 @@ onBeforeUnmount(() => {
     </DataCard>
 
     <div class="admin-layout">
-      <DataCard title="课程管理" subtitle="平台课程数据、进度与审核状态">
+      <DataCard title="课程与资源运行状态" subtitle="Python 程序设计课程、循环结构章节和补弱资源包进度">
         <template #action>
           <RouterLink class="text-link" to="/admin/courses">查看全部</RouterLink>
         </template>
         <div class="filter-row">
           <input placeholder="搜索课程名称、教师、分类..." />
-          <select><option>全部类型</option><option>技术课程</option><option>基础课程</option></select>
+          <select><option>全部类型</option><option>主线课程</option><option>章节专项</option><option>补弱任务</option></select>
           <select><option>全部状态</option><option>进行中</option><option>即将开始</option></select>
         </div>
         <table class="table admin-course-table">
@@ -333,7 +333,7 @@ onBeforeUnmount(() => {
           </div>
           <div v-if="!activity?.recent_activity?.length" class="workflow-row">
             <div>
-              <strong>智能出卷工作流</strong>
+              <strong>循环结构资源生成工作流</strong>
               <p>由 Admin 触发 · 2 分钟前</p>
             </div>
             <StatusBadge label="成功" tone="success" />
@@ -355,9 +355,9 @@ onBeforeUnmount(() => {
             <StatusBadge :label="item.level" :tone="item.level === 'error' ? 'danger' : 'warning'" />
           </div>
           <template v-if="!summary?.warning_items?.length">
-            <div class="workflow-row"><strong>AI 服务响应延迟较高</strong><StatusBadge label="警告" tone="warning" /></div>
-            <div class="workflow-row"><strong>资源生成失败：存储空间不足</strong><StatusBadge label="错误" tone="danger" /></div>
-            <div class="workflow-row"><strong>用户登录成功：张老师</strong><StatusBadge label="信息" tone="info" /></div>
+            <div class="workflow-row"><strong>while 循环答疑引用不足，已提示人工复核</strong><StatusBadge label="警告" tone="warning" /></div>
+            <div class="workflow-row"><strong>循环嵌套练习题审核进入需修改状态</strong><StatusBadge label="警告" tone="warning" /></div>
+            <div class="workflow-row"><strong>教师查看李明形成性评价报告</strong><StatusBadge label="信息" tone="info" /></div>
           </template>
         </div>
       </div>

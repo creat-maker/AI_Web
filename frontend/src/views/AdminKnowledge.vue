@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import { ref } from 'vue';
 
 const categories = [
   { label: '课程资料', value: 128, tone: 'info' as const },
@@ -13,16 +14,88 @@ const categories = [
 ];
 
 const resources = [
-  { name: 'Python 课程讲义.pdf', type: 'PDF', course: 'Python 爬虫基础与实践', owner: '王老师', size: '12.6 MB', status: '已发布', updated: '05-30 10:25' },
-  { name: 'HTTP 请求实验案例.ipynb', type: 'Jupyter', course: 'Python 爬虫基础与实践', owner: '张老师', size: '8.9 MB', status: '解析中', updated: '05-30 09:42' },
-  { name: '数据结构题库.docx', type: 'DOCX', course: '数据结构与算法', owner: '陈老师', size: '5.4 MB', status: '待审核', updated: '05-29 18:20' },
-  { name: 'AI 服务质量月报.xlsx', type: 'Excel', course: '平台运营', owner: 'Admin', size: '2.1 MB', status: '已发布', updated: '05-29 16:05' }
+  { name: 'Python 循环结构讲义.pdf', type: 'PDF', course: 'Python 程序设计', owner: '王老师', size: '12.6 MB', status: '已发布', updated: '05-30 10:25' },
+  { name: 'while 死循环修复案例.ipynb', type: 'Jupyter', course: 'Python 程序设计', owner: '王老师', size: '8.9 MB', status: '解析中', updated: '05-30 09:42' },
+  { name: 'break continue 专项练习.docx', type: 'DOCX', course: 'Python 程序设计', owner: '陈老师', size: '5.4 MB', status: '待审核', updated: '05-29 18:20' },
+  { name: '循环嵌套变量变化表.xlsx', type: 'Excel', course: 'Python 程序设计', owner: 'Admin', size: '2.1 MB', status: '已发布', updated: '05-29 16:05' }
 ];
+
+const smartResources = [
+  {
+    resourceId: 'loop-pack-001',
+    title: 'Python 循环结构个性化补弱资源包',
+    course: 'Python 程序设计',
+    chapter: '循环结构',
+    knowledgePoints: ['while 循环', '循环嵌套', 'break / continue'],
+    resourceType: '资源包',
+    difficulty: '基础到中等',
+    suitableLearnerTags: ['基础薄弱', '代码实操偏好', '需重点练习'],
+    sourceAgent: '多类型资源生成 Agent',
+    reviewStatus: '通过',
+    references: ['Python 程序设计课程知识库 / 循环结构章节'],
+    usageCount: 28,
+    recommendationReason: '匹配李明的薄弱知识点和代码案例 + 图解偏好。',
+    loopStatus: {
+      generated: '已生成',
+      reviewed: '已审核',
+      stored: '已入库',
+      recommended: '已推荐',
+      feedback: '李明已完成 3 / 7'
+    }
+  },
+  {
+    resourceId: 'loop-case-while-002',
+    title: 'while 死循环修复案例',
+    course: 'Python 程序设计',
+    chapter: '循环结构',
+    knowledgePoints: ['while 循环', '变量更新'],
+    resourceType: '代码实操案例',
+    difficulty: '基础',
+    suitableLearnerTags: ['基础薄弱', '代码实操偏好'],
+    sourceAgent: '多类型资源生成 Agent',
+    reviewStatus: '通过',
+    references: ['Python 程序设计课程知识库 / while 循环小节', '课堂示例：计数器循环'],
+    usageCount: 12,
+    recommendationReason: '用于修复 while 条件一直为 True 或变量未更新的问题。',
+    loopStatus: {
+      generated: '已生成',
+      reviewed: '已审核',
+      stored: '已入库',
+      recommended: '已推送',
+      feedback: '等待学习反馈'
+    }
+  }
+];
+
+const closedLoop = [
+  { step: '生成', status: '已生成', detail: '资源生成规划 Agent 完成多类型资源输出' },
+  { step: '审核', status: '已审核', detail: '内容安全与防幻觉审核 Agent 已通过' },
+  { step: '入库', status: '已入库', detail: '绑定知识点后进入智能资源库' },
+  { step: '推荐', status: '已推荐', detail: '已进入李明的个性化推荐队列' },
+  { step: '学习反馈', status: '回收中', detail: '收集完成率、正确率和错因标签' }
+];
+const message = ref('');
+const actionLoading = ref('');
 
 function statusTone(status: string) {
   if (status === '已发布') return 'success';
   if (status === '解析中' || status === '待审核') return 'warning';
   return 'neutral';
+}
+
+function loopTone(status: string): 'success' | 'warning' | 'info' {
+  if (/已|完成/.test(status)) return 'success';
+  if (/等待|回收|待/.test(status)) return 'warning';
+  return 'info';
+}
+
+function runAction(key: string, doneMessage: string) {
+  actionLoading.value = key;
+  message.value = '正在处理，请稍候...';
+  window.setTimeout(() => {
+    actionLoading.value = '';
+    message.value = doneMessage;
+  }, 400);
 }
 </script>
 
@@ -30,10 +103,11 @@ function statusTone(status: string) {
   <section class="page">
     <PageHeader title="知识库运营 / 资源库" description="管理平台课程资料、题库资源、知识点切片和存储容量。">
       <template #actions>
-        <button>上传资源</button>
-        <button class="secondary">批量解析</button>
+        <button :disabled="actionLoading === 'upload'" @click="runAction('upload', '资源上传入口已准备，请选择课程资料后继续。')">{{ actionLoading === 'upload' ? '准备中...' : '上传资源' }}</button>
+        <button class="secondary" :disabled="actionLoading === 'parse'" @click="runAction('parse', '已提交批量解析任务，解析完成后会更新资源状态。')">{{ actionLoading === 'parse' ? '提交中...' : '批量解析' }}</button>
       </template>
     </PageHeader>
+    <p v-if="message" class="panel muted">{{ message }}</p>
 
     <div class="stat-grid">
       <StatCard label="资源总数" value="2,846" unit="份" icon="资" />
@@ -52,6 +126,64 @@ function statusTone(status: string) {
         </div>
       </DataCard>
     </div>
+
+    <DataCard title="智能教学资源库" subtitle="展示 AI 资源从生成、审核、绑定知识点、入库、推荐到使用反馈的闭环。">
+      <div class="closed-loop">
+        <article v-for="(item, index) in closedLoop" :key="item.step">
+          <span>{{ index + 1 }}</span>
+          <strong>{{ item.step }}</strong>
+          <StatusBadge :label="item.status" :tone="loopTone(item.status)" />
+          <p>{{ item.detail }}</p>
+        </article>
+      </div>
+      <table class="table smart-resource-table">
+        <thead>
+          <tr>
+            <th>resourceId</th>
+            <th>title</th>
+            <th>course / chapter</th>
+            <th>knowledgePoints</th>
+            <th>resourceType</th>
+            <th>difficulty</th>
+            <th>suitableLearnerTags</th>
+            <th>sourceAgent</th>
+            <th>reviewStatus</th>
+            <th>loopStatus</th>
+            <th>references</th>
+            <th>usageCount</th>
+            <th>recommendationReason</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in smartResources" :key="item.resourceId">
+            <td>{{ item.resourceId }}</td>
+            <td><strong>{{ item.title }}</strong></td>
+            <td>{{ item.course }} / {{ item.chapter }}</td>
+            <td>{{ item.knowledgePoints.join('、') }}</td>
+            <td>{{ item.resourceType }}</td>
+            <td>{{ item.difficulty }}</td>
+            <td>{{ item.suitableLearnerTags.join('、') }}</td>
+            <td>{{ item.sourceAgent }}</td>
+            <td><StatusBadge :label="item.reviewStatus" tone="success" /></td>
+            <td>
+              <div class="loop-status-list">
+                <StatusBadge :label="`生成：${item.loopStatus.generated}`" :tone="loopTone(item.loopStatus.generated)" />
+                <StatusBadge :label="`审核：${item.loopStatus.reviewed}`" :tone="loopTone(item.loopStatus.reviewed)" />
+                <StatusBadge :label="`入库：${item.loopStatus.stored}`" :tone="loopTone(item.loopStatus.stored)" />
+                <StatusBadge :label="`推荐：${item.loopStatus.recommended}`" :tone="loopTone(item.loopStatus.recommended)" />
+                <StatusBadge :label="`反馈：${item.loopStatus.feedback}`" :tone="loopTone(item.loopStatus.feedback)" />
+              </div>
+            </td>
+            <td>{{ item.references.join('；') }}</td>
+            <td>{{ item.usageCount }}</td>
+            <td>{{ item.recommendationReason }}</td>
+          </tr>
+          <tr v-if="!smartResources.length">
+            <td colspan="13">暂无数据，系统将根据你的学习记录生成建议。</td>
+          </tr>
+        </tbody>
+      </table>
+    </DataCard>
 
     <div class="content-with-aside">
       <DataCard title="资源列表" subtitle="资源名称、类型、所属课程、上传者和解析状态">
@@ -84,11 +216,14 @@ function statusTone(status: string) {
               <td>{{ item.updated }}</td>
               <td>
                 <div class="row-actions">
-                  <button class="ghost">预览</button>
-                  <button class="ghost">下载</button>
-                  <button class="ghost">审核</button>
+                  <button class="ghost" :disabled="actionLoading === `preview-${item.name}`" @click="runAction(`preview-${item.name}`, `${item.name} 预览已打开。`)">{{ actionLoading === `preview-${item.name}` ? '打开中...' : '预览' }}</button>
+                  <button class="ghost" :disabled="actionLoading === `download-${item.name}`" @click="runAction(`download-${item.name}`, `${item.name} 下载任务已准备。`)">{{ actionLoading === `download-${item.name}` ? '准备中...' : '下载' }}</button>
+                  <button class="ghost" :disabled="actionLoading === `review-${item.name}`" @click="runAction(`review-${item.name}`, `${item.name} 已进入审核队列。`)">{{ actionLoading === `review-${item.name}` ? '提交中...' : '审核' }}</button>
                 </div>
               </td>
+            </tr>
+            <tr v-if="!resources.length">
+              <td colspan="8">暂无数据，系统将根据你的学习记录生成建议。</td>
             </tr>
           </tbody>
         </table>
@@ -142,6 +277,53 @@ function statusTone(status: string) {
   gap: 6px;
 }
 
+.closed-loop {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.closed-loop article {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.closed-loop span {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--text-light);
+  background: var(--color-primary);
+  font-weight: 800;
+}
+
+.closed-loop strong {
+  display: block;
+  margin-top: 8px;
+}
+
+.closed-loop p {
+  margin: 8px 0 0;
+  color: var(--color-text-sub);
+  line-height: 1.5;
+}
+
+.loop-status-list {
+  display: flex;
+  min-width: 260px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.smart-resource-table {
+  min-width: 1480px;
+}
+
 .storage-card {
   display: grid;
   gap: 10px;
@@ -163,6 +345,9 @@ function statusTone(status: string) {
 
 @media (max-width: 820px) {
   .resource-filter {
+    grid-template-columns: 1fr;
+  }
+  .closed-loop {
     grid-template-columns: 1fr;
   }
 }

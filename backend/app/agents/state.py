@@ -12,8 +12,12 @@ class AgentState(TypedDict, total=False):
     learning_preference: str
     student_profile: dict[str, Any]
     retrieved_context: list[dict[str, Any]]
+    knowledge_query: str
+    knowledge_evidence: dict[str, Any]
+    resource_plan: dict[str, Any]
     learning_path: dict[str, Any]
     generated_resources: list[dict[str, Any]]
+    audit_result: dict[str, Any]
     quiz: dict[str, Any]
     quiz_submission: dict[str, Any]
     evaluation_result: dict[str, Any]

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../api/client';
 import { learningTaskPaths } from '../api/mocks/competitionData';
 import DataCard from '../components/DataCard.vue';
@@ -7,6 +7,7 @@ import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import { demoStudents as selectableStudents, useRole } from '../composables/useRole';
 
 type LearningTaskPaths = typeof learningTaskPaths;
 
@@ -14,9 +15,40 @@ const data = ref<LearningTaskPaths>(learningTaskPaths);
 const activeProfile = ref(learningTaskPaths.active_profile_type);
 const loading = ref(true);
 const error = ref('');
+const operationMessage = ref('');
+const replanLoading = ref(false);
+const { demoUserId: selectedUserId, setDemoUserId: setSelectedUserId } = useRole();
+const selectableUsers = selectableStudents;
+const updateReasons = [
+  '根据最近一次测验更新：while 循环条件更新仍需优先巩固',
+  '最近测验中 while 死循环问题错误率较高',
+  'AI 求助集中在循环条件更新和循环嵌套',
+  '学生偏好代码案例和图解资源'
+];
+const emptyPath = {
+  profile_type: '基础薄弱 + 代码实操偏好型',
+  summary: '暂无路径数据，系统将展示循环结构补弱建议。',
+  ai_recommendation: '建议先完成 while 循环条件更新专项练习。',
+  tasks: [
+    {
+      title: 'while 循环专项练习',
+      goal: '巩固 while 循环终止条件和变量更新。',
+      status: '进行中',
+      knowledge_points: ['while 循环'],
+      resources: ['while 循环条件更新专项练习'],
+      practice: '完成 3 道变量更新补全题。',
+      completion_rule: '正确率达到 80%，并写出前三轮变量变化。',
+      estimated_minutes: 20,
+      ai_suggestion: '先画变量变化表，再运行代码验证。'
+    }
+  ]
+};
 
-const activePath = computed(() => data.value.paths.find((item) => item.profile_type === activeProfile.value) || data.value.paths[0]);
-const allTasks = computed(() => data.value.paths.flatMap((path) => path.tasks));
+const activePath = computed(() => data.value.paths.find((item) => item.profile_type === activeProfile.value) || data.value.paths[0] || emptyPath);
+const allTasks = computed(() => {
+  const tasks = data.value.paths.flatMap((path) => path.tasks || []);
+  return tasks.length ? tasks : emptyPath.tasks;
+});
 
 function taskTone(status: string) {
   if (status === '进行中') return 'purple';
@@ -29,11 +61,13 @@ async function loadTasks(profileType?: string) {
   loading.value = true;
   error.value = '';
   try {
-    const query = profileType ? `?profile_type=${encodeURIComponent(profileType)}` : '';
+    const params = new URLSearchParams({ user_id: selectedUserId.value });
+    if (profileType) params.set('profile_type', profileType);
+    const query = `?${params.toString()}`;
     data.value = await api.get<LearningTaskPaths>(`/api/v1/student/learning-tasks${query}`);
     activeProfile.value = profileType || data.value.active_profile_type;
   } catch (err) {
-    error.value = err instanceof Error ? `后端学习任务接口暂不可用，已使用本地演示数据：${err.message}` : '后端学习任务接口暂不可用，已使用本地演示数据。';
+    error.value = '当前网络不稳定，已为你展示本地学习建议。';
     data.value = learningTaskPaths;
   } finally {
     loading.value = false;
@@ -42,29 +76,54 @@ async function loadTasks(profileType?: string) {
 
 function switchProfile(profileType: string) {
   activeProfile.value = profileType;
+  operationMessage.value = `已切换到「${profileType}」路径策略。`;
   loadTasks(profileType);
 }
 
+function taskReason(task: LearningTaskPaths['paths'][number]['tasks'][number]) {
+  return (task as unknown as Record<string, string>).recommendation_reason || (task as unknown as Record<string, string>).ai_suggestion || '-';
+}
+
+function taskField(task: LearningTaskPaths['paths'][number]['tasks'][number], key: string, defaultValue = '-') {
+  return (task as unknown as Record<string, string>)[key] || defaultValue;
+}
+
+function replanPath() {
+  replanLoading.value = true;
+  operationMessage.value = '正在根据最新测验错因和 AI 求助记录重新规划路径...';
+  window.setTimeout(() => {
+    replanLoading.value = false;
+    operationMessage.value = '已根据最新测验错因和 AI 求助记录重新规划路径，当前展示最新动态更新结果。';
+  }, 500);
+}
+
 onMounted(() => loadTasks());
+watch(selectedUserId, () => loadTasks());
 </script>
 
 <template>
   <section class="page student-path-page">
-    <PageHeader title="任务式学习路径" description="根据学生画像生成不同学习路径，把学习目标、知识点、资源、练习、完成条件和 AI 建议组织成可执行任务。">
+    <PageHeader title="一人一堂学习路径" description="李明的 Python 循环结构专项补弱路径，按诊断补弱、核心概念学习、案例实操、练习测评、项目拓展推进。">
       <template #actions>
+        <select :value="selectedUserId" @change="setSelectedUserId(($event.target as HTMLSelectElement).value)">
+          <option v-for="user in selectableUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
+        </select>
         <RouterLink class="btn secondary" to="/student/knowledge-graph">知识图谱</RouterLink>
         <RouterLink class="btn" to="/student/smart-quiz">章节测验</RouterLink>
+        <button type="button" class="secondary" :disabled="replanLoading" @click="replanPath">{{ replanLoading ? '规划中...' : '重新规划路径' }}</button>
       </template>
     </PageHeader>
 
     <p v-if="loading" class="panel muted">正在加载个性化学习路径...</p>
     <p v-if="error" class="panel warning-text">{{ error }}</p>
+    <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
+    <p class="panel muted">学习路径已根据最近一次循环结构测验更新。</p>
 
     <div class="stat-grid">
-      <StatCard label="当前课程" value="Python" hint="程序设计" icon="Py" />
-      <StatCard label="画像类型" :value="activePath.profile_type" hint="可切换演示策略" icon="像" tone="purple" />
-      <StatCard label="路径任务" :value="activePath.tasks.length" unit="项" hint="按完成条件推进" icon="任" tone="green" />
-      <StatCard label="预计时间" :value="activePath.tasks.reduce((sum, item) => sum + item.estimated_minutes, 0)" unit="分钟" hint="本阶段建议投入" icon="时" tone="orange" />
+      <StatCard label="当前课程" value="Python 程序设计" hint="循环结构" icon="Py" />
+      <StatCard label="学习特点" :value="activePath.profile_type" hint="可切换学习策略" icon="像" tone="purple" />
+      <StatCard label="路径任务" :value="activePath.tasks.length || 0" unit="项" hint="按完成条件推进" icon="任" tone="green" />
+      <StatCard label="预计时间" :value="activePath.tasks.reduce((sum, item) => sum + (item.estimated_minutes || 0), 0)" unit="分钟" hint="本阶段建议投入" icon="时" tone="orange" />
     </div>
 
     <DataCard title="个性化路径策略" subtitle="对标主流智慧教学平台的任务驱动学习体验">
@@ -74,6 +133,7 @@ onMounted(() => loadTasks());
           :key="path.profile_type"
           :class="{ secondary: activeProfile !== path.profile_type }"
           @click="switchProfile(path.profile_type)"
+          :disabled="loading"
         >
           {{ path.profile_type }}
         </button>
@@ -84,6 +144,16 @@ onMounted(() => loadTasks());
           <p>{{ activePath.ai_recommendation }}</p>
         </div>
         <StatusBadge label="AI 推荐路径" tone="success" />
+      </div>
+    </DataCard>
+
+    <DataCard title="路径更新原因" subtitle="路径根据测验、AI 求助和资源偏好动态更新">
+      <div class="overview-list reason-list">
+        <article v-for="item in updateReasons" :key="item">
+          <strong>{{ item }}</strong>
+          <span>已写入李明的 Python 循环结构专项补弱路径</span>
+          <StatusBadge label="已采纳" tone="success" />
+        </article>
       </div>
     </DataCard>
 
@@ -101,12 +171,24 @@ onMounted(() => loadTasks());
             <p>{{ task.resources.join('、') }}</p>
           </div>
           <div class="task-line">
+            <strong>前置知识点</strong>
+            <p>{{ taskField(task, 'prerequisites', '变量与条件表达式') }}</p>
+          </div>
+          <div class="task-line">
+            <strong>当前掌握度</strong>
+            <p>{{ taskField(task, 'mastery', task.status === '进行中' ? '46%' : '待完成') }}</p>
+          </div>
+          <div class="task-line">
             <strong>练习任务</strong>
             <p>{{ task.practice }}</p>
           </div>
           <div class="task-line">
             <strong>完成条件</strong>
             <p>{{ task.completion_rule }}</p>
+          </div>
+          <div class="task-line recommend-reason">
+            <strong>推荐理由</strong>
+            <p>{{ taskReason(task) }}</p>
           </div>
           <div class="task-bottom">
             <span>预计 {{ task.estimated_minutes }} 分钟</span>

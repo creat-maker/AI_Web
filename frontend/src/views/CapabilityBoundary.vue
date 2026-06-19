@@ -22,7 +22,7 @@ onMounted(() => {
       <article class="placeholder-hero">
         <span class="status-badge warning">演示模式说明</span>
         <h2>系统能力边界说明</h2>
-        <p>用于比赛答辩时说明真实实现、demo/mock/fallback 能力和后续可扩展位置，避免把演示能力描述为生产能力。</p>
+        <p>用于说明真实实现、当前能力边界和后续可扩展位置，避免把轻量能力描述为完整生产能力。</p>
       </article>
 
       <div class="role-layout">

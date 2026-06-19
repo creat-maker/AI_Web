@@ -51,7 +51,7 @@ class AddToPathPayload(BaseModel):
 class TaskAssignPayload(BaseModel):
     student_profile_id: int | None = None
     course_id: int | None = None
-    weak_point: str = "HTTP 请求"
+    weak_point: str = "while 循环终止条件"
     task_type: str = "完成练习"
     due_date: str | None = None
     actor_role: str = "teacher"
@@ -98,7 +98,7 @@ def _first_profile(db: Session, profile_id: int | None) -> StudentProfile | None
 def create_resource_package(payload: ResourcePackagePayload, db: Session = Depends(get_db)):
     course = _first_course(db, payload.course_id)
     profile = _first_profile(db, payload.student_profile_id)
-    weak_points = loads(profile.weak_points, []) if profile else ["核心概念", "HTTP 请求"]
+    weak_points = loads(profile.weak_points, []) if profile else ["while 循环终止条件", "break / continue 区分"]
     package_id = f"pkg-{course.id}-{profile.id if profile else 0}-{date.today().isoformat()}"
     resources = []
     for index, resource_type in enumerate(RESOURCE_TYPES, start=1):
@@ -107,7 +107,7 @@ def create_resource_package(payload: ResourcePackagePayload, db: Session = Depen
             student_profile_id=profile.id if profile else None,
             resource_type=resource_type,
             title=f"{course.title} · {resource_type}",
-            content=f"demo/fallback {resource_type}：围绕 {', '.join(str(item) for item in weak_points[:3])} 生成，用于比赛演示个性化多模态资源包。",
+            content=f"{resource_type}：围绕 {', '.join(str(item) for item in weak_points[:3])} 生成，用于个性化多模态资源包。",
             difficulty="分层",
             source_agent="ResourcePackageAgent",
         )
@@ -235,7 +235,7 @@ def complete_demo_quiz(payload: DemoQuizPayload, db: Session = Depends(get_db)):
         db.flush()
     result = {
         "score": 78,
-        "weak_points": ["HTTP 请求", "异常处理", "文件操作"],
+        "weak_points": ["while 循环终止条件", "循环嵌套变量变化", "break / continue 区分"],
         "mastery_delta": 0.08,
         "suggested_resources": ["分层练习题", "代码示例", "实验案例"],
     }

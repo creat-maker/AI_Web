@@ -65,45 +65,46 @@ let donutChart: echarts.ECharts | null = null;
 let radarChart: echarts.ECharts | null = null;
 
 const courses = [
-  { name: 'Python 爬虫基础与实践', className: '计科大三 1 班', students: 32, progress: 72, tone: 'success' as const },
-  { name: '人工智能导论', className: '计科大三 2 班', students: 48, progress: 65, tone: 'primary' as const },
-  { name: '数据结构与算法', className: '计科大二 1 班', students: 38, progress: 58, tone: 'primary' as const },
-  { name: 'Web 开发技术', className: '计科大二 2 班', students: 30, progress: 41, tone: 'warning' as const }
+  { name: 'Python 程序设计', className: '计科大三 1 班', students: 32, progress: 72, tone: 'success' as const },
+  { name: '循环结构专项补弱课', className: '计科大三 1 班', students: 32, progress: 56, tone: 'primary' as const },
+  { name: 'while 循环代码讲解课', className: '计科大三 1 班', students: 32, progress: 48, tone: 'primary' as const },
+  { name: 'break / continue 对比练习', className: 'Python 程序设计 2 班', students: 30, progress: 41, tone: 'warning' as const }
 ];
 
 const student = {
-  name: '张三',
+  name: '李明',
   className: '计科大三 1 班',
   number: '2021123456',
-  score: 86,
+  score: 67,
   abilities: [
-    { name: '编程能力', value: 82 },
-    { name: '算法思维', value: 88 },
-    { name: '数据处理', value: 75 },
-    { name: '工程实践', value: 70 },
-    { name: '问题解决', value: 90 },
-    { name: '学习态度', value: 85 }
+    { name: 'for 循环', value: 70 },
+    { name: 'while 循环', value: 48 },
+    { name: 'break / continue', value: 55 },
+    { name: '循环嵌套', value: 43 },
+    { name: '代码实操', value: 62 },
+    { name: '学习投入', value: 78 }
   ]
 };
 
 const reminders = computed(() => [
-  { title: '有 18 份作业待批改', desc: 'Python 爬虫基础与实践 · 第 5 次作业', tone: 'danger' as const },
-  { title: `收到 ${summary.value?.tutor_chat_stats?.today_questions || 7} 个新的答疑问题`, desc: '来自计科大三 1 班', tone: 'warning' as const },
-  { title: '课程「人工智能导论」即将开始', desc: '下次课时间：明天 10:00', tone: 'info' as const },
-  { title: '张三的学习进度有明显提升', desc: '近 7 天进步了 12 分', tone: 'success' as const }
+  { title: '有 18 份循环结构练习待批改', desc: 'Python 程序设计 · while 循环补全题', tone: 'danger' as const },
+  { title: `收到 ${summary.value?.tutor_chat_stats?.today_questions || 7} 个新的循环结构答疑问题`, desc: '来自计科大三 1 班', tone: 'warning' as const },
+  { title: '10 分钟 while 循环代码讲解待安排', desc: '建议课堂中演示变量更新位置', tone: 'info' as const },
+  { title: '李明的形成性报告已更新', desc: '建议课后查看错因和下一步路径', tone: 'success' as const }
 ]);
 
 const weakPoints = computed(() => summary.value?.student_risk_stats?.weak_points || [
-  { name: 'HTTP 请求流程', count: 42 },
-  { name: 'BeautifulSoup 解析', count: 38 },
-  { name: '正则表达式', count: 34 },
-  { name: '异常处理', count: 28 },
-  { name: '数据清洗', count: 24 }
+  { name: 'while 循环条件更新', count: 52 },
+  { name: '循环嵌套变量变化', count: 47 },
+  { name: 'break / continue 区分', count: 39 },
+  { name: 'for 循环边界判断', count: 32 },
+  { name: '变量变化表书写', count: 26 }
 ]);
 
 const suggestions = computed(() => analysis.value?.knowledge_tracking?.teacher_intervention_suggestions || [
-  { title: '分层布置 HTTP 请求专项任务', content: '建议对进度低于 60% 的学生推送 15 分钟微练习，并关联答疑记录。' },
-  { title: '加强解析与异常处理讲解', content: '集中薄弱点出现在数据解析环节，可在下一节课加入案例复盘。' }
+  { title: '推送 Python 循环结构个性化补弱资源包', content: '建议先给李明推送 while 死循环修复案例、break / continue 对比卡和循环嵌套变量变化表。' },
+  { title: '安排 10 分钟 while 循环代码讲解', content: '课堂中用最小代码演示初始值、条件判断和变量更新，并布置 3 道 while 循环补全题。' },
+  { title: '课后查看形成性评价报告', content: '根据测验错因和 AI 学伴问答记录确认是否继续追加循环嵌套练习。' }
 ]);
 
 const statCards = computed(() => [
@@ -181,7 +182,7 @@ async function loadPage() {
     if (summaryResult.status === 'fulfilled') summary.value = summaryResult.value;
     if (analysisResult.status === 'fulfilled') analysis.value = analysisResult.value;
     if (summaryResult.status === 'rejected' && analysisResult.status === 'rejected') {
-      error.value = '后端暂不可用，当前显示演示数据。';
+      error.value = '后端暂不可用，当前显示本地教学数据。';
     }
   } finally {
     loading.value = false;
@@ -211,7 +212,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="page teacher-dashboard">
-    <PageHeader title="上午好，王老师" description="欢迎回来，今天重点关注课程进度、待批改作业和学生画像。">
+    <PageHeader title="上午好，王老师" description="今天重点关注 Python 循环结构学情、李明的学习预警和教师干预建议。">
       <template #actions>
         <RouterLink class="btn secondary" to="/courses">新建课程</RouterLink>
         <RouterLink class="btn" to="/reports">生成报告</RouterLink>
@@ -224,7 +225,7 @@ onBeforeUnmount(() => {
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
-    <DataCard title="班级学情闭环看板" subtitle="新增班级完成率、平均正确率、学习活跃度、薄弱知识点排行和风险学生干预建议。">
+    <DataCard title="班级学情闭环看板" subtitle="新增班级完成率、平均正确率、学习活跃度、薄弱知识点排行和需关注学生干预建议。">
       <div class="insight-grid">
         <article class="insight-card">
           <span>班级完成率</span>
@@ -246,10 +247,10 @@ onBeforeUnmount(() => {
         <section>
           <h3>薄弱知识点排行</h3>
           <article v-for="item in [
-            { name: '文件操作', value: 42 },
-            { name: '循环结构', value: 37 },
-            { name: '函数返回值', value: 31 },
-            { name: '异常处理', value: 28 }
+            { name: 'while 循环条件更新', value: 52 },
+            { name: '循环嵌套变量变化', value: 47 },
+            { name: 'break / continue 区分', value: 39 },
+            { name: 'for 循环边界判断', value: 32 }
           ]" :key="item.name" class="rank-row">
             <span>{{ item.name }}</span>
             <ProgressBar :value="item.value" tone="warning" />
@@ -257,11 +258,11 @@ onBeforeUnmount(() => {
           </article>
         </section>
         <section>
-          <h3>风险学生与干预建议</h3>
+          <h3>需关注学生与干预建议</h3>
           <article v-for="student in [
-            { name: '王五', risk: '高风险', weak: '文件操作 / 异常处理', suggestion: '推送文件读写分步讲义，布置 15 分钟补救任务，提醒话术：先完成最小可运行代码，再补异常。' },
-            { name: '赵六', risk: '需关注', weak: '循环结构', suggestion: '安排循环边界二刷，课堂中点名讲解一次变量变化表。' },
-            { name: '孙七', risk: '需关注', weak: '函数', suggestion: '推荐函数封装案例包，要求提交参数和返回值说明。' }
+            { name: '李明', risk: '干预优先级：中', weak: 'while 循环 / 循环嵌套 / break continue', suggestion: '推送 Python 循环结构个性化补弱资源包，安排 10 分钟 while 循环代码讲解，布置 3 道 while 循环补全题。' },
+            { name: '陈思', risk: '需关注', weak: '循环嵌套变量变化', suggestion: '安排变量变化表练习，并在课后查看形成性评价报告。' },
+            { name: '赵雨', risk: '需关注', weak: 'break / continue 区分', suggestion: '推荐控制语句输出判断题，要求解释每轮循环输出。' }
           ]" :key="student.name" class="risk-row">
             <div>
               <strong>{{ student.name }}</strong>
@@ -315,7 +316,7 @@ onBeforeUnmount(() => {
         </template>
         <div class="student-profile-card">
           <div class="student-head">
-            <span class="student-avatar">张</span>
+            <span class="student-avatar">李</span>
             <div>
               <strong>{{ student.name }}</strong>
               <p>{{ student.className }} | 学号：{{ student.number }}</p>

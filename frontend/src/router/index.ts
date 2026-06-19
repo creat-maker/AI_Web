@@ -11,6 +11,7 @@ const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { title: '登录' } },
 
   { path: '/student', name: 'StudentHome', component: () => import('../views/StudentHome.vue'), meta: { title: '学习总览' } },
+  { path: '/student/profile-dialog', name: 'ProfileDialog', component: () => import('../views/ProfileDialog.vue'), meta: { title: '对话式画像构建' } },
   { path: '/student/courses', name: 'StudentCourses', component: () => import('../views/StudentCourses.vue'), meta: { title: '我的课程' } },
   { path: '/student/learning-path', name: 'StudentLearningPath', component: () => import('../views/StudentLearningPath.vue'), meta: { title: '任务式学习路径' } },
   { path: '/student/learning-paths', redirect: '/student/learning-path' },
@@ -48,6 +49,7 @@ const routes = [
   { path: '/admin/knowledge', name: 'AdminKnowledge', component: () => import('../views/AdminKnowledge.vue'), meta: { title: '知识库运营 / 文档解析' } },
   { path: '/admin/content-review', name: 'AdminContentReview', component: () => import('../views/AdminContentReview.vue'), meta: { title: 'AI 内容审核中心' } },
   { path: '/admin/platform-quality', name: 'AdminPlatformQuality', component: () => import('../views/AdminPlatformQuality.vue'), meta: { title: '课程质量评价' } },
+  { path: '/admin/decision-center', name: 'TeachingDecisionCenter', component: () => import('../views/TeachingDecisionCenter.vue'), meta: { title: '教学智能决策中心' } },
   { path: '/admin/users', name: 'UserRoleManage', component: () => import('../views/UserRoleManage.vue'), meta: { title: '用户与角色' } },
   { path: '/users', redirect: '/admin/users' },
   { path: '/users-roles', redirect: '/admin/users' },
@@ -61,7 +63,7 @@ const routes = [
   { path: '/settings', name: 'SystemSettings', component: () => import('../views/SystemSettings.vue'), meta: { title: '系统设置' } },
   { path: '/system-settings', redirect: '/settings' },
   { path: '/capability-boundary', name: 'CapabilityBoundary', component: () => import('../views/CapabilityBoundary.vue'), meta: { title: '系统能力边界说明' } },
-  { path: '/demo-status', name: 'DemoStatus', component: () => import('../views/DemoStatus.vue'), meta: { title: '比赛演示状态' } },
+  { path: '/demo-status', name: 'DemoStatus', component: () => import('../views/DemoStatus.vue'), meta: { title: '演示验收状态' } },
 
   {
     path: '/notebook',

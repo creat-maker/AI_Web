@@ -58,6 +58,42 @@
   margin-top: 14rpx;
 }
 
+.natural-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.natural-card {
+  padding: 26rpx;
+  border: 1rpx solid #e4e7ec;
+  border-radius: 28rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 28rpx rgba(16, 24, 40, 0.06);
+}
+
+.natural-title {
+  color: #162033;
+  font-size: 32rpx;
+  font-weight: 900;
+}
+
+.natural-content {
+  display: block;
+  margin-top: 16rpx;
+  color: #344054;
+  font-size: 27rpx;
+  line-height: 1.55;
+}
+
+.natural-action {
+  display: inline-flex;
+  margin-top: 18rpx;
+  color: #2f6fed;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
 .task-plan-card {
   padding: 24rpx;
 }

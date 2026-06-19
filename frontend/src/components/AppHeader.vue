@@ -23,7 +23,7 @@ const subtitle = computed(() => currentMenu.value?.description || roleDescriptio
 const userName = computed(() => {
   if (currentRole.value === 'teacher') return '王老师';
   if (currentRole.value === 'admin') return '管理员';
-  return '张三';
+  return '李明';
 });
 
 // Role-specific theme colors
@@ -79,7 +79,7 @@ const notifications = computed(() => {
   if (currentRole.value === 'teacher') {
     return [
       { id: 1, type: 'grading', text: '3 份作业待批改', time: '5 分钟前', unread: true },
-      { id: 2, type: 'question', text: '李四提出了新问题', time: '20 分钟前', unread: true },
+      { id: 2, type: 'question', text: '李明提出了循环结构问题', time: '20 分钟前', unread: true },
       { id: 3, type: 'report', text: '班级学习报告已生成', time: '1 小时前', unread: false },
     ];
   }

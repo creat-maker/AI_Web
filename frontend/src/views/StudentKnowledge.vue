@@ -12,18 +12,18 @@ const categories = [
 ];
 
 const files = [
-  { name: '第5章_函数式编程讲义.pdf', type: 'PDF', course: 'Python 高级编程', date: '2026-05-30' },
-  { name: '数据解析实战.ipynb', type: 'Jupyter', course: 'Python 爬虫基础与实践', date: '2026-05-29' },
-  { name: '栈与队列练习题.docx', type: 'DOCX', course: '数据结构与算法', date: '2026-05-28' },
-  { name: '课程项目评分表.xlsx', type: 'Excel', course: '软件工程实践', date: '2026-05-27' },
-  { name: 'RAG系统原理课件.pptx', type: 'PPT', course: '人工智能导论', date: '2026-05-26' }
+  { name: '循环结构讲义.pdf', type: 'PDF', course: 'Python 程序设计', date: '2026-05-30' },
+  { name: 'while循环变量追踪.ipynb', type: 'Jupyter', course: 'Python 程序设计', date: '2026-05-29' },
+  { name: 'break_continue专项练习.docx', type: 'DOCX', course: 'Python 程序设计', date: '2026-05-28' },
+  { name: '循环结构学习报告.xlsx', type: 'Excel', course: 'Python 程序设计', date: '2026-05-27' },
+  { name: '循环嵌套讲解课件.pptx', type: 'PPT', course: 'Python 程序设计', date: '2026-05-26' }
 ];
 
 const recent = files.slice(0, 3);
 const hot = [
   { name: 'Python 快速入门.pdf', count: '1.2k' },
   { name: 'PyTorch 快速入门.ipynb', count: '986' },
-  { name: '函数专项练习.docx', count: '842' }
+  { name: '循环结构专项练习.docx', count: '842' }
 ];
 </script>
 

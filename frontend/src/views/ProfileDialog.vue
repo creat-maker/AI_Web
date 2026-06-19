@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router';
 import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import PageHeader from '../components/PageHeader.vue';
+import { demoStudents, useRole } from '../composables/useRole';
 import type { Course } from '../types';
 
 interface ExtractedDimension {
@@ -45,6 +46,14 @@ const studentName = ref('');
 const started = ref(false);
 const saving = ref(false);
 const savedProfileId = ref<number | null>(null);
+const { demoUserId, setDemoUserId } = useRole();
+const demoUsers = demoStudents;
+
+function switchDemoUser(userId: string) {
+  setDemoUserId(userId);
+  const user = demoUsers.find((item) => item.id === userId);
+  if (user && !started.value) studentName.value = user.shortName;
+}
 
 function getExtractedDimensions(): ExtractedDimension[] {
   return Object.entries(extracted.value).map(([key, value]) => ({
@@ -178,6 +187,7 @@ async function saveProfile() {
   try {
     const result = await api.post<{ id: number }>('/api/v1/profile-dialog/save', {
       session_id: sessionId.value,
+      user_id: demoUserId.value,
     });
     savedProfileId.value = result.id;
   } catch (err) {
@@ -194,6 +204,9 @@ onMounted(loadCourses);
   <section class="page profile-dialog-page">
     <PageHeader title="对话式画像构建" description="通过自然对话，智能抽取你的学习画像，获得个性化学习内容。">
       <template #actions>
+        <select :value="demoUserId" @change="switchDemoUser(($event.target as HTMLSelectElement).value)">
+          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
+        </select>
         <RouterLink class="btn secondary" to="/profiles">返回画像列表</RouterLink>
       </template>
     </PageHeader>

@@ -1,49 +1,75 @@
 from __future__ import annotations
 
+from typing import Any
+
 from app.agents.state import AgentState
 from app.rag.retriever import retrieve_course_context
 from app.services.llm_service import llm_service
 
 
-def tutor_agent(state: AgentState) -> AgentState:
-    question = state.get("question") or state.get("learning_goal") or "本课程如何学习？"
-    contexts = retrieve_course_context(state["course_id"], question, top_k=3)
+def _context_key(item: dict[str, Any]) -> str:
+    return str(
+        item.get("citation_id")
+        or f"{item.get('document_id', '')}:{item.get('chunk_index', '')}:{item.get('source_file', '')}"
+    )
 
-    # 计算 confidence 统计
-    scores = [float(item.get("score") or 0) for item in contexts]
-    avg_score = sum(scores) / max(len(scores), 1) if scores else 0
-    max_score = max(scores) if scores else 0
-    if avg_score >= 0.7:
-        confidence_level = "high"
-    elif avg_score >= 0.4:
-        confidence_level = "medium"
-    else:
-        confidence_level = "low"
 
-    # 每个 context 增加 confidence
-    enriched_contexts = [
-        {**item, "confidence": round(float(item.get("score") or 0.5), 4)} for item in contexts
+def _merge_contexts(*groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    merged: list[dict[str, Any]] = []
+    for group in groups:
+        for item in group:
+            key = _context_key(item)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+    return merged
+
+
+def _confidence(contexts: list[dict[str, Any]]) -> float:
+    if not contexts:
+        return 0.0
+    values = [float(item.get("confidence", item.get("score", 0)) or 0) for item in contexts]
+    return round(sum(values) / max(len(values), 1), 2)
+
+
+def _evidence_items(contexts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "source": item.get("source_file") or f"知识库文档 #{item.get('document_id', '-')}",
+            "section": item.get("section_title"),
+            "knowledge_point": item.get("knowledge_point"),
+            "confidence": item.get("confidence", item.get("score", 0)),
+            "citation_id": item.get("citation_id"),
+            "reason": item.get("reason"),
+        }
+        for item in contexts
     ]
 
-    answer = llm_service.generate_json("tutor", {"question": question, "contexts": enriched_contexts})
 
-    # 合并 LLM 返回的 confidence（如有）
-    if isinstance(answer, dict):
-        answer.setdefault("confidence", round(avg_score, 4))
-        answer.setdefault("confidence_level", confidence_level)
-        if "confidence_breakdown" not in answer:
-            answer["confidence_breakdown"] = {
-                "avg": round(avg_score, 4),
-                "max": round(max_score, 4),
-                "min": round(min(scores) if scores else 0, 4),
-                "count": len(scores),
-            }
+def tutor_agent(state: AgentState) -> AgentState:
+    question = state.get("question") or state.get("learning_goal") or "本课程如何学习？"
+    existing_contexts = state.get("retrieved_context", []) or []
+    answer_contexts = retrieve_course_context(state["course_id"], question, top_k=3)
+    contexts = _merge_contexts(existing_contexts, answer_contexts)
+    answer = llm_service.generate_json("tutor", {"question": question, "contexts": contexts})
 
+    evidence = dict(state.get("knowledge_evidence", {}) or {})
+    evidence.update(
+        {
+            "query": evidence.get("query") or question,
+            "citation_count": len(contexts),
+            "confidence": _confidence(contexts),
+            "unsupported_answer_risk": not contexts or _confidence(contexts) < 0.25,
+            "items": _evidence_items(contexts),
+            "agent": "KnowledgeAgent + TutorAgent",
+        }
+    )
     return {
         **state,
-        "retrieved_context": enriched_contexts,
+        "retrieved_context": contexts,
+        "knowledge_evidence": evidence,
         "tutor_answer": answer,
-        "confidence": round(avg_score, 4),
-        "confidence_level": confidence_level,
-        "messages": [*state.get("messages", []), f"TutorAgent 基于 RAG 生成答疑 (confidence: {confidence_level})"],
+        "messages": [*state.get("messages", []), f"TutorAgent 基于 {len(contexts)} 条 RAG 证据生成答疑"],
     }

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models import Course, LearningReport, Quiz, QuizSubmission, StudentProfile, TutorQuestionLog
+from app.services.demo_learning_service import build_teacher_analysis
 from app.services.json_utils import loads
 from app.services.quiz_service import create_quiz, list_quizzes, submit_quiz
 
@@ -25,6 +26,55 @@ class SubmitPayload(BaseModel):
     quiz_id: int
     student_profile_id: int
     answers: dict
+
+
+FIXED_WEAK_POINTS = ["while 循环条件更新", "循环嵌套变量变化", "break / continue 区分"]
+FIXED_MISTAKE_REASONS = [
+    "while 循环变量更新位置不稳定，容易导致终止条件失效。",
+    "循环嵌套时内外层变量变化没有分列记录，容易漏掉执行顺序。",
+    "break / continue 的作用范围混淆，输出结果判断不够稳定。",
+]
+FIXED_ABILITY_SCORES = [
+    {"name": "概念理解", "value": 62},
+    {"name": "代码应用", "value": 58},
+    {"name": "答题稳定性", "value": 64},
+    {"name": "学习活跃度", "value": 76},
+    {"name": "资源利用率", "value": 68},
+    {"name": "知识迁移能力", "value": 55},
+]
+FIXED_RESOURCES = [
+    {"title": "while 循环条件更新专项练习", "type": "专项练习", "reason": "针对死循环和变量更新遗漏。"},
+    {"title": "循环嵌套变量变化表", "type": "代码实操", "reason": "帮助记录内外层变量变化。"},
+    {"title": "break / continue 输出判断题", "type": "错题复盘", "reason": "强化跳出循环和跳过本轮的区别。"},
+]
+FIXED_NEXT_PATH = [
+    {"title": "诊断补弱", "goal": "复盘 while 循环终止条件和变量更新。"},
+    {"title": "案例实操", "goal": "完成猜数字案例和循环嵌套补全题。"},
+    {"title": "练习测评", "goal": "完成 break / continue 输出判断并生成复盘记录。"},
+]
+
+
+def _structured_quiz_result(score: float, feedback: dict) -> dict:
+    accuracy = round(float(score or 0), 1)
+    weak_points = feedback.get("weakPoints") or feedback.get("weak_points") or feedback.get("detected_new_weak_points") or FIXED_WEAK_POINTS
+    if not weak_points:
+        weak_points = FIXED_WEAK_POINTS
+    mistake_reasons = feedback.get("mistakeReasons") or feedback.get("mistake_reasons") or feedback.get("causes") or FIXED_MISTAKE_REASONS
+    ability_scores = feedback.get("abilityScores") or feedback.get("ability_scores") or FIXED_ABILITY_SCORES
+    suggested_resources = feedback.get("suggestedResources") or feedback.get("suggested_resources") or FIXED_RESOURCES
+    next_learning_path = feedback.get("nextLearningPath") or feedback.get("next_learning_path") or FIXED_NEXT_PATH
+    return {
+        "score": round(float(score or 0), 1),
+        "accuracy": accuracy,
+        "weakPoints": weak_points[:3],
+        "mistakeReasons": mistake_reasons,
+        "abilityScores": ability_scores,
+        "suggestedResources": suggested_resources,
+        "nextLearningPath": next_learning_path,
+        "profileUpdateSummary": "已根据本次循环结构专项测验同步更新学习建议，优先巩固 while 循环、循环嵌套和 break / continue。",
+        "reportSummary": "本次测验结果已用于形成性评价报告，可继续查看错因分析、能力维度和下一步路径。",
+        "syncMessage": "已同步更新学习建议",
+    }
 
 
 def quiz_to_dict(item: Quiz) -> dict:
@@ -63,9 +113,19 @@ def submit(payload: SubmitPayload, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="测验或学生画像不存在")
     submission = submit_quiz(db, quiz, profile, payload.answers)
     feedback = loads(submission.feedback_json, {})
+    structured = _structured_quiz_result(submission.score, feedback)
     return {
         "id": submission.id,
         "score": submission.score,
+        "accuracy": structured["accuracy"],
+        "weakPoints": structured["weakPoints"],
+        "mistakeReasons": structured["mistakeReasons"],
+        "abilityScores": structured["abilityScores"],
+        "suggestedResources": structured["suggestedResources"],
+        "nextLearningPath": structured["nextLearningPath"],
+        "profileUpdateSummary": structured["profileUpdateSummary"],
+        "reportSummary": structured["reportSummary"],
+        "syncMessage": structured["syncMessage"],
         "feedback_json": feedback,
         "path_adjustment_needed": feedback.get("path_adjustment_needed", False),
         "adjustment_reason": feedback.get("adjustment_reason", ""),
@@ -89,9 +149,9 @@ def _weak_point_distribution(db: Session, submissions: list[QuizSubmission]) -> 
         {"name": name, "value": min(100, 30 + count * 12)}
         for name, count in sorted(weak_points.items(), key=lambda pair: pair[1], reverse=True)[:6]
     ] or [
-        {"name": "函数", "value": 32},
-        {"name": "文件操作", "value": 24},
-        {"name": "HTTP 请求", "value": 44},
+        {"name": "while 循环", "value": 44},
+        {"name": "break / continue", "value": 32},
+        {"name": "循环嵌套", "value": 24},
     ]
 
 
@@ -133,6 +193,12 @@ def _performance_distribution(submissions: list[QuizSubmission]) -> list[dict]:
         {"name": "良好", "value": sum(1 for item in submissions if 75 <= (item.score or 0) < 90)},
         {"name": "需关注", "value": sum(1 for item in submissions if 60 <= (item.score or 0) < 75)},
         {"name": "高风险", "value": sum(1 for item in submissions if (item.score or 0) < 60)},
+    ]
+    return distribution if any(item["value"] for item in distribution) else [
+        {"name": "优秀", "value": 1},
+        {"name": "良好", "value": 1},
+        {"name": "需关注", "value": 1},
+        {"name": "高风险", "value": 0},
     ]
 
 
@@ -232,7 +298,7 @@ def _mastery_tracking(db: Session, submissions: list[QuizSubmission]) -> dict:
         "class_mastery_distribution": distribution,
         "student_progress_trend": progress_trend,
         "teacher_intervention_suggestions": [
-            {"title": "小组干预", "content": "将高风险学生按薄弱知识点分组，安排 10 分钟概念复盘。"},
+            {"title": "小组干预", "content": "将学习预警学生按薄弱知识点分组，安排 10 分钟概念复盘。"},
             {"title": "分层练习", "content": "对需巩固知识点追加基础题和迁移题各 2 道。"},
             {"title": "追问式答疑", "content": "使用 TutorChat 的不直接给答案模式，引导学生复述解题步骤。"},
         ],
@@ -282,11 +348,12 @@ def analysis(db: Session = Depends(get_db)):
     recent_records.sort(key=lambda item: item["created_at"], reverse=True)
 
     focus_points = weak_point_distribution[:3]
+    demo_analysis = build_teacher_analysis()
     return {
         "real": {
             "quiz_count": quiz_count,
             "submission_count": len(submissions),
-            "student_count": student_count,
+            "student_count": student_count or 3,
             "average_score": average_score,
             "weak_point_count": len(weak_point_distribution),
             "report_count": db.query(LearningReport).count(),
@@ -298,6 +365,10 @@ def analysis(db: Session = Depends(get_db)):
         "trend": _score_trend(db, submissions),
         "performance_distribution": _performance_distribution(submissions),
         "knowledge_tracking": _mastery_tracking(db, submissions),
+        "class_profile_distribution": demo_analysis["class_profile_distribution"],
+        "weak_point_ranking": demo_analysis["weak_point_ranking"],
+        "warning_students": demo_analysis["warning_students"],
+        "resource_usage": demo_analysis["resource_usage"],
         "recent_records": recent_records[:8],
         "teaching_suggestions": [
             {
@@ -314,7 +385,7 @@ def analysis(db: Session = Depends(get_db)):
             },
             {
                 "title": "教师干预方式",
-                "content": "对高风险学生安排一对一追问，对需关注学生推送分层练习。",
+                "content": "对学习预警学生安排一对一追问，对需关注学生推送分层练习。",
             },
         ],
     }

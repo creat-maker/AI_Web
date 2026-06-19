@@ -1,0 +1,16 @@
+{
+  "nodes": [
+    { "id": "if", "name": "if 条件判断" },
+    { "id": "for", "name": "for 循环" },
+    { "id": "while", "name": "while 循环" },
+    { "id": "range", "name": "range 函数" },
+    { "id": "break_continue", "name": "break / continue" },
+    { "id": "nested_loop", "name": "循环嵌套" }
+  ],
+  "links": [
+    { "source": "if", "target": "while", "relation": "循环条件" },
+    { "source": "range", "target": "for", "relation": "次数控制" },
+    { "source": "for", "target": "nested_loop", "relation": "外层/内层结构" },
+    { "source": "while", "target": "break_continue", "relation": "循环退出与跳过" }
+  ]
+}

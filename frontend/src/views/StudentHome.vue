@@ -1,341 +1,157 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { LineChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent } from 'echarts/components';
-import * as echarts from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
-import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
-echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
-
-function cssVar(name: string, fallback: string) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
-}
-
-const chartTextStyle = { color: cssVar('--text-secondary', '#475569') };
-const chartTooltip = { backgroundColor: cssVar('--bg-card', '#ffffff'), borderColor: cssVar('--border-light', '#e2e8f0'), textStyle: { color: cssVar('--text-main', '#0f172a') } };
-
-interface DashboardSummary {
-  metrics?: {
-    report_count?: number;
-    quiz_submission_count?: number;
-  };
-  recent_questions?: Array<{ question?: string; status?: string; created_at?: string }>;
-}
-
-interface ReportItem {
-  id: number;
-  title: string;
-  status?: string;
-  generated_at?: string;
-  quality_score?: number;
-}
-
-interface Course {
-  id: number;
-  title: string;
-  subject?: string;
-  teacher_name?: string;
-  description?: string;
-}
-
-const loading = ref(true);
-const error = ref('');
-const summary = ref<DashboardSummary | null>(null);
-const reports = ref<ReportItem[]>([]);
-const courses = ref<Course[]>([]);
-const events = ref<Array<{ id: number; event_type: string; title: string; description: string; metadata?: Record<string, any> }>>([]);
-const reportChartEl = ref<HTMLDivElement | null>(null);
-let reportChart: echarts.ECharts | null = null;
-
-const fallbackCourses = [
-  { id: 1, title: 'Python 爬虫基础与实践', subject: 'Python', teacher_name: '王老师' },
-  { id: 2, title: '数据结构与算法', subject: '算法', teacher_name: '陈老师' },
-  { id: 3, title: '人工智能导论', subject: 'AI', teacher_name: '张老师' },
-  { id: 4, title: '计算机网络原理', subject: '网络', teacher_name: '李老师' }
+const courseCards = [
+  { title: 'Python 程序设计', subject: 'Python', teacher: '王老师', progress: 68, status: '进行中' },
+  { title: '循环结构专项补弱课', subject: '循环', teacher: 'AI 助教 + 王老师', progress: 42, status: '重点学习' },
+  { title: '代码实操训练营', subject: '实操', teacher: '实训助教', progress: 55, status: '进行中' }
 ];
 
-function cleanText(value: string | undefined, fallback: string) {
-  if (!value || /[?]{2,}|�/.test(value)) return fallback;
-  return value;
-}
+const statCards = [
+  { label: '课程进度', value: 68, unit: '%', hint: 'Python 程序设计', icon: '课' },
+  { label: '本章正确率', value: 62, unit: '%', hint: '循环结构专项测验', icon: '测', tone: 'orange' as const },
+  { label: '学习状态', value: '需', unit: '巩固', hint: '建议重点练习循环结构', icon: '练', tone: 'orange' as const },
+  { label: '资源完成', value: '3 / 7', hint: '补弱资源包进度', icon: '资', tone: 'green' as const }
+];
 
-const courseCards = computed(() => {
-  const source = courses.value.length ? courses.value.slice(0, 4) : fallbackCourses;
-  return source.map((course, index) => ({
-    ...course,
-    title: cleanText(course.title, fallbackCourses[index]?.title || '个性化学习课程'),
-    subject: cleanText(course.subject, fallbackCourses[index]?.subject || '课程'),
-    teacher_name: cleanText(course.teacher_name, fallbackCourses[index]?.teacher_name || '任课教师'),
-    progress: [75, 60, 40, 20][index] ?? 35,
-    status: index < 3 ? '进行中' : '未开始'
-  }));
-});
-
-const tasks = computed(() => {
-  const assigned = events.value.filter((item) => item.event_type === 'task_assigned').slice(0, 2).map((item) => ({
-    title: item.metadata?.task?.task_type || item.title,
-    course: item.metadata?.task?.weak_point || item.description,
-    time: item.metadata?.task?.due_date || '今天 23:59',
-    done: false
-  }));
-  return [
-    ...assigned,
-    { title: '完成爬虫案例练习：豆瓣电影信息采集', course: 'Python 爬虫基础与实践', time: '今天 23:59', done: false },
-    { title: '数据结构章节测验（第 3 章：栈与队列）', course: '数据结构与算法', time: '明天 18:00', done: false },
-    { title: '阅读《RAG 系统原理与应用》第 2.1 节', course: '人工智能导论', time: '明天 23:59', done: false },
-    { title: '学习路径：函数与 HTTP 请求', course: 'Python 爬虫基础与实践', time: '周日 20:00', done: true }
-  ].slice(0, 4);
-});
-
-const latestReport = computed(() => {
-  const report = reports.value[0];
-  if (!report || !report.title) return null;
-  return report;
-});
-const statCards = computed(() => [
-  { label: '学习总进度', value: '68', unit: '%', hint: '较上周', trend: '+8%', icon: '进' },
-  { label: '累计学习时长', value: '128 h 36 m', hint: '本周 12 h 24 m', icon: '时', tone: 'purple' as const },
-  { label: '完成测验', value: `${summary.value?.metrics?.quiz_submission_count || 24} / 36`, hint: '正确率 82%', icon: '测', tone: 'green' as const },
-  { label: '学习积分', value: '2,560', hint: '排名前 18%', icon: '分', tone: 'orange' as const },
-  { label: '本周目标', value: '4 / 6', hint: '任务完成', icon: '标', tone: 'red' as const }
-]);
+const tasks = [
+  { title: '完成 while 循环终止条件补全题', course: 'Python 程序设计 / 循环结构', time: '今天 23:59', done: false },
+  { title: '提交循环嵌套变量变化表', course: '代码实操任务', time: '明天 18:00', done: false },
+  { title: '复盘 break / continue 易错题', course: '形成性评价反馈', time: '明天 20:00', done: false },
+  { title: '观看循环结构讲解视频脚本', course: '个性化资源包', time: '已完成', done: true }
+];
 
 const pathNodes = [
-  { title: '环境搭建与基础语法', status: 'done', recommend_reason: '' },
-  { title: '函数与 HTTP 请求', status: 'done', recommend_reason: '' },
-  { title: '数据解析（正则与 BeautifulSoup）', status: 'done', recommend_reason: '' },
-  { title: '数据存储与管理', status: 'active', recommend_reason: '针对薄弱点「数据存储」，通过实践掌握 CSV/SQLite 数据保存，匹配当前学习阶段。' },
-  { title: '反爬策略与应对', status: 'locked', recommend_reason: '' },
-  { title: '爬虫项目实战', status: 'locked', recommend_reason: '' }
+  { title: '循环概念回顾', status: 'done', reason: '已完成 for / while 基础概念复习。' },
+  { title: 'while 循环条件更新', status: 'active', reason: '李明在死循环题上错误率较高，当前优先补强。' },
+  { title: 'break / continue 区分', status: 'active', reason: '通过短代码运行结果判断控制语句作用。' },
+  { title: '循环嵌套变量跟踪', status: 'locked', reason: '完成前两项后进入嵌套循环综合练习。' }
 ];
 
-const badges = [
-  { name: '连续学习', desc: '7 天', tone: 'blue' },
-  { name: '勤奋学习者', desc: '累计学习 40 小时', tone: 'orange' },
-  { name: '测验达人', desc: '正确率 >80%', tone: 'red' },
-  { name: '探索先锋', desc: '完成 8 个知识点', tone: 'purple' },
-  { name: '进阶学习者', desc: '连续学习 30 天', tone: 'gray' }
+const weakPoints = [
+  { name: 'while 循环条件更新', value: 48 },
+  { name: '循环嵌套变量变化', value: 54 },
+  { name: 'break / continue 区分', value: 58 }
 ];
 
-function renderChart() {
-  if (!reportChartEl.value) return;
-  reportChart = reportChart || echarts.init(reportChartEl.value);
-  reportChart.setOption({
-    color: [cssVar('--color-purple', '#7c5cff'), cssVar('--status-success-solid', '#22c55e'), cssVar('--color-primary', '#2f6bff'), cssVar('--color-orange', '#f97316')],
-    textStyle: chartTextStyle,
-    tooltip: { trigger: 'axis', ...chartTooltip },
-    grid: { left: 28, right: 8, top: 18, bottom: 24 },
-    xAxis: { type: 'category', boundaryGap: false, axisLabel: chartTextStyle, data: ['周一', '周二', '周三', '周四', '周五'] },
-    yAxis: { type: 'value', axisLabel: chartTextStyle, splitLine: { lineStyle: { color: cssVar('--border-soft', '#edf2f8') } } },
-    series: [
-      { type: 'line', smooth: true, data: [6, 8, 7, 10, 12], areaStyle: { opacity: 0.08 } },
-      { type: 'line', smooth: true, data: [3, 6, 8, 12, 18], areaStyle: { opacity: 0.08 } },
-      { type: 'line', smooth: true, data: [72, 74, 78, 80, 82], areaStyle: { opacity: 0.05 } },
-      { type: 'line', smooth: true, data: [86, 92, 104, 118, 126], areaStyle: { opacity: 0.05 } }
-    ]
-  });
-}
-
-async function loadPage() {
-  loading.value = true;
-  error.value = '';
-  try {
-    const [summaryResult, reportsResult, coursesResult, eventsResult] = await Promise.allSettled([
-      api.get<DashboardSummary>('/api/dashboard/summary'),
-      api.get<ReportItem[]>('/api/v1/reports'),
-      api.get<Course[]>('/api/v1/courses'),
-      api.get<Array<{ id: number; event_type: string; title: string; description: string; metadata?: Record<string, any> }>>('/api/v1/events?limit=20')
-    ]);
-    if (summaryResult.status === 'fulfilled') summary.value = summaryResult.value;
-    if (reportsResult.status === 'fulfilled') reports.value = reportsResult.value;
-    if (coursesResult.status === 'fulfilled') courses.value = coursesResult.value;
-    if (eventsResult.status === 'fulfilled') events.value = eventsResult.value;
-    if ([summaryResult, reportsResult, coursesResult].every((item) => item.status === 'rejected')) {
-      error.value = '后端暂不可用，当前显示演示数据。';
-    }
-  } finally {
-    loading.value = false;
-    await nextTick();
-    renderChart();
-  }
-}
-
-function resizeChart() {
-  reportChart?.resize();
-}
-
-onMounted(() => {
-  loadPage();
-  window.addEventListener('resize', resizeChart);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', resizeChart);
-  reportChart?.dispose();
-});
+const resources = [
+  { title: '循环结构讲解文档', type: '讲义', desc: '用流程图说明 for 与 while 的适用场景。' },
+  { title: 'while 死循环修复案例', type: '代码实操', desc: '从初始值、条件、更新语句三步定位问题。' },
+  { title: 'break / continue 专项练习', type: '练习', desc: '用 6 道选择和填空题区分跳出与跳过。' },
+  { title: '循环结构微课视频脚本', type: '视频脚本', desc: '适合数字人或 TTS 讲解，不描述为实时数字人系统。' }
+];
 </script>
 
 <template>
   <section class="page student-dashboard">
-    <PageHeader title="你好，张三！" description="今天是充满收获的一天，继续保持专注。">
+    <PageHeader
+      title="李明的 Python 程序设计学习驾驶舱"
+      description="当前学习重点：循环结构。系统发现你在 while 循环和循环嵌套上还需要加强。"
+    >
       <template #actions>
-        <RouterLink class="btn secondary" to="/learning-path">查看路径</RouterLink>
-        <RouterLink class="btn" to="/tutor-chat">继续学习</RouterLink>
+        <RouterLink class="btn secondary" to="/student/profile-dialog">构建画像</RouterLink>
+        <RouterLink class="btn" to="/student/learning-path">继续补弱</RouterLink>
       </template>
     </PageHeader>
 
-    <p v-if="loading" class="panel muted">正在加载学生端学习总览...</p>
+    <div class="stat-grid">
+      <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
+    </div>
 
     <div class="student-shell">
       <main class="student-main">
-        <div class="stat-grid">
-          <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
-        </div>
-
         <div class="two-column">
-          <DataCard title="我的课程" subtitle="课程进度与继续学习入口">
-            <template #action>
-              <RouterLink class="text-link" to="/courses">查看全部</RouterLink>
-            </template>
+          <DataCard title="我的课程" subtitle="当前学习课程：Python 程序设计">
             <div class="course-list">
-              <div v-for="course in courseCards" :key="course.id" class="student-course">
-                <span class="course-thumb">{{ String(course.subject || course.title).slice(0, 1) }}</span>
+              <article v-for="course in courseCards" :key="course.title" class="course-row">
+                <span class="course-thumb">{{ course.subject.slice(0, 1) }}</span>
                 <div>
                   <strong>{{ course.title }}</strong>
-                  <p>{{ course.teacher_name || '任课教师' }}</p>
+                  <p>{{ course.teacher }}</p>
                   <ProgressBar :value="course.progress" />
                 </div>
-                <span>{{ course.progress }}%</span>
-                <StatusBadge :label="course.status" :tone="course.status === '进行中' ? 'purple' : 'neutral'" />
-              </div>
+                <StatusBadge :label="course.status" :tone="course.status === '重点学习' ? 'purple' : 'success'" />
+              </article>
             </div>
           </DataCard>
 
-          <DataCard title="今日任务" subtitle="待完成事项与截止时间">
-            <template #action>
-              <RouterLink class="text-link" to="/teaching-calendar">查看全部</RouterLink>
-            </template>
+          <DataCard title="今日任务" subtitle="围绕 while 循环、循环嵌套和 break / continue">
             <div class="task-list">
-              <div v-for="task in tasks" :key="`${task.title}-${task.time}`" class="task-item">
-                <span class="task-dot" :class="{ done: task.done }"></span>
+              <article v-for="task in tasks" :key="task.title" class="task-row">
+                <span :class="['task-dot', { done: task.done }]"></span>
                 <div>
                   <strong>{{ task.title }}</strong>
                   <p>{{ task.course }}</p>
                 </div>
-                <span :class="['task-time', { urgent: task.time.includes('今天') }]">{{ task.time }}</span>
-              </div>
+                <span class="task-time">{{ task.time }}</span>
+              </article>
             </div>
           </DataCard>
         </div>
 
         <div class="two-column">
-          <DataCard title="学习路径" subtitle="Python 爬虫工程师成长路径">
-            <template #action>
-              <RouterLink class="text-link" to="/learning-path">查看全部</RouterLink>
-            </template>
-            <div class="path-card">
-              <div class="path-meta">
-                <strong>进度：6 / 9</strong>
-                <span>当前节点：数据存储与管理</span>
-              </div>
-              <div class="path-list">
-                <div v-for="node in pathNodes" :key="node.title" :class="['path-node', node.status]">
-                  <span></span>
-                  <div>
-                    <p>{{ node.title }}</p>
-                    <p v-if="node.recommend_reason" class="node-reason">{{ node.recommend_reason }}</p>
-                  </div>
+          <DataCard title="一人一堂学习路径" subtitle="李明的循环结构补弱路径">
+            <div class="path-list">
+              <article v-for="node in pathNodes" :key="node.title" :class="['path-node', node.status]">
+                <span></span>
+                <div>
+                  <strong>{{ node.title }}</strong>
+                  <p>{{ node.reason }}</p>
                 </div>
-              </div>
-              <RouterLink class="btn path-button" to="/learning-path">继续学习</RouterLink>
+              </article>
             </div>
           </DataCard>
 
-          <DataCard title="成就徽章" subtitle="近期获得与成长记录">
-            <template #action>
-              <RouterLink class="text-link" to="/study-groups">查看全部</RouterLink>
-            </template>
-            <div class="badge-row">
-              <div v-for="badge in badges" :key="badge.name" :class="['achievement-badge', badge.tone]">
-                <span>{{ badge.name.slice(0, 1) }}</span>
-                <strong>{{ badge.name }}</strong>
-                <p>{{ badge.desc }}</p>
+          <DataCard title="薄弱知识点" subtitle="由测验和 AI 学伴对话共同更新">
+            <div class="weak-list">
+              <div v-for="item in weakPoints" :key="item.name" class="weak-row">
+                <span>{{ item.name }}</span>
+                <ProgressBar :value="item.value" tone="warning" />
+                <strong>{{ item.value }}%</strong>
               </div>
             </div>
           </DataCard>
         </div>
 
-        <DataCard title="学习报告（本周）" subtitle="学习时长、任务、正确率与知识点掌握">
-          <template #action>
-            <RouterLink class="text-link" to="/reports">查看详细报告</RouterLink>
-          </template>
-          <div class="report-summary">
-            <div>
-              <span>学习时长</span>
-              <strong>12h 24m</strong>
-              <p>较上周 +15%</p>
-            </div>
-            <div>
-              <span>完成任务</span>
-              <strong>18</strong>
-              <p>较上周 +20%</p>
-            </div>
-            <div>
-              <span>正确率</span>
-              <strong>82%</strong>
-              <p>较上周 +6%</p>
-            </div>
-            <div>
-              <span>知识点掌握</span>
-              <strong>126</strong>
-              <p>较上周 +12%</p>
-            </div>
+        <DataCard title="推荐资源" subtitle="Python 循环结构个性化补弱资源包">
+          <div class="resource-grid">
+            <article v-for="item in resources" :key="item.title" class="resource-card">
+              <StatusBadge :label="item.type" tone="purple" />
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.desc }}</p>
+            </article>
           </div>
-          <div ref="reportChartEl" class="small-chart"></div>
-          <div v-if="latestReport" class="latest-report">
-            <strong>{{ latestReport.title }}</strong>
-            <span>质量评分 {{ latestReport.quality_score ?? '-' }}</span>
-          </div>
-          <EmptyState v-else title="暂无正式学习报告" description="当前看板使用演示周报，生成报告后会自动展示。" />
         </DataCard>
       </main>
 
       <aside class="ai-panel">
         <div class="ai-panel-header">
           <div>
-            <h2>智能答疑</h2>
-            <p class="muted">在线 · 基于课程资料回答</p>
+            <h2>诊断式 AI 学伴</h2>
+            <p class="muted">基于 Python 程序设计课程知识库回答</p>
           </div>
           <StatusBadge label="在线" tone="success" />
         </div>
         <div class="chat-window">
-          <div class="message user">什么是函数式编程？它和面向对象编程有什么区别？</div>
+          <div class="message user">为什么我的 while 循环会死循环？</div>
           <div class="message assistant">
-            函数式编程强调函数的组合、不可变性和无副作用；面向对象编程强调对象、状态和封装。学习 Python 时，可以把函数式思维用于数据处理，把面向对象用于复杂业务建模。
+            先检查三个位置：循环变量初始值、循环条件、循环体内是否更新变量。李明当前最容易漏掉第三步，建议先手写前三轮变量变化，再运行代码验证。
           </div>
         </div>
         <div class="reference-card">
-          <strong>参考资料（3）</strong>
-          <p>计算机科学导论 · 第 7 章 函数式编程范式</p>
-          <p>Python 高级编程 · 第 18 章 函数式编程工具</p>
-          <p>函数式编程实战 · 第 2 章 核心概念</p>
+          <strong>引用依据</strong>
+          <p>Python 程序设计课程知识库 / 循环结构章节</p>
+          <p>知识点：while 循环、break / continue、循环嵌套</p>
         </div>
         <div class="question-chips">
-          <button class="secondary">纯函数是什么？</button>
-          <button class="secondary">给我一个示例</button>
-          <button class="secondary">如何使用高阶函数？</button>
-        </div>
-        <div class="ask-box">
-          <input placeholder="继续提问或输入 / 选择技能..." />
-          <button>发</button>
+          <button class="secondary">while 条件怎么写？</button>
+          <button class="secondary">break 和 continue 区别？</button>
+          <button class="secondary">循环嵌套怎么跟踪变量？</button>
         </div>
       </aside>
     </div>
@@ -350,337 +166,142 @@ onBeforeUnmount(() => {
   align-items: start;
 }
 
-.student-main {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
-}
-
+.student-main,
 .course-list,
 .task-list,
-.path-list {
+.path-list,
+.weak-list {
   display: grid;
   gap: 12px;
 }
 
-.student-course {
+.course-row,
+.task-row,
+.path-node,
+.weak-row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 48px auto;
   gap: 12px;
   align-items: center;
 }
 
-.student-course p {
-  margin: 3px 0 8px;
-  font-size: 13px;
+.course-row {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
 }
 
-.course-thumb {
-  display: inline-grid;
-  place-items: center;
-  width: 52px;
-  height: 44px;
-  border-radius: 12px;
-  color: var(--text-light);
-  font-weight: 600;
-  background: var(--color-primary);
-}
-
-.task-item {
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+.task-row {
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   border-bottom: 1px solid var(--border-table);
   padding-bottom: 10px;
 }
 
-.task-item:last-child {
+.task-row:last-child {
   border-bottom: 0;
   padding-bottom: 0;
 }
 
+.path-node {
+  grid-template-columns: 16px minmax(0, 1fr);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.path-node > span,
 .task-dot {
   width: 10px;
   height: 10px;
-  border: 2px solid var(--border-light);
-  border-radius: 50%;
-  position: relative;
-}
-
-.task-dot::after {
-  content: '';
-  position: absolute;
-  inset: -17px;
-}
-
-.task-dot.done {
-  border-color: var(--color-success);
-  background: var(--color-success);
-}
-
-.task-item p {
-  margin: 4px 0 0;
-  font-size: 13px;
-}
-
-.task-time {
-  color: var(--color-text-sub);
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.task-time.urgent {
-  color: var(--color-danger);
-}
-
-.path-card {
-  display: grid;
-  gap: 14px;
-}
-
-.path-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--color-text-sub);
-}
-
-.path-meta strong {
-  color: var(--color-text-main);
-}
-
-.path-node {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-}
-
-.path-node span {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid var(--border-light);
-}
-
-.path-node.done span {
-  border-color: var(--color-success);
-  background: var(--color-success);
-}
-
-.path-node.active span {
-  border-color: var(--color-purple);
-  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12);
-}
-
-.path-node.locked {
-  color: var(--color-text-muted);
-}
-
-.path-node p {
-  margin: 0;
-}
-
-.node-reason {
-  font-size: 11px;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 4px 8px;
-  border-radius: 6px;
-  margin-top: 4px !important;
-  line-height: 1.4;
-}
-
-.path-button {
-  width: 100%;
-}
-
-.badge-row {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.achievement-badge {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  text-align: center;
-}
-
-.achievement-badge span {
-  display: inline-grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  color: var(--text-light);
-  font-weight: 600;
+  border-radius: 999px;
   background: var(--color-primary);
 }
 
-.achievement-badge.orange span {
-  background: var(--color-orange);
+.path-node.locked > span {
+  background: var(--text-muted);
 }
 
-.achievement-badge.red span {
-  background: var(--status-danger-solid);
+.task-dot.done {
+  background: var(--status-success-solid);
 }
 
-.achievement-badge.purple span {
-  background: var(--color-purple);
+.course-thumb {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--color-primary);
+  font-weight: 900;
 }
 
-.achievement-badge.gray span {
-  background: var(--border-light);
-  color: var(--text-muted);
+.weak-row {
+  grid-template-columns: 150px minmax(0, 1fr) 48px;
 }
 
-.achievement-badge strong {
-  font-size: 13px;
-}
-
-.achievement-badge p {
-  margin: 0;
-  font-size: 12px;
-}
-
-.report-summary {
+.resource-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 8px;
 }
 
-.report-summary div {
-  border-right: 1px solid var(--color-border);
-  padding-right: 12px;
-}
-
-.report-summary div:last-child {
-  border-right: 0;
-}
-
-.report-summary span,
-.report-summary p {
-  color: var(--color-text-sub);
-  font-size: 12px;
-}
-
-.report-summary strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 22px;
-}
-
-.report-summary p {
-  margin: 4px 0 0;
-}
-
-.latest-report {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  border-top: 1px solid var(--color-border);
-  padding-top: 10px;
+.resource-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
 }
 
 .ai-panel {
-  position: sticky;
-  top: 90px;
   display: grid;
   gap: 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
   padding: 16px;
   background: var(--bg-card);
+  box-shadow: var(--card-shadow);
 }
 
 .ai-panel-header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
 }
 
-.ai-panel-header h2 {
-  margin: 0;
-  font-size: 15px;
-  color: var(--color-text-main);
-}
-
-.chat-window {
+.chat-window,
+.reference-card,
+.question-chips {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .message {
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 12px;
   line-height: 1.65;
-  font-size: 13px;
 }
 
 .message.user {
-  margin-left: 42px;
-  color: var(--text-light);
-  background: var(--color-primary);
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
 }
 
-.message.assistant {
-  margin-right: 18px;
-  color: var(--color-text-main);
-  background: var(--bg-surface);
-}
-
+.message.assistant,
 .reference-card {
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 12px;
-  background: var(--bg-surface);
-}
-
-.reference-card p {
-  margin: 0;
-  font-size: 13px;
+  border: 1px solid var(--border-light);
+  background: #fff;
 }
 
 .question-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  grid-template-columns: 1fr;
 }
 
-.ask-box {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
-  gap: 8px;
-}
-
-@media (max-width: 1320px) {
-  .student-shell {
+@media (max-width: 1180px) {
+  .student-shell,
+  .resource-grid {
     grid-template-columns: 1fr;
-  }
-
-  .ai-panel {
-    position: static;
-  }
-}
-
-@media (max-width: 760px) {
-  .student-course,
-  .task-item,
-  .path-meta,
-  .latest-report {
-    display: grid;
-  }
-
-  .badge-row,
-  .report-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

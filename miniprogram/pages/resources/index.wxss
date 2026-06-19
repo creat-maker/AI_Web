@@ -76,3 +76,13 @@
 .practice-btn {
   margin-top: 20rpx;
 }
+
+.task-added-btn {
+  margin-top: 20rpx;
+  background: #e7f8ef;
+  color: #087443;
+}
+
+.action-grid .task-added-btn {
+  margin-top: 0;
+}

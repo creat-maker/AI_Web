@@ -43,7 +43,7 @@ export const roleMenus: Record<UserRole, RoleMenuItem[]> = {
     { label: '学习小组', path: '/student/group', description: '小组协作、讨论和同伴互助学习。' }
   ],
   teacher: [
-    { label: '班级概览', path: '/teacher', description: '教师端首页，聚焦班级趋势、风险学生和干预任务。' },
+    { label: '班级概览', path: '/teacher', description: '教师端首页，聚焦班级趋势、学习预警和干预任务。' },
     { label: '课程管理', path: '/courses', description: '创建和管理课程基础信息。' },
     { label: '班级学生管理', path: '/class-students', description: '班级学生名单、分层和学习状态管理。', badge: '占位' },
     { label: '学生画像分析', path: '/profiles', description: '复用学生画像页面，支持教师查看画像基础数据。' },
@@ -58,7 +58,8 @@ export const roleMenus: Record<UserRole, RoleMenuItem[]> = {
   ],
   admin: [
     { label: '平台总览', path: '/dashboard', description: '管理员端首页，展示平台健康、日志、Agent 和报告统计。' },
-    { label: '比赛演示状态', path: '/demo-status', description: '答辩前查看端到端验收报告、关键事件和推荐演示路线。' },
+    { label: '演示验收状态', path: '/demo-status', description: '答辩前查看端到端验收报告、关键事件和推荐检查路线。' },
+    { label: '教学智能决策中心', path: '/admin/decision-center', description: '汇总画像、资源、路径、审核、AI 学伴、小程序活跃和教师减负统计。' },
     { label: '课程治理', path: '/admin/courses', description: '平台课程基础数据和运行治理。' },
     { label: '用户与角色', path: '/admin/users', description: '用户、角色、组织和端侧权限配置。' },
     { label: '资源生成中心', path: '/resource-generation', description: '平台 AI 资源生成能力与任务统计。' },
@@ -69,7 +70,7 @@ export const roleMenus: Record<UserRole, RoleMenuItem[]> = {
     { label: '权限配置', path: '/permissions', description: '菜单、接口和角色权限策略配置。', badge: '占位' },
     { label: '通知公告管理', path: '/announcement-management', description: '平台公告、通知模板和发布范围。', badge: '占位' },
     { label: '数据统计与导出', path: '/data-export', description: '统计报表、导出任务和演示数据审计。', badge: '占位' },
-    { label: '系统设置', path: '/settings', description: '系统运行模式、fallback 数据源和能力边界。' }
+    { label: '系统设置', path: '/settings', description: '系统运行模式、本地数据源和能力边界。' }
   ]
 };
 

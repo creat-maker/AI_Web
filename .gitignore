@@ -84,3 +84,9 @@ Thumbs.db
 *.onnx
 *.bin
 *.safetensors
+
+# local research papers and private config
+docs/research_papers/
+ндов/
+*.pdf
+project.private.config.json

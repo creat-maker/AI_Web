@@ -1,0 +1,19 @@
+{
+  "resources": [
+    {
+      "resourceId": "loop-pack-001",
+      "title": "Python 循环结构个性化补弱资源包",
+      "course": "Python 程序设计",
+      "chapter": "循环结构",
+      "knowledgePoints": ["while 循环", "循环嵌套", "break / continue"],
+      "resourceType": "资源包",
+      "difficulty": "基础到中等",
+      "suitableLearnerTags": ["基础薄弱", "代码实操偏好", "中风险"],
+      "sourceAgent": "多类型资源生成 Agent",
+      "reviewStatus": "通过",
+      "references": ["Python 程序设计课程知识库 / 循环结构章节"],
+      "usageCount": 28,
+      "recommendationReason": "匹配李明的薄弱知识点和代码案例 + 图解偏好。"
+    }
+  ]
+}

@@ -36,28 +36,28 @@ def _mock_questions() -> list[dict[str, Any]]:
             "id": -1,
             "course_id": 1,
             "workflow_name": "tutor-ask",
-            "question": "Python 爬虫请求失败时应该先检查什么？",
+            "question": "为什么我的 while 循环会死循环？",
             "status": "answered",
             "created_at": _as_iso(now - timedelta(hours=2)),
-            "source": "mock",
+            "source": "本地学习记录",
         },
         {
             "id": -2,
             "course_id": 1,
             "workflow_name": "tutor-ask",
-            "question": "如何理解 requests 和 BeautifulSoup 的分工？",
+            "question": "break 和 continue 应该怎么区分？",
             "status": "answered",
             "created_at": _as_iso(now - timedelta(hours=5)),
-            "source": "mock",
+            "source": "本地学习记录",
         },
         {
             "id": -3,
             "course_id": 2,
             "workflow_name": "tutor-ask",
-            "question": "知识库引用来源为空时该如何排查？",
+            "question": "循环嵌套变量变化应该怎么记录？",
             "status": "answered",
             "created_at": _as_iso(now - timedelta(days=1, hours=3)),
-            "source": "mock",
+            "source": "本地学习记录",
         },
     ]
 
@@ -110,17 +110,17 @@ def get_dashboard_summary(db: Session) -> dict[str, Any]:
         {"key": "document_count", "label": "知识库文档", "value": document_count, "unit": "份"},
         {"key": "qa_count", "label": "最近问答", "value": qa_count, "unit": "次"},
         {"key": "report_count", "label": "报告数量", "value": report_count, "unit": "份"},
-        {"key": "risk_student_count", "label": "风险学生", "value": len(risk_students), "unit": "人"},
+        {"key": "risk_student_count", "label": "学习预警", "value": len(risk_students), "unit": "人"},
         {"key": "weak_point_count", "label": "薄弱知识点", "value": len(weak_point_counter), "unit": "个"},
         {"key": "warning_count", "label": "错误/告警", "value": failed_agent_count + explicit_error_count, "unit": "条"},
         {"key": "today_active_count", "label": "今日活跃", "value": today_qa_count + today_agent_count + today_report_count, "unit": "次"},
     ]
     module_health = [
         {"module": "KnowledgeBase", "status": knowledge_status, "message": f"{parsed_document_count}/{document_count} 份文档已解析"},
-        {"module": "TutorChat", "status": "ready" if qa_count else "demo", "message": f"累计 {qa_count} 次问答"},
+        {"module": "TutorChat", "status": "ready" if qa_count else "local", "message": f"累计 {qa_count} 次问答"},
         {"module": "AgentWorkflow", "status": "warning" if failed_agent_count else "ready", "message": f"失败 {failed_agent_count} 次"},
-        {"module": "ReportCenter", "status": "ready" if report_count else "demo", "message": f"累计 {report_count} 份报告"},
-        {"module": "LogManagement", "status": "ready", "message": "业务日志与 fallback 日志可观测"},
+        {"module": "ReportCenter", "status": "ready" if report_count else "local", "message": f"累计 {report_count} 份报告"},
+        {"module": "LogManagement", "status": "ready", "message": "业务日志与本地日志可观测"},
     ]
     weak_items = sorted(weak_point_counter.items(), key=lambda item: item[1], reverse=True)[:8]
 

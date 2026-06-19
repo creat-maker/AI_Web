@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "title": "猜数字 while 循环案例",
+      "knowledgePoints": ["while 循环", "break"],
+      "difficulty": "基础",
+      "summary": "通过猜数字任务理解循环条件、变量更新和提前退出。"
+    },
+    {
+      "title": "九九乘法表",
+      "knowledgePoints": ["for 循环", "循环嵌套"],
+      "difficulty": "中等",
+      "summary": "用双层 for 循环输出表格结构。"
+    }
+  ]
+}
