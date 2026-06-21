@@ -24,6 +24,7 @@ const routes = [
   { path: '/student/evaluation', redirect: '/student/smart-quiz' },
   { path: '/student/quiz-evaluate', redirect: '/student/smart-quiz' },
   { path: '/student/smart-quiz', name: 'StudentSmartQuiz', component: () => import('../views/StudentSmartQuiz.vue'), meta: { title: '智能测验与练后分析' } },
+  { path: '/student/loop-game', name: 'StudentLoopGame', component: () => import('../views/StudentLoopGame.vue'), meta: { title: '循环结构闯关练习' } },
   { path: '/student/reports', name: 'StudentReport', component: () => import('../views/StudentReport.vue'), meta: { title: '学习报告' } },
   { path: '/student/achievements', name: 'StudentAchievements', component: () => import('../views/StudentAchievements.vue'), meta: { title: '成就徽章' } },
   { path: '/student/points', name: 'StudentPoints', component: () => import('../views/StudentPoints.vue'), meta: { title: '积分等级' } },

@@ -110,6 +110,7 @@ watch(selectedUserId, () => loadTasks());
         </select>
         <RouterLink class="btn secondary" to="/student/knowledge-graph">知识图谱</RouterLink>
         <RouterLink class="btn" to="/student/smart-quiz">章节测验</RouterLink>
+        <RouterLink class="btn secondary" to="/student/loop-game">循环结构闯关</RouterLink>
         <button type="button" class="secondary" :disabled="replanLoading" @click="replanPath">{{ replanLoading ? '规划中...' : '重新规划路径' }}</button>
       </template>
     </PageHeader>
@@ -154,6 +155,16 @@ watch(selectedUserId, () => loadTasks());
           <span>已写入李明的 Python 循环结构专项补弱路径</span>
           <StatusBadge label="已采纳" tone="success" />
         </article>
+      </div>
+    </DataCard>
+
+    <DataCard title="互动练习资源" subtitle="面向李明的循环结构闯关练习，完成后可回到学习路径或查看报告">
+      <div class="interactive-resource">
+        <div>
+          <strong>循环结构闯关练习</strong>
+          <p>3 关覆盖 while 循环条件更新、break / continue 区分、循环嵌套变量变化。</p>
+        </div>
+        <RouterLink class="btn" to="/student/loop-game">开始闯关</RouterLink>
       </div>
     </DataCard>
 
@@ -298,10 +309,30 @@ watch(selectedUserId, () => loadTasks());
   color: var(--color-text-sub);
 }
 
+.interactive-resource {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+}
+
+.interactive-resource p {
+  margin: 6px 0 0;
+  color: var(--color-text-sub);
+}
+
 @media (max-width: 1100px) {
   .task-grid,
   .overview-list article {
     grid-template-columns: 1fr;
+  }
+
+  .interactive-resource {
+    display: grid;
   }
 }
 </style>
