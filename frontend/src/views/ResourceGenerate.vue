@@ -34,6 +34,25 @@ interface ReviewSummary {
   humanReviewAdvice: string;
 }
 
+interface CoursewareSection {
+  title: string;
+  objective: string;
+  bullets: string[];
+}
+
+interface CoursewareOutline {
+  title: string;
+  course: string;
+  chapter: string;
+  student: string;
+  weakPoints: string;
+  outline: CoursewareSection[];
+  statusMessage: string;
+  libraryMessage: string;
+  exportMessage: string;
+  capabilityNote: string;
+}
+
 const form = ref({
   student: '李明',
   course: 'Python 程序设计',
@@ -117,6 +136,9 @@ const packageTitle = ref('Python 循环结构个性化补弱资源包');
 const message = ref('');
 const loading = ref(false);
 const activeReviewTitle = ref<string | null>(null);
+const courseware = ref<CoursewareOutline | null>(null);
+const coursewareLoading = ref(false);
+const coursewareLibraryStatus = ref('待加入教学资源库');
 
 function typeOf(item: ResourceCard) {
   return item.resourceType || item.resource_type || '资源';
@@ -158,6 +180,56 @@ async function generatePack() {
   }
 }
 
+async function generateCoursewareOutline() {
+  coursewareLoading.value = true;
+  message.value = '';
+  try {
+    courseware.value = await api.post<CoursewareOutline>('/api/v1/resources/courseware-outline', {
+      course: form.value.course || 'Python 程序设计',
+      chapter: form.value.chapter || '循环结构',
+      student: form.value.student || '李明',
+      weakPoints: 'while 循环和循环嵌套需要加强'
+    });
+    coursewareLibraryStatus.value = '待加入教学资源库';
+    message.value = courseware.value.statusMessage || '已生成课件大纲';
+  } catch {
+    courseware.value = {
+      title: 'Python 程序设计《循环结构》AI 课件大纲',
+      course: 'Python 程序设计',
+      chapter: '循环结构',
+      student: '李明',
+      weakPoints: 'while 循环和循环嵌套需要加强',
+      statusMessage: '已生成课件大纲',
+      libraryMessage: '已加入教学资源库',
+      exportMessage: '可用于后续导出 PPT',
+      capabilityNote: '当前提供课件大纲与资源库入库结果，PPTX 导出接口已预留。',
+      outline: [
+        { title: '课程导入', objective: '用重复执行场景引出循环结构。', bullets: ['从累计求和问题切入', '明确李明的补弱目标'] },
+        { title: 'for 循环', objective: '掌握已知次数循环。', bullets: ['range 用法', '遍历序列', '与 while 对比'] },
+        { title: 'while 循环', objective: '强化条件更新。', bullets: ['初始值', '循环条件', '变量更新'] },
+        { title: 'break / continue', objective: '区分控制语句。', bullets: ['break 结束循环', 'continue 跳过本轮'] },
+        { title: '循环嵌套', objective: '追踪内外层变量。', bullets: ['外层控制行', '内层控制列', '避免变量同名'] },
+        { title: '常见错误', objective: '形成检查清单。', bullets: ['忘记更新变量', 'continue 跳过更新', '变量混用'] },
+        { title: '课堂练习', objective: '即时巩固。', bullets: ['补全代码', '判断输出', '记录变量变化'] },
+        { title: '课后任务', objective: '迁移应用。', bullets: ['完成循环补全题', '提交嵌套循环代码说明'] }
+      ]
+    };
+    coursewareLibraryStatus.value = '待加入教学资源库';
+    message.value = '已生成课件大纲';
+  } finally {
+    coursewareLoading.value = false;
+  }
+}
+
+function addCoursewareToLibrary() {
+  if (!courseware.value) {
+    message.value = '请先生成课件大纲';
+    return;
+  }
+  coursewareLibraryStatus.value = '已加入教学资源库';
+  message.value = courseware.value.libraryMessage || '已加入教学资源库';
+}
+
 function markAction(action: string, item: ResourceCard) {
   if (action === '加入资源库') {
     item.libraryStatus = '已入库';
@@ -179,11 +251,49 @@ function markAction(action: string, item: ResourceCard) {
   <section class="page resource-generate-page">
     <PageHeader title="个性化多模态资源生成中心" description="围绕李明的 Python 循环结构薄弱点，展示多智能体协同生成、审核、入库与推送。">
       <template #actions>
+        <button @click="generateCoursewareOutline" :disabled="coursewareLoading">{{ coursewareLoading ? '生成中...' : 'AI 课件生成' }}</button>
         <button class="secondary" @click="generatePack" :disabled="loading">{{ loading ? '生成中...' : '生成资源包' }}</button>
       </template>
     </PageHeader>
 
     <p v-if="message" class="panel muted">{{ message }}</p>
+
+    <DataCard title="AI 课件生成" subtitle="根据课程、章节、学生画像和薄弱知识点生成可入库课件大纲">
+      <div class="courseware-toolbar">
+        <div>
+          <strong>默认输入</strong>
+          <p>Python 程序设计 / 循环结构 / 李明 / while 循环和循环嵌套需要加强</p>
+        </div>
+        <div class="courseware-actions">
+          <button @click="generateCoursewareOutline" :disabled="coursewareLoading">{{ coursewareLoading ? '生成中...' : '生成课件大纲' }}</button>
+          <button class="secondary" @click="addCoursewareToLibrary">{{ coursewareLibraryStatus === '已加入教学资源库' ? '已加入教学资源库' : '加入教学资源库' }}</button>
+        </div>
+      </div>
+      <div v-if="courseware" class="courseware-panel">
+        <div class="courseware-summary">
+          <div>
+            <strong>{{ courseware.title }}</strong>
+            <p>{{ courseware.course }} / {{ courseware.chapter }} / {{ courseware.student }}</p>
+            <p>薄弱知识点：{{ courseware.weakPoints }}</p>
+          </div>
+          <div class="status-flow">
+            <StatusBadge :label="courseware.statusMessage" tone="success" />
+            <StatusBadge :label="coursewareLibraryStatus" :tone="coursewareLibraryStatus === '已加入教学资源库' ? 'success' : 'warning'" />
+            <StatusBadge :label="courseware.exportMessage" tone="info" />
+          </div>
+        </div>
+        <div class="courseware-outline-grid">
+          <article v-for="section in courseware.outline" :key="section.title">
+            <strong>{{ section.title }}</strong>
+            <p>{{ section.objective }}</p>
+            <ul>
+              <li v-for="item in section.bullets" :key="item">{{ item }}</li>
+            </ul>
+          </article>
+        </div>
+        <p class="courseware-note">{{ courseware.capabilityNote }}</p>
+      </div>
+    </DataCard>
 
     <div class="stat-grid">
       <StatCard label="资源类型" :value="resources.length" unit="类" icon="资" />
@@ -354,9 +464,68 @@ function markAction(action: string, item: ResourceCard) {
   flex-wrap: wrap;
 }
 
+.courseware-toolbar,
+.courseware-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.courseware-toolbar p,
+.courseware-summary p,
+.courseware-outline-grid p,
+.courseware-note {
+  margin: 6px 0 0;
+  color: var(--color-text-sub);
+}
+
+.courseware-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.courseware-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.courseware-outline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.courseware-outline-grid article {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.courseware-outline-grid ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--color-text-sub);
+  line-height: 1.6;
+}
+
+.courseware-note {
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--color-primary-light);
+}
+
 @media (max-width: 980px) {
   .content-with-aside {
     grid-template-columns: 1fr;
+  }
+
+  .courseware-toolbar,
+  .courseware-summary {
+    display: grid;
   }
 }
 </style>

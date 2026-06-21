@@ -13,6 +13,7 @@ from app.services.json_utils import loads
 from app.services.llm_service import llm_service
 from app.services.personalization_service import generate_resource_pack
 from app.services.profile_service import latest_profile_by_user_id, profile_to_dict
+from app.services.courseware_service import CoursewareRequest, build_courseware_outline
 
 
 router = APIRouter(prefix="/resources", tags=["resources"])
@@ -31,6 +32,13 @@ class ResourcePackPayload(BaseModel):
     learningGoal: str | None = None
     knowledgePoints: list[str] = []
     weakPoints: list[str] = []
+
+
+class CoursewareOutlinePayload(BaseModel):
+    course: str = "Python 程序设计"
+    chapter: str = "循环结构"
+    student: str = "李明"
+    weakPoints: str = "while 循环和循环嵌套需要加强"
 
 
 @router.get("")
@@ -161,3 +169,14 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         },
     )
     return pack
+
+
+@router.post("/courseware-outline")
+def generate_courseware_outline(payload: CoursewareOutlinePayload) -> dict:
+    request = CoursewareRequest(
+        course=payload.course,
+        chapter=payload.chapter,
+        student=payload.student,
+        weak_points=payload.weakPoints,
+    )
+    return build_courseware_outline(request)

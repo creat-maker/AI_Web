@@ -122,13 +122,21 @@ def ask(payload: TutorAskPayload) -> dict[str, Any]:
 @router.post("/digital-human-script")
 def digital_human_script(payload: TutorAskPayload) -> dict[str, Any]:
     topic = _topic_payload(payload.question)
+    sections = [
+        {"title": "开场白", "content": f"李明，我们围绕 {payload.courseName or 'Python 程序设计'} 的循环结构，把这道问题拆成可以逐步检查的步骤。"},
+        {"title": "知识点解释", "content": topic["explanation"]},
+        {"title": "错误代码讲解", "content": topic["wrongExample"]},
+        {"title": "正确代码讲解", "content": topic["correctExample"]},
+        {"title": "常见错误提醒", "content": topic["commonMistakes"]},
+        {"title": "练习建议", "content": topic["practice"]},
+        {"title": "总结", "content": f"{topic['diagnosis']}下一步建议：{topic['nextPath']}"},
+    ]
     return {
         "status": "已生成",
         "avatar": "AI 学伴讲解脚本",
-        "script": (
-            f"{SCRIPT_READY_MESSAGE}"
-            f"建议讲解顺序：先说明{topic['diagnosis']}，再展示错误示例和正确示例，最后布置练习：{topic['practice']}"
-        ),
+        "message": SCRIPT_READY_MESSAGE,
+        "sections": sections,
+        "script": f"{SCRIPT_READY_MESSAGE}\n" + "\n".join(f"{item['title']}：{item['content']}" for item in sections),
         "nextStep": topic["nextPath"],
         "lowEvidenceRisk": "低",
     }

@@ -72,6 +72,17 @@ interface TutorHistoryItem {
   created_at: string;
 }
 
+interface DigitalHumanScriptSection {
+  title: string;
+  content: string;
+}
+
+interface DigitalHumanScriptResponse {
+  message?: string;
+  script: string;
+  sections?: DigitalHumanScriptSection[];
+}
+
 const courses = ref<Course[]>([]);
 const answer = ref<TutorAnswer | null>(null);
 const history = ref<TutorHistoryItem[]>([]);
@@ -82,7 +93,8 @@ const error = ref('');
 const scriptMessage = ref('');
 const scriptLoading = ref(false);
 const actionMessage = ref('');
-const scriptReadyText = '讲解脚本已生成，可用于后续语音播报或数字人服务。';
+const scriptReadyText = '讲解脚本已生成，可用于后续接入语音播报或数字人服务。';
+const scriptSections = ref<DigitalHumanScriptSection[]>([]);
 const quickQuestions = [
   '为什么我的 while 循环会死循环？',
   'break 和 continue 有什么区别？',
@@ -145,14 +157,24 @@ async function generateScript() {
   scriptLoading.value = true;
   scriptMessage.value = '';
   try {
-    await api.post<{ script: string }>('/api/v1/ai-tutor/digital-human-script', {
+    const result = await api.post<DigitalHumanScriptResponse>('/api/v1/ai-tutor/digital-human-script', {
       question: form.question || '为什么我的 while 循环会死循环？',
       mode: form.heuristic_mode ? '启发式答疑' : '智能答疑',
       studentId: 'student-li-ming',
       courseName: courses.value.find((item) => item.id === form.course_id)?.title || 'Python 程序设计'
     });
-    scriptMessage.value = scriptReadyText;
+    scriptSections.value = result.sections?.length ? result.sections : [{ title: '讲解脚本', content: result.script }];
+    scriptMessage.value = result.message || scriptReadyText;
   } catch {
+    scriptSections.value = [
+      { title: '开场白', content: '李明，我们先把 while 循环为什么停不下来这个问题拆开看。' },
+      { title: '知识点解释', content: 'while 循环需要同时检查初始值、循环条件和变量更新。' },
+      { title: '错误代码讲解', content: '如果循环体里缺少 i += 1，i 会一直小于 5，循环条件始终成立。' },
+      { title: '正确代码讲解', content: '把 i += 1 放在循环体内，让每一轮执行后变量都更接近终止条件。' },
+      { title: '常见错误提醒', content: '还要注意 continue 不要跳过变量更新语句，嵌套循环不要混用内外层变量。' },
+      { title: '练习建议', content: '完成 3 道 while 循环补全题，并写出前三轮变量变化。' },
+      { title: '总结', content: '判断循环是否可靠，关键是看条件是否会逐步接近结束。' }
+    ];
     scriptMessage.value = scriptReadyText;
   } finally {
     scriptLoading.value = false;
@@ -257,6 +279,23 @@ onMounted(loadCourses);
     <p v-if="pageLoading" class="panel muted">正在加载课程和问答历史...</p>
     <p v-if="actionMessage" class="panel muted">{{ actionMessage }}</p>
     <p v-if="scriptMessage" class="panel muted">{{ scriptMessage }}</p>
+
+    <section v-if="scriptSections.length" class="panel script-preview">
+      <div class="script-preview-head">
+        <div>
+          <strong>数字人讲解预览卡片</strong>
+          <p>讲解脚本已生成，可用于后续接入语音播报或数字人服务。</p>
+        </div>
+        <span>服务预留</span>
+      </div>
+      <div class="script-section-grid">
+        <article v-for="section in scriptSections" :key="section.title">
+          <strong>{{ section.title }}</strong>
+          <pre v-if="section.title.includes('代码')">{{ section.content }}</pre>
+          <p v-else>{{ section.content }}</p>
+        </article>
+      </div>
+    </section>
 
     <div class="tutor-layout">
       <section class="panel">
@@ -677,6 +716,60 @@ onMounted(loadCourses);
 
 .error-text {
   color: var(--status-danger-dark);
+}
+
+.script-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.script-preview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.script-preview-head p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.script-preview-head span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--status-info-text);
+  background: var(--status-info-bg);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.script-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.script-section-grid article {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-surface);
+}
+
+.script-section-grid p,
+.script-section-grid pre {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.script-section-grid pre {
+  white-space: pre-wrap;
+  border-radius: 8px;
+  padding: 10px;
+  color: #e2e8f0;
+  background: #0f172a;
 }
 
 @media (max-width: 980px) {
