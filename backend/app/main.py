@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, ai_tutor, competition, content_review, courses, dashboard, decision_center, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, student_profile, system_settings, tutor, user_profile_ws
+from app.api.routers import agent_workflow, ai_tutor, auth, competition, content_review, courses, dashboard, decision_center, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, student_profile, system_settings, tutor, user_profile_ws
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -49,6 +49,7 @@ app.add_middleware(
 )
 
 API_PREFIX = "/api/v1"
+app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(courses.router, prefix=API_PREFIX)
 app.include_router(knowledge_base.router, prefix=API_PREFIX)
 app.include_router(rag.router, prefix=API_PREFIX)

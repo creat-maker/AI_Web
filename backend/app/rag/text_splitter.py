@@ -4,73 +4,102 @@ import re
 
 
 def split_text(text: str, chunk_size: int = 800, overlap: int = 120) -> list[str]:
-    lines = _normalize_lines(text)
-    if not lines:
+    """递归字符分块：优先按 markdown 标题 → 双换行 → 单换行 → 句号切分，再按字符数兜底。"""
+    if not text or not text.strip():
         return []
 
-    sections = _sections_from_lines(lines)
+    # Step 1: 按 markdown 标题拆分
+    sections = _split_by_headers(text)
+
+    # Step 2: 对每个 section 递归拆分
     chunks: list[str] = []
-    current = ""
-
     for section in sections:
-        if len(section) > chunk_size:
-            if current:
-                chunks.append(current)
-                current = ""
-            chunks.extend(_split_oversized(section, chunk_size, overlap))
+        if len(section) <= chunk_size:
+            chunks.append(section)
+        else:
+            chunks.extend(_recursive_split(section, chunk_size, overlap))
+
+    # Step 3: 合并过短的块
+    return _merge_short_chunks(chunks, chunk_size)
+
+
+def _split_by_headers(text: str) -> list[str]:
+    """按 markdown 标题（# ~ ####）拆分，保留标题行。"""
+    header_pattern = re.compile(r"^(#{1,4}\s+.+)$", re.MULTILINE)
+    splits = header_pattern.split(text)
+
+    if len(splits) <= 1:
+        return [text.strip()] if text.strip() else []
+
+    sections: list[str] = []
+    current = splits[0].strip()
+    i = 1
+    while i < len(splits):
+        header = splits[i].strip()
+        content = splits[i + 1].strip() if i + 1 < len(splits) else ""
+        section = f"{header}\n{content}".strip() if content else header
+        if section:
+            sections.append(section)
+        i += 2
+
+    if current:
+        sections.insert(0, current)
+
+    return sections if sections else [text.strip()]
+
+
+def _recursive_split(text: str, chunk_size: int, overlap: int) -> list[str]:
+    """递归按分隔符层级拆分：双换行 → 单换行 → 句号 → 字符切分。"""
+    separators = ["\n\n", "\n", "。", "；", ".", ";"]
+
+    for sep in separators:
+        if sep not in text:
             continue
+        parts = text.split(sep)
+        chunks: list[str] = []
+        current = ""
+        for part in parts:
+            candidate = f"{current}{sep}{part}" if current else part
+            if len(candidate) <= chunk_size:
+                current = candidate
+            else:
+                if current:
+                    chunks.append(current.strip())
+                if len(part) > chunk_size:
+                    chunks.extend(_char_split(part, chunk_size, overlap))
+                    current = ""
+                else:
+                    current = part
+        if current:
+            chunks.append(current.strip())
+        return [c for c in chunks if c]
 
-        candidate = f"{current}\n\n{section}" if current else section
-        if len(candidate) <= chunk_size:
-            current = candidate
-        else:
-            chunks.append(current)
-            current = section
-
-    if current:
-        chunks.append(current)
-
-    return [chunk.strip() for chunk in chunks if chunk.strip()]
-
-
-def _normalize_lines(text: str) -> list[str]:
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    return [line.strip() for line in normalized.split("\n") if line.strip()]
-
-
-def _sections_from_lines(lines: list[str]) -> list[str]:
-    sections: list[list[str]] = []
-    current: list[str] = []
-
-    for line in lines:
-        if _is_heading(line) and current:
-            sections.append(current)
-            current = [line]
-        else:
-            current.append(line)
-
-    if current:
-        sections.append(current)
-
-    return ["\n".join(section) for section in sections]
+    return _char_split(text, chunk_size, overlap)
 
 
-def _is_heading(line: str) -> bool:
-    if re.match(r"^#{1,6}\s+\S+", line):
-        return True
-    if re.match(r"^(第[一二三四五六七八九十0-9]+[章节讲]|[0-9]+(\.[0-9]+){0,3})[、.．\s]", line):
-        return True
-    return len(line) <= 40 and line.endswith(("：", ":"))
-
-
-def _split_oversized(text: str, chunk_size: int, overlap: int) -> list[str]:
+def _char_split(text: str, chunk_size: int, overlap: int) -> list[str]:
+    """按字符数切分，带重叠。"""
     chunks: list[str] = []
     start = 0
-    safe_overlap = min(max(overlap, 0), max(chunk_size // 3, 1))
     while start < len(text):
         end = min(start + chunk_size, len(text))
-        chunks.append(text[start:end].strip())
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
         if end >= len(text):
             break
-        start = max(0, end - safe_overlap)
+        start = max(0, end - overlap)
     return chunks
+
+
+def _merge_short_chunks(chunks: list[str], min_size: int = 100) -> list[str]:
+    """合并过短的相邻块。"""
+    if not chunks:
+        return []
+    merged: list[str] = [chunks[0]]
+    for chunk in chunks[1:]:
+        if len(merged[-1]) < min_size and len(merged[-1]) + len(chunk) + 1 <= min_size * 4:
+            merged[-1] = f"{merged[-1]}\n{chunk}"
+        else:
+            merged.append(chunk)
+    return merged
