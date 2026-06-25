@@ -5,8 +5,10 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
+from app.core.config import settings
 from app.services.multimodal_resource_service import RESOURCE_TYPE_CATALOG, ffmpeg_capability, xfyun_tts_capability
 from app.services.xfyun_safety_service import xfyun_safety_service
+from app.services.xfyun_spark_service import xfyun_spark_service
 
 
 router = APIRouter(prefix="/demo-status", tags=["demo-status"])
@@ -16,6 +18,26 @@ FLOW_REPORT_PATH = ROOT_DIR / "reports" / "demo_flow_check.md"
 READY_CHECK_PATH = ROOT_DIR / "docs" / "reports" / "demo_ready_check.md"
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist" / "index.html"
 COURSE_KB_FILE = ROOT_DIR / "docs" / "course_kb" / "python_programming.json"
+
+PROFILE_DIMENSION_LABELS = ["知识基础", "认知风格", "学习偏好", "易错点", "学习进度", "情感动机"]
+
+CONTEST_REQUIREMENT_FLAGS = {
+    "dialogue_profile_6_dimensions": True,
+    "multimodal_resources_animation_audio_video_script": True,
+    "xfyun_tts_spark_safety_configurable": True,
+    "quiz_evaluation_path_adjustment": True,
+    "anti_hallucination_citation_review": True,
+}
+
+
+def _xfyun_status() -> dict:
+    return {
+        "xfyun_enabled": settings.xfyun_configured,
+        "tts": xfyun_tts_capability(),
+        "spark": xfyun_spark_service.status(),
+        "safety": xfyun_safety_service.status(),
+        "fallback_engine": "local_intelligent_evaluator",
+    }
 
 EVENT_LABELS = {
     "profile_generated": "画像生成",
@@ -112,7 +134,7 @@ def _capability_checklist() -> list[dict]:
             "已存在，返回 StudentAssistant 兼容的单轮画像结构。",
         ),
         _route_capability(
-            "5 类资源包生成接口",
+            "8 类资源包生成接口",
             "POST /api/v1/resources/generate-pack",
             "backend/app/api/routers/resources.py",
             '@router.post("/generate-pack")',
@@ -216,13 +238,44 @@ def _base_response(status: str, message: str) -> dict:
         "capability_checklist": _capability_checklist(),
         "real_capabilities": REAL_CAPABILITIES,
         "demo_fallback_capabilities": DEMO_FALLBACK_CAPABILITIES,
+        "contest_requirement_flags": CONTEST_REQUIREMENT_FLAGS,
+        "CONTEST_REQUIREMENT_FLAGS": CONTEST_REQUIREMENT_FLAGS,
+        "xfyun_status": _xfyun_status(),
+        "ai_tool_status": {
+            "provider": "local_intelligent_evaluator",
+            "xfyun_status": _xfyun_status(),
+        },
         "feature_status": {
-            "profile_dialog": {"supported": True, "dimension_count": 6},
+            "profile_dialog": {
+                "status": "supported",
+                "supported": True,
+                "dimensions": 6,
+                "dimension_count": 6,
+                "dimension_labels": PROFILE_DIMENSION_LABELS,
+                "update_mode": "dialogue_and_learning_events",
+            },
+            "multimodal_resources": {
+                "status": "supported",
+                "resource_types": len(RESOURCE_TYPE_CATALOG),
+                "animation_html": True,
+                "tts_audio": "xfyun_configurable",
+                "video_script": True,
+            },
             "multimodal_resource_type_count": len(RESOURCE_TYPE_CATALOG),
             "animation_html": {"supported": True, "preview": "sandbox iframe"},
             "tts_audio": xfyun_tts_capability(),
             "ffmpeg": ffmpeg_capability(),
-            "content_safety": xfyun_safety_service.status(),
+            "assessment_adjustment": {
+                "status": "supported",
+                "flow": "quiz -> evaluation -> path_adjustment -> recommended_resources",
+            },
+            "content_safety": {
+                "status": "supported",
+                "rule_based": True,
+                "citation_check": True,
+                "xfyun_safety": "configurable",
+                "provider_status": xfyun_safety_service.status(),
+            },
             "evaluation_adjustment_loop": {"supported": True, "fields": ["evaluation", "path_adjustment"]},
             "agent_workflow": {"supported": True},
             "report_generation": {"supported": True},

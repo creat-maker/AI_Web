@@ -52,6 +52,16 @@ def _database_hint() -> str:
     return "外部数据库连接已配置，前端不展示连接串。"
 
 
+def _xfyun_status() -> dict:
+    return {
+        "xfyun_enabled": settings.xfyun_configured,
+        "tts": xfyun_tts_service.status(),
+        "spark": xfyun_spark_service.status(),
+        "safety": xfyun_safety_service.status(),
+        "fallback_engine": "local_intelligent_evaluator",
+    }
+
+
 @router.get("")
 def get_settings_snapshot(db: Session = Depends(get_db)):
     parsed_docs = db.query(CourseDocument).filter(CourseDocument.parse_status == "parsed").count()
@@ -103,12 +113,12 @@ def get_settings_snapshot(db: Session = Depends(get_db)):
             "report_count": report_count,
             "qa_count": qa_count,
         },
-        "xfyun_tools": {
-            "enabled": settings.xfyun_configured,
-            "tts": xfyun_tts_service.status(),
-            "spark": xfyun_spark_service.status(),
-            "safety": xfyun_safety_service.status(),
-            "secret_visible": False,
+        "xfyun_tools": {**_xfyun_status(), "enabled": settings.xfyun_configured, "secret_visible": False},
+        "xfyun_status": _xfyun_status(),
+        "ai_tool_status": {
+            "provider": "local_intelligent_evaluator",
+            "xfyun_configurable": True,
+            "xfyun_status": _xfyun_status(),
         },
     }
 

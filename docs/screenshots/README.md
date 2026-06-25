@@ -7,7 +7,7 @@
 1. 登录页：`/login`
 2. 学生首页：`/student`
 3. 学生智能辅导：`/student/assistant`
-4. 5 类资源生成：`/student/assistant` 或 `/resource-generation`
+4. 8 类资源生成：`/student/assistant` 或 `/resource-generation`
 5. RAG 引用来源：`/student/assistant`
 6. 防幻觉审核：`/student/assistant` 或 `/resource-generation`
 7. AgentWorkflow：`/agent-workflow`

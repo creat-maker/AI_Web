@@ -17,7 +17,7 @@ export const demoRoutes = {
   teacher: [
     { route: '/teacher', title: '班级概览', goal: '查看 Python 循环结构班级趋势、李明学习预警和待处理任务。' },
     { route: '/courses', title: '课程管理', goal: '维护 Python 程序设计章节结构和循环结构主推资源。' },
-    { route: '/profiles', title: '学生画像', goal: '查看李明 8 维画像、循环结构薄弱点和干预建议。' },
+    { route: '/profiles', title: '学生画像', goal: '查看李明 6 维画像、循环结构薄弱点和干预建议。' },
     { route: '/learning-path', title: '学习路径与任务布置', goal: '查看循环结构补弱路径并布置 while 循环练习。' },
     { route: '/teacher-analysis', title: '测评分析', goal: '查看 while 循环、循环嵌套和 break / continue 薄弱项。' },
     { route: '/reports', title: '报告中心', goal: '查看学生/班级报告和证据链。' }

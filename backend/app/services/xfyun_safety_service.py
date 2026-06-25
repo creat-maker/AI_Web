@@ -8,7 +8,7 @@ class XfyunSafetyService:
     provider = "xfyun_safety"
 
     def is_configured(self) -> bool:
-        return settings.xfyun_configured
+        return settings.xfyun_configured and bool(settings.xfyun_safety_url)
 
     def status(self) -> dict:
         if not self.is_configured():
@@ -22,19 +22,21 @@ class XfyunSafetyService:
             "enabled": True,
             "status": "configured",
             "provider": self.provider,
+            "endpoint": settings.xfyun_safety_url,
             "message": "内容安全扩展服务已具备配置条件，可接入科大讯飞审核能力。",
         }
 
     def check(self, content: str) -> dict:
         if not self.is_configured():
             return {
-                "status": "skipped",
+                "status": "not_configured",
                 "provider": self.provider,
                 "message": NOT_CONFIGURED_MESSAGE,
             }
         return {
             "status": "ready",
             "provider": self.provider,
+            "endpoint": settings.xfyun_safety_url,
             "message": "当前环境已配置讯飞参数，生产环境可在此处接入真实内容安全审核请求。",
             "checked_length": len(content or ""),
         }

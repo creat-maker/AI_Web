@@ -180,6 +180,7 @@ function runHeaderAction(key: string, doneMessage: string) {
         <span v-for="item in dimensions" :key="item">{{ item }}</span>
       </div>
       <p class="basis-text">引用依据显式展示：Python 程序设计课程知识库 / 循环结构章节。</p>
+      <p class="basis-text">讯飞安全服务配置状态：可配置；未配置时启用本地规则审核、引用覆盖度检查和人工复核流程。</p>
     </DataCard>
 
     <DataCard v-if="selectedReview" title="资源审核详情" :subtitle="selectedReview.title">

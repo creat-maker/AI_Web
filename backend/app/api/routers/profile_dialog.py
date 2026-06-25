@@ -66,6 +66,46 @@ class DialogRunPayload(BaseModel):
     weak_points: list[str] = Field(default_factory=list)
 
 
+def _six_dimension_payload(values: dict[str, Any]) -> dict[str, Any]:
+    weak_points = values.get("error_prone_points") or values.get("weak_points") or values.get("weakKnowledgePoints") or []
+    if isinstance(weak_points, str):
+        weak_points = [weak_points]
+    dimension_values = {
+        "knowledge_base": values.get("knowledge_base") or values.get("foundationLevel") or values.get("current_level") or "基础待评估",
+        "cognitive_style": values.get("cognitive_style") or values.get("learning_style") or "步骤拆解 + 图解直观型",
+        "learning_preference": values.get("learning_preference") or values.get("learningPreference") or "代码案例 + 分层练习",
+        "error_prone_points": weak_points,
+        "learning_progress": values.get("learning_progress") or values.get("diagnosis") or values.get("learningRisk") or "随学更新中",
+        "emotional_motivation": values.get("emotional_motivation") or values.get("learningGoal") or values.get("strategy") or "目标驱动，需要阶段性正反馈",
+    }
+    dimensions = [
+        {
+            "key": item["key"],
+            "label": item["label"],
+            "description": item["description"],
+            "value": dimension_values[item["key"]],
+        }
+        for item in PROFILE_DIMENSIONS
+    ]
+    return {
+        **dimension_values,
+        "profile_dimensions": PROFILE_DIMENSIONS,
+        "dimension_scores": {
+            "knowledge_base": 62,
+            "cognitive_style": 78,
+            "learning_preference": 82,
+            "error_prone_points": 55,
+            "learning_progress": 68,
+            "emotional_motivation": 74,
+        },
+        "dimensions": dimensions,
+        "current_level": dimension_values["knowledge_base"],
+        "weak_points": weak_points,
+        "diagnosis": dimension_values["learning_progress"],
+        "strategy": f"优先围绕{ '、'.join(str(item) for item in weak_points[:3]) if weak_points else '当前薄弱点' }安排讲义、动画、练习和测评反馈。",
+    }
+
+
 def _fallback_run_profile(payload: dict[str, Any], error: str = "") -> dict[str, Any]:
     student_name = payload.get("studentName") or payload.get("student_name") or "李明"
     course_name = payload.get("courseName") or payload.get("course_name") or "Python Programming"
@@ -84,7 +124,7 @@ def _fallback_run_profile(payload: dict[str, Any], error: str = "") -> dict[str,
         {"key": "learning_progress", "name": "学习进度", "value": "正在进行循环结构专项补弱。"},
         {"key": "emotional_motivation", "name": "情感动机", "value": f"目标是补齐 {course_name} 的循环结构薄弱点并完成课程任务。"},
     ]
-    return {
+    result = {
         "studentId": payload.get("studentId") or payload.get("student_id") or "demo-student",
         "studentName": student_name,
         "courseId": payload.get("courseId") or payload.get("course_id") or "demo-course",
@@ -101,6 +141,8 @@ def _fallback_run_profile(payload: dict[str, Any], error: str = "") -> dict[str,
         "mode": "structured-profile",
         "error": error,
     }
+    result.update(_six_dimension_payload(result))
+    return result
 
 
 @router.post("/run")
@@ -160,9 +202,16 @@ def dialog_run(payload: DialogRunPayload, current_user_id: str = Depends(get_dem
             "emotional_motivation": stable_profile["learning_goal"],
         }
         result["dimensions"] = [
-            {"key": item["key"], "name": item["label"], "value": standard_values.get(item["key"], "")}
+            {
+                "key": item["key"],
+                "name": item["label"],
+                "label": item["label"],
+                "description": item["description"],
+                "value": standard_values.get(item["key"], ""),
+            }
             for item in PROFILE_DIMENSIONS
         ]
+        result.update(_six_dimension_payload({**result, **stable_profile, **standard_values}))
         return result
     except Exception as exc:  # noqa: BLE001
         return _fallback_run_profile(data, str(exc))
@@ -284,8 +333,13 @@ def _build_profile_json(session: dict) -> dict:
         "diagnosis": extracted.get("learning_progress", extracted.get("diagnosis", f"当前主要短板集中在{', '.join(weak_points) if weak_points else '基础概念'}。")),
         "strategy": extracted.get("strategy", "采用短讲义、可运行案例、即时测验和错因反馈的组合。"),
         "dimensions": [
-            {"key": item["key"], "label": item["label"], "value": extracted.get(item["key"], "")}
+            {"key": item["key"], "label": item["label"], "description": item["description"], "value": extracted.get(item["key"], "")}
             for item in PROFILE_DIMENSIONS
         ],
+        "profile_dimensions": PROFILE_DIMENSIONS,
+        "dimension_scores": {
+            item["key"]: 80 if extracted.get(item["key"]) else 50
+            for item in PROFILE_DIMENSIONS
+        },
         "source": "dialog",
     }

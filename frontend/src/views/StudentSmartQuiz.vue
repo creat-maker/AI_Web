@@ -154,10 +154,11 @@ onMounted(loadQuiz);
           <div v-if="result.path_adjustment" class="analysis-block path-adjustment">
             <span>学习路径动态调整</span>
             <article>
-              <strong>{{ result.path_adjustment.adjusted ? '已根据测评结果调整学习路径' : '当前路径保持不变' }}</strong>
+              <strong>{{ result.path_adjustment.adjusted ? '系统已根据本次测评表现更新学习路径' : '当前路径保持不变' }}</strong>
               <p>{{ result.path_adjustment.reason }}</p>
               <p>难度变化：{{ result.path_adjustment.difficulty_change }}</p>
               <p v-if="result.path_adjustment.added_tasks.length">新增任务：{{ result.path_adjustment.added_tasks.join('、') }}</p>
+              <p v-if="result.path_adjustment.recommended_resources.length">推荐资源：{{ result.path_adjustment.recommended_resources.map((item) => item.title).join('、') }}</p>
               <p>下一步：{{ result.path_adjustment.next_learning_step }}</p>
             </article>
           </div>

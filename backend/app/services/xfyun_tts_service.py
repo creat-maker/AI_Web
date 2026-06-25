@@ -72,6 +72,7 @@ class XfyunTTSService:
                 "status": "not_configured",
                 "audio_path": None,
                 "provider": self.provider,
+                "enabled": False,
                 "message": NOT_CONFIGURED_MESSAGE,
                 "text_resource": text,
             }

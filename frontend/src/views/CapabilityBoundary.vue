@@ -39,6 +39,8 @@ onMounted(() => {
           <h2>demo / mock / fallback 能力</h2>
           <div class="list">
             <div class="item compact">未配置真实模型 Key 时使用 mock LLM。</div>
+            <div class="item compact">科大讯飞 TTS / Spark / Safety 为可配置服务；无 Key 时系统使用本地智能评测引擎稳定运行。</div>
+            <div class="item compact">防幻觉机制包含课程知识库引用、内容审核、人工复核和可接入讯飞安全服务。</div>
             <div class="item compact">RAG 质量诊断、query rewrite、错因识别和掌握度变化为规则估计。</div>
             <div class="item compact">Agent 工作流为 EduMind 内置演示编排，未接真实 LangGraph。</div>
           </div>

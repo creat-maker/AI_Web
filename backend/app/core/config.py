@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     xfyun_api_secret: str | None = Field(default=None, alias="XFYUN_API_SECRET")
     xfyun_tts_url: str = Field(default="wss://tts-api.xfyun.cn/v2/tts", alias="XFYUN_TTS_URL")
     xfyun_spark_url: str = Field(default="wss://spark-api.xf-yun.com/v3.5/chat", alias="XFYUN_SPARK_URL")
+    xfyun_safety_url: str = Field(default="https://spark-api.xf-yun.com/v1/safety", alias="XFYUN_SAFETY_URL")
     xfyun_enabled: bool = Field(default=False, alias="XFYUN_ENABLED")
 
     @property

@@ -92,16 +92,19 @@ def build_multimodal_resources(weak_points: list[str] | None = None) -> list[dic
         {
             "resourceType": "animation_html",
             "resource_type": "animation_html",
+            "type": "animation_html",
             "title": "while 循环条件更新动画",
             "description": "通过逐步高亮变量变化说明 while 循环执行过程。",
             "content": build_loop_animation_html(),
             "preview_url": "",
             "knowledge_points": ["while 循环", "条件更新", "变量追踪"],
             "format": "html",
+            "preview_supported": True,
         },
         {
             "resourceType": "video_script",
             "resource_type": "video_script",
+            "type": "video_script",
             "title": "循环结构视频讲解脚本",
             "content": "先展示死循环代码，再逐行标注初始值、条件和更新语句，最后对比 break 与 continue。",
             "format": "script",
@@ -110,6 +113,7 @@ def build_multimodal_resources(weak_points: list[str] | None = None) -> list[dic
         {
             "resourceType": "tts_audio",
             "resource_type": "tts_audio",
+            "type": "tts_audio",
             "title": "循环结构语音讲解资源",
             "content": script,
             "format": "tts-task",
@@ -131,3 +135,67 @@ def build_multimodal_resources(weak_points: list[str] | None = None) -> list[dic
             "format": "project-brief",
         },
     ]
+
+
+class MultimodalResourceService:
+    def generate_animation_html(self, topic: str, knowledge_points: list[str]) -> dict:
+        title = f"{topic or 'while 循环条件更新'}动画"
+        return {
+            "type": "animation_html",
+            "resourceType": "animation_html",
+            "resource_type": "animation_html",
+            "title": title,
+            "description": "通过逐步高亮变量变化说明 while 循环执行过程",
+            "format": "html",
+            "content": build_loop_animation_html(title),
+            "knowledge_points": knowledge_points or ["while循环", "条件更新", "变量追踪"],
+            "preview_supported": True,
+        }
+
+    def generate_video_script(self, topic: str, knowledge_points: list[str]) -> dict:
+        points = knowledge_points or ["while 循环", "break / continue", "循环嵌套"]
+        return {
+            "type": "video_script",
+            "resourceType": "video_script",
+            "resource_type": "video_script",
+            "title": f"{topic or '循环结构'}视频讲解脚本",
+            "description": "用于录制微课或后续接入视频生成工具的分镜脚本",
+            "format": "script",
+            "content": "开场说明学习目标；演示变量初始值、循环条件、循环体和变量更新；对比 break 与 continue；最后用嵌套循环案例复盘。",
+            "knowledge_points": points,
+            "preview_supported": True,
+            "ffmpeg_status": ffmpeg_capability(),
+        }
+
+    def generate_tts_audio_task(self, text: str) -> dict:
+        result = xfyun_tts_service.synthesize(text)
+        return {
+            "type": "tts_audio",
+            "resourceType": "tts_audio",
+            "resource_type": "tts_audio",
+            "title": "语音讲解资源",
+            "description": "语音服务未配置时，已生成讲解文本和接入任务",
+            "format": "tts-task",
+            "content": text,
+            "tts_status": xfyun_tts_service.status(),
+            "tts_result": result,
+            "preview_supported": result.get("status") == "success",
+        }
+
+    def generate_resource_pack(self, course: str, chapter: str, topic: str) -> dict:
+        resources = build_multimodal_resources([topic or chapter or "while 循环"])
+        return {
+            "course": course,
+            "chapter": chapter,
+            "topic": topic,
+            "resource_types": [item["resource_type"] for item in resources],
+            "resource_type_count": len(resources),
+            "resources": resources,
+            "runtime_capabilities": {
+                "xfyun_tts": xfyun_tts_capability(),
+                "ffmpeg": ffmpeg_capability(),
+            },
+        }
+
+
+multimodal_resource_service = MultimodalResourceService()

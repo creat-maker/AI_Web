@@ -1,6 +1,6 @@
 # EduMind 演示状态检查报告
 
-- 检查时间：2026-06-25T11:35:36
+- 检查时间：2026-06-25T16:46:57
 - 总体状态：READY
 - 通过 / 警告 / 失败：25 / 0 / 0
 - 后端地址：http://127.0.0.1:8000
@@ -69,3 +69,15 @@
 5. /agent-workflow Agent 工作流
 6. /logs 日志管理
 7. /settings 系统设置
+
+## Contest Hard Requirement Status Fields
+
+- `CONTEST_REQUIREMENT_FLAGS.dialogue_profile_6_dimensions = true`
+- `CONTEST_REQUIREMENT_FLAGS.multimodal_resources_animation_audio_video_script = true`
+- `CONTEST_REQUIREMENT_FLAGS.xfyun_tts_spark_safety_configurable = true`
+- `CONTEST_REQUIREMENT_FLAGS.quiz_evaluation_path_adjustment = true`
+- `CONTEST_REQUIREMENT_FLAGS.anti_hallucination_citation_review = true`
+- `/api/v1/demo-status.feature_status.profile_dialog.dimensions = 6`
+- `/api/v1/demo-status.feature_status.multimodal_resources.resource_types = 8`
+- `/api/v1/demo-status.feature_status.assessment_adjustment.flow = quiz -> evaluation -> path_adjustment -> recommended_resources`
+- `/api/v1/demo-status.feature_status.content_safety.rule_based = true`

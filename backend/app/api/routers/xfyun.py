@@ -19,9 +19,11 @@ class TTSPayload(BaseModel):
 @router.get("/status")
 def status():
     return {
+        "xfyun_enabled": xfyun_tts_service.is_configured(),
         "tts": xfyun_tts_service.status(),
         "spark": xfyun_spark_service.status(),
         "safety": xfyun_safety_service.status(),
+        "fallback_engine": "local_intelligent_evaluator",
     }
 
 

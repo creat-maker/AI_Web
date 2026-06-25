@@ -23,12 +23,14 @@ interface DemoStatus {
   real_capabilities: string[];
   demo_fallback_capabilities: string[];
   feature_status?: {
-    profile_dialog?: { supported: boolean; dimension_count: number };
+    profile_dialog?: { supported: boolean; status?: string; dimensions?: number; dimension_count: number; dimension_labels?: string[]; update_mode?: string };
+    multimodal_resources?: { status: string; resource_types: number; animation_html: boolean; tts_audio: string; video_script: boolean };
+    assessment_adjustment?: { status: string; flow: string };
     multimodal_resource_type_count?: number;
     animation_html?: { supported: boolean; preview: string };
     tts_audio?: { status: string; message: string };
     ffmpeg?: { status: string; message: string };
-    content_safety?: { status: string; message: string };
+    content_safety?: { status: string; message?: string; rule_based?: boolean; citation_check?: boolean; xfyun_safety?: string; provider_status?: { status: string; message: string } };
     evaluation_adjustment_loop?: { supported: boolean; fields: string[] };
     production_upgrade_path?: string[];
   };

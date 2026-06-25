@@ -63,7 +63,9 @@ def _structured_quiz_result(score: float, feedback: dict) -> dict:
     ability_scores = feedback.get("abilityScores") or feedback.get("ability_scores") or FIXED_ABILITY_SCORES
     suggested_resources = feedback.get("suggestedResources") or feedback.get("suggested_resources") or FIXED_RESOURCES
     next_learning_path = feedback.get("nextLearningPath") or feedback.get("next_learning_path") or FIXED_NEXT_PATH
-    path_adjustment = feedback.get("path_adjustment") or _fallback_path_adjustment(feedback, suggested_resources)
+    path_adjustment_needed = bool(feedback.get("path_adjustment_needed") or accuracy < 80)
+    feedback["path_adjustment_needed"] = path_adjustment_needed
+    path_adjustment = feedback.get("path_adjustment") or _fallback_path_adjustment(feedback, suggested_resources, path_adjustment_needed)
     return {
         "score": round(float(score or 0), 1),
         "accuracy": accuracy,
@@ -81,15 +83,15 @@ def _structured_quiz_result(score: float, feedback: dict) -> dict:
     }
 
 
-def _fallback_path_adjustment(feedback: dict, suggested_resources: list[dict]) -> dict:
-    needed = bool(feedback.get("path_adjustment_needed"))
+def _fallback_path_adjustment(feedback: dict, suggested_resources: list[dict], needed: bool | None = None) -> dict:
+    needed = bool(feedback.get("path_adjustment_needed")) if needed is None else needed
     return {
         "adjusted": needed,
-        "reason": feedback.get("adjustment_reason") or ("测评表现触发路径补弱。" if needed else "测验达标，保留当前路径。"),
+        "reason": feedback.get("adjustment_reason") or ("while 循环条件更新掌握不足" if needed else "测验达标，保留当前路径。"),
         "added_tasks": ["while 循环条件更新专项练习", "break / continue 对比复盘"] if needed else [],
-        "difficulty_change": "降低到基础巩固" if needed else "保持当前难度",
+        "difficulty_change": "基础巩固" if needed else "保持当前难度",
         "recommended_resources": suggested_resources,
-        "next_learning_step": "先完成 while 循环条件更新练习，再进入 break / continue 对比复盘。" if needed else "按当前学习路径继续推进。",
+        "next_learning_step": "先完成 while 条件更新动画，再进行 3 道边界条件练习。" if needed else "按当前学习路径继续推进。",
     }
 
 

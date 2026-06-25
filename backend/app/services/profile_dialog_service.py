@@ -20,12 +20,12 @@ _sessions: dict[str, dict[str, Any]] = {}
 
 # 赛题要求的 6 个画像维度及其标签（用于展示和 LLM 提示）
 PROFILE_DIMENSIONS = [
-    {"key": "knowledge_base", "label": "知识基础"},
-    {"key": "cognitive_style", "label": "认知风格"},
-    {"key": "learning_preference", "label": "学习偏好"},
-    {"key": "error_prone_points", "label": "易错点"},
-    {"key": "learning_progress", "label": "学习进度"},
-    {"key": "emotional_motivation", "label": "情感动机"},
+    {"key": "knowledge_base", "label": "知识基础", "description": "学生对课程先修知识和当前章节基础概念的掌握情况"},
+    {"key": "cognitive_style", "label": "认知风格", "description": "学生更适合图示、案例、推理、练习等哪类学习方式"},
+    {"key": "learning_preference", "label": "学习偏好", "description": "学生偏好的资源形式、练习方式和学习节奏"},
+    {"key": "error_prone_points", "label": "易错点", "description": "学生在条件判断、循环边界、变量更新等方面的高频错误"},
+    {"key": "learning_progress", "label": "学习进度", "description": "学生当前课程章节完成度、测验结果和学习路径状态"},
+    {"key": "emotional_motivation", "label": "情感动机", "description": "学生学习信心、兴趣、焦虑程度和目标驱动力"},
 ]
 
 DIMENSION_MAP = {d["key"]: d["label"] for d in PROFILE_DIMENSIONS}
@@ -435,9 +435,14 @@ def _build_profile(session: dict) -> dict[str, Any]:
         "diagnosis": extracted.get("learning_progress", f"当前主要短板集中在{', '.join(weak_points) if weak_points else '基础概念'}。"),
         "strategy": "采用短讲义、可运行案例、即时测验和错因反馈的组合。",
         "dimensions": [
-            {"key": dim["key"], "label": dim["label"], "value": extracted.get(dim["key"], "")}
+            {"key": dim["key"], "label": dim["label"], "description": dim["description"], "value": extracted.get(dim["key"], "")}
             for dim in PROFILE_DIMENSIONS
         ],
+        "profile_dimensions": PROFILE_DIMENSIONS,
+        "dimension_scores": {
+            dim["key"]: 80 if extracted.get(dim["key"]) else 50
+            for dim in PROFILE_DIMENSIONS
+        },
         "source": "dialog",
     }
 

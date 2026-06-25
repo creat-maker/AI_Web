@@ -485,7 +485,7 @@ onBeforeUnmount(() => {
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
-    <DataCard title="对话式画像构建" subtitle="从自然语言对话抽取 8 维画像，并展示风险、薄弱知识点、资源偏好和画像来源。">
+    <DataCard title="对话式画像构建" subtitle="从自然语言对话抽取 6 维画像，并支持随学更新、风险、薄弱知识点、资源偏好和画像来源展示。">
       <textarea v-model="dialogInput" class="dialog-profile-input" rows="4"></textarea>
       <div class="row-actions dialog-actions">
         <button type="button" @click="runDialogProfile">生成画像</button>

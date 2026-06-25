@@ -82,7 +82,7 @@ const agentNodes = [
   name,
   input: index === 0 ? '自然语言对话 + 学习历史' : '上游 Agent 输出 + 循环结构知识库',
   tool: index === 7 ? '审核规则 + 引用完整性检查' : '课程知识库 + 资源模板',
-  output: index === 4 ? '7 类个性化资源' : '结构化中间结果',
+  output: index === 4 ? '8 类个性化资源' : '结构化中间结果',
   status: 'success',
   duration: `${180 + index * 60}ms`,
   evidence: 'Python 程序设计课程知识库 / 循环结构章节'

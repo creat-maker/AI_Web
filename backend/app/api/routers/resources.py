@@ -149,11 +149,14 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         item.setdefault("estimatedMinutes", 20)
         item.setdefault("references", ["Python 程序设计课程知识库 / 循环结构章节"])
     pack.setdefault("resourceTypes", [item["key"] for item in RESOURCE_TYPE_CATALOG])
+    pack.setdefault("resource_types", pack["resourceTypes"])
     pack.setdefault("resourceTypeCount", len(pack["resourceTypes"]))
+    pack.setdefault("resource_type_count", pack["resourceTypeCount"])
     pack.setdefault("runtimeCapabilities", {
         "ffmpeg": ffmpeg_capability(),
         "xfyun_tts": xfyun_tts_capability(),
     })
+    pack.setdefault("runtime_capabilities", pack["runtimeCapabilities"])
     course_id = None
     try:
         course_id = int(payload.courseId) if payload.courseId else None

@@ -63,16 +63,25 @@ def check_content(payload: dict[str, Any]) -> dict[str, Any]:
         "id": len(REVIEW_RECORDS) + 1,
         "courseId": course_id,
         "riskLevel": risk_level,
+        "risk_level": risk_level,
         "confidence": confidence,
         "citationCoverage": round(citation_coverage, 2),
+        "citation_coverage": round(citation_coverage, 2),
         "citation_warning": citation_warning,
         "review_required": review_required,
         "hallucinationWarning": hallucination_warning,
         "reviewStatus": review_status,
         "displayReviewStatus": display_status,
         "contentType": content_type,
+        "content_type": content_type,
         "triggeredRules": triggered_rules,
-        "recommendedAction": _recommended_action(risk_level, review_required),
+        "triggered_rules": triggered_rules,
+        "recommendedAction": _recommended_action_label(risk_level, review_required),
+        "suggested_action": _recommended_action(risk_level, review_required),
+        "provider_status": {
+            "rule_based": "enabled",
+            "xfyun_safety": xfyun_safety.get("status", "not_configured"),
+        },
         "reviewDimensions": [
             {"name": "事实准确性", "status": "通过" if not has_risky_claim else "人工复核"},
             {"name": "知识点匹配度", "status": "通过", "detail": "匹配 Python 程序设计 / 循环结构。"},
@@ -87,6 +96,7 @@ def check_content(payload: dict[str, Any]) -> dict[str, Any]:
         "citationCount": citation_count,
         "manualReviewNotice": "AI 生成内容需经教师或管理员审核后进入正式教学资源。",
         "xfyunSafety": xfyun_safety,
+        "xfyun_safety": xfyun_safety,
         "createdAt": datetime.utcnow().isoformat(timespec="seconds"),
         "contentPreview": content[:120],
     }
@@ -106,6 +116,14 @@ def _detect_content_type(content: str) -> str:
 
 
 def _recommended_action(risk_level: str, review_required: bool) -> str:
+    if risk_level == "high":
+        return "reject"
+    if review_required:
+        return "manual_review"
+    return "pass"
+
+
+def _recommended_action_label(risk_level: str, review_required: bool) -> str:
     if risk_level == "high":
         return "驳回"
     if review_required:
