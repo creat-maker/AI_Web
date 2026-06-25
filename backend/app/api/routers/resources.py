@@ -14,6 +14,7 @@ from app.services.llm_service import llm_service
 from app.services.personalization_service import generate_resource_pack
 from app.services.profile_service import latest_profile_by_user_id, profile_to_dict
 from app.services.courseware_service import CoursewareRequest, build_courseware_outline
+from app.services.multimodal_resource_service import RESOURCE_TYPE_CATALOG, ffmpeg_capability, xfyun_tts_capability
 
 
 router = APIRouter(prefix="/resources", tags=["resources"])
@@ -147,12 +148,55 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         item.setdefault("suitableLearner", "李明：循环结构需巩固，偏好代码实操")
         item.setdefault("estimatedMinutes", 20)
         item.setdefault("references", ["Python 程序设计课程知识库 / 循环结构章节"])
+    pack.setdefault("resourceTypes", [item["key"] for item in RESOURCE_TYPE_CATALOG])
+    pack.setdefault("resourceTypeCount", len(pack["resourceTypes"]))
+    pack.setdefault("runtimeCapabilities", {
+        "ffmpeg": ffmpeg_capability(),
+        "xfyun_tts": xfyun_tts_capability(),
+    })
+    course_id = None
+    try:
+        course_id = int(payload.courseId) if payload.courseId else None
+    except (TypeError, ValueError):
+        course_id = None
+    if not course_id and payload.courseName:
+        course = db.query(Course).filter(Course.title == payload.courseName).first()
+        course_id = course.id if course else None
+    if not course_id:
+        course = db.query(Course).order_by(Course.id.asc()).first()
+        course_id = course.id if course else None
+
+    if course_id:
+        for item in pack.get("resources", []):
+            resource_type = item.get("resource_type") or item.get("resourceType") or "resource"
+            title = item.get("title") or f"{pack.get('courseName', '课程')}学习资源"
+            existing = (
+                db.query(GeneratedResource)
+                .filter(GeneratedResource.course_id == course_id, GeneratedResource.title == title)
+                .first()
+            )
+            if existing:
+                continue
+            db.add(
+                GeneratedResource(
+                    course_id=course_id,
+                    student_profile_id=profile.id if profile else None,
+                    resource_type=resource_type,
+                    title=title,
+                    content=item.get("content") or item.get("description") or title,
+                    difficulty=item.get("difficulty") or item.get("level") or "基础",
+                    source_agent="ResourceAgent",
+                    recommend_reason=item.get("recommend_reason") or item.get("recommendation_reason") or item.get("reason"),
+                )
+            )
+        db.commit()
+
     student = get_demo_student(active_user_id)
     record_event(
         db,
         event_type="resource_pack_generated",
-        title="5 类个性化资源包已生成",
-        description=f"{pack['courseName']} 已生成个性化讲义、练习题、实验任务、思维导图和视频脚本/任务书。",
+        title=f"{pack.get('resourceTypeCount', len(pack.get('resources', [])))} 类个性化资源包已生成",
+        description=f"{pack['courseName']} 已生成讲义、思维导图、练习题、HTML 动画、视频脚本、语音讲解任务、代码案例和项目任务。",
         actor_role="student",
         actor_name=student["student_name"],
         target_type="resource_pack",
@@ -161,7 +205,8 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         related_course=pack["courseName"],
         metadata={
             "resource_count": pack["resourceCount"],
-            "resource_types": [item["resourceType"] for item in pack["resources"]],
+            "resource_types": [item.get("resource_type") or item.get("resourceType") for item in pack["resources"]],
+            "runtime_capabilities": pack["runtimeCapabilities"],
             "weak_points": pack["weakPoints"],
             "mode": pack["mode"],
             "profile_type": pack.get("profileType"),

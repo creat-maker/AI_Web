@@ -19,6 +19,13 @@ interface SettingsSnapshot {
     api_key_status?: string;
     stream_enabled?: boolean;
   };
+  xfyun_tools?: {
+    enabled: boolean;
+    tts: { status: string; message: string };
+    spark: { status: string; message: string };
+    safety: { status: string; message: string };
+    secret_visible: boolean;
+  };
 }
 
 const settings = ref<SettingsSnapshot>({});
@@ -104,6 +111,7 @@ onMounted(loadSettings);
       <StatCard label="平台模式" :value="settings.overview?.system_mode || '本地演示'" icon="模" />
       <StatCard label="AI 服务" :value="ai.modelStatus" icon="AI" tone="green" />
       <StatCard label="知识库状态" :value="settings.overview?.knowledge_base_status || '可用'" icon="知" tone="purple" />
+      <StatCard label="讯飞 TTS" :value="settings.xfyun_tools?.tts.status || 'not_configured'" icon="讯" tone="orange" />
       <StatCard label="备份状态" :value="backup.status" icon="备" tone="cyan" />
     </div>
 
@@ -122,6 +130,14 @@ onMounted(loadSettings);
           <label>每日调用限制<input v-model.number="ai.limit" type="number" /></label>
           <label class="toggle-row"><input v-model="ai.generateEnabled" type="checkbox" /> 启用 AI 生成</label>
           <div class="setting-status"><StatusBadge :label="ai.modelStatus" tone="success" /></div>
+        </div>
+      </DataCard>
+
+      <DataCard title="科大讯飞工具接入" subtitle="TTS、星火和内容安全均通过环境变量配置，前端不展示密钥">
+        <div class="list">
+          <div class="item compact"><strong>TTS 语音合成</strong><span>{{ settings.xfyun_tools?.tts.message || '当前未配置科大讯飞密钥。' }}</span><StatusBadge :label="settings.xfyun_tools?.tts.status || 'not_configured'" :tone="settings.xfyun_tools?.enabled ? 'success' : 'warning'" /></div>
+          <div class="item compact"><strong>星火大模型</strong><span>{{ settings.xfyun_tools?.spark.message || '可作为可插拔 AI 服务接入。' }}</span><StatusBadge :label="settings.xfyun_tools?.spark.status || 'not_configured'" :tone="settings.xfyun_tools?.enabled ? 'success' : 'warning'" /></div>
+          <div class="item compact"><strong>内容安全扩展</strong><span>{{ settings.xfyun_tools?.safety.message || '未配置时使用本地规则审核。' }}</span><StatusBadge :label="settings.xfyun_tools?.safety.status || 'not_configured'" :tone="settings.xfyun_tools?.enabled ? 'success' : 'warning'" /></div>
         </div>
       </DataCard>
 

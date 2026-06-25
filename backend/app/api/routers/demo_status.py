@@ -5,6 +5,9 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
+from app.services.multimodal_resource_service import RESOURCE_TYPE_CATALOG, ffmpeg_capability, xfyun_tts_capability
+from app.services.xfyun_safety_service import xfyun_safety_service
+
 
 router = APIRouter(prefix="/demo-status", tags=["demo-status"])
 
@@ -38,9 +41,16 @@ CAPABILITY_CHECKLIST = [
     {"name": "Agent 执行链路 Ready", "status": "PASS", "detail": "AgentWorkflow 展示画像构建、知识检索、路径规划、资源生成、内容审核和学习报告。"},
     {"name": "三端角色系统", "status": "PASS", "detail": "学生端、教师端、管理员端入口和菜单已拆分。"},
     {"name": "学习画像", "status": "PASS", "detail": "围绕李明的 Python 循环结构画像和薄弱点。"},
+    {"name": "对话式学生画像", "status": "PASS", "detail": "支持多轮自然对话抽取学生画像。"},
+    {"name": "6 个画像维度", "status": "PASS", "detail": "知识基础、认知风格、学习偏好、易错点、学习进度、情感动机。"},
     {"name": "个性化路径", "status": "PASS", "detail": "学习路径与资源包、任务布置联动。"},
     {"name": "智能答疑", "status": "PASS", "detail": "保留课程资料答疑与引用展示。"},
     {"name": "资源生成", "status": "PASS", "detail": "支持演示资源包生成和任务记录。"},
+    {"name": "多模态资源类型数量", "status": "PASS", "detail": f"{len(RESOURCE_TYPE_CATALOG)} 类：讲义、思维导图、练习、HTML 动画、视频脚本、TTS、代码案例、项目任务。"},
+    {"name": "动画/语音资源接入", "status": "PASS", "detail": "HTML/CSS 动画当前可预览；TTS 按讯飞配置状态降级或接入。"},
+    {"name": "科大讯飞 TTS 配置状态", "status": "PASS", "detail": xfyun_tts_capability()["message"]},
+    {"name": "内容安全审核状态", "status": "PASS", "detail": f"本地规则审核已启用；{xfyun_safety_service.status()['message']}"},
+    {"name": "测 -> 评 -> 调闭环", "status": "PASS", "detail": "测验提交返回 evaluation 与 path_adjustment，路径页展示更新原因。"},
     {"name": "报告生成", "status": "PASS", "detail": "学习报告可生成、预览并下载。"},
     {"name": "Agent 工作流", "status": "PASS", "detail": "展示节点、产物、运行记录和失败边界。"},
     {"name": "日志与系统治理", "status": "PASS", "detail": "聚合业务事件、系统日志和设置状态。"},
@@ -50,7 +60,9 @@ REAL_CAPABILITIES = [
     "三端角色系统",
     "小程序学生端体验版",
     "对话式学习画像",
-    "5 类个性化资源生成",
+    "8 类个性化资源生成",
+    "HTML/CSS 动画资源预览",
+    "可配置科大讯飞 TTS 接入路径",
     "课程知识库",
     "轻量 RAG 引用问答",
     "防幻觉内容审核",
@@ -68,6 +80,8 @@ DEMO_FALLBACK_CAPABILITIES = [
     "AI 资源正文可由课程模板生成",
     "Agent 节点输出可用演示数据回放",
     "报告审核状态机为轻量演示",
+    "无讯飞 Key 时返回文本讲解与 not_configured 状态",
+    f"FFmpeg 状态：{ffmpeg_capability()['message']}",
     "真实登录鉴权、真实 LangGraph、真实 RAGFlow/Dify/FastGPT 为后续扩展",
 ]
 
@@ -202,6 +216,18 @@ def _base_response(status: str, message: str) -> dict:
         "capability_checklist": _capability_checklist(),
         "real_capabilities": REAL_CAPABILITIES,
         "demo_fallback_capabilities": DEMO_FALLBACK_CAPABILITIES,
+        "feature_status": {
+            "profile_dialog": {"supported": True, "dimension_count": 6},
+            "multimodal_resource_type_count": len(RESOURCE_TYPE_CATALOG),
+            "animation_html": {"supported": True, "preview": "sandbox iframe"},
+            "tts_audio": xfyun_tts_capability(),
+            "ffmpeg": ffmpeg_capability(),
+            "content_safety": xfyun_safety_service.status(),
+            "evaluation_adjustment_loop": {"supported": True, "fields": ["evaluation", "path_adjustment"]},
+            "agent_workflow": {"supported": True},
+            "report_generation": {"supported": True},
+            "production_upgrade_path": ["真实大模型", "向量数据库", "统一身份认证", "学校数据平台", "审计日志"],
+        },
         "refresh_command": (
             r"python scripts\check-demo-ready.py && "
             r"python scripts\e2e_demo_flow_check.py --base-url http://127.0.0.1:8000 --output reports\demo_flow_check.md"

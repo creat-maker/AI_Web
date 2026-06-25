@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, ai_tutor, auth, competition, content_review, courses, dashboard, decision_center, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, student_profile, system_settings, tutor, user_profile_ws
+from app.api.routers import agent_workflow, ai_tutor, auth, competition, content_review, courses, dashboard, decision_center, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, student_profile, system_settings, tutor, user_profile_ws, xfyun
+from app.api.routers import admin_reports, admin_users, student_courses
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.models import *  # noqa: F401,F403
@@ -51,6 +52,7 @@ app.add_middleware(
 API_PREFIX = "/api/v1"
 app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(courses.router, prefix=API_PREFIX)
+app.include_router(student_courses.router, prefix=API_PREFIX)
 app.include_router(knowledge_base.router, prefix=API_PREFIX)
 app.include_router(rag.router, prefix=API_PREFIX)
 app.include_router(content_review.router, prefix=API_PREFIX)
@@ -63,8 +65,11 @@ app.include_router(tutor.router, prefix=API_PREFIX)
 app.include_router(ai_tutor.router, prefix=API_PREFIX)
 app.include_router(quizzes.router, prefix=API_PREFIX)
 app.include_router(reports.router, prefix=API_PREFIX)
+app.include_router(admin_reports.router, prefix=API_PREFIX)
+app.include_router(admin_users.router, prefix=API_PREFIX)
 app.include_router(agent_workflow.router, prefix=API_PREFIX)
 app.include_router(system_settings.router, prefix=API_PREFIX)
+app.include_router(xfyun.router, prefix=API_PREFIX)
 app.include_router(logs.router, prefix=API_PREFIX)
 app.include_router(events.router, prefix=API_PREFIX)
 app.include_router(demo_status.router, prefix=API_PREFIX)

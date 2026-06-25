@@ -14,7 +14,7 @@ from app.models import Course, StudentProfile
 from app.services.demo_profile_chain import get_demo_student, normalize_profile_schema
 from app.services.json_utils import dumps
 from app.services.personalization_service import run_profile_dialog
-from app.services.profile_dialog_service import continue_dialog, finish_dialog, start_dialog
+from app.services.profile_dialog_service import PROFILE_DIMENSIONS, continue_dialog, finish_dialog, start_dialog
 from app.services.profile_service import latest_profile_by_user_id, profile_to_dict, update_profile_by_learning
 
 
@@ -77,13 +77,12 @@ def _fallback_run_profile(payload: dict[str, Any], error: str = "") -> dict[str,
     if isinstance(weak_points, str):
         weak_points = [weak_points]
     dimensions = [
-        {"name": "learning_goal", "value": f"补齐 {course_name} 的循环结构薄弱点。"},
-        {"name": "foundation_level", "value": "基础薄弱"},
-        {"name": "weak_knowledge_points", "value": " / ".join(str(item) for item in weak_points)},
-        {"name": "learning_preference", "value": "代码实操案例、变量变化图解、分层练习题"},
-        {"name": "time_arrangement", "value": "每天 20 到 30 分钟循环结构专项练习"},
-        {"name": "learning_status", "value": "需巩固"},
-        {"name": "recommended_strategy", "value": "先修复 while 死循环，再区分 break / continue，最后完成循环嵌套实操"},
+        {"key": "knowledge_base", "name": "知识基础", "value": "基础薄弱，已具备基础语法但循环结构不稳定。"},
+        {"key": "cognitive_style", "name": "认知风格", "value": "步骤拆解 + 变量变化图解更有效。"},
+        {"key": "learning_preference", "name": "学习偏好", "value": "代码实操案例、变量变化图解、分层练习题"},
+        {"key": "error_prone_points", "name": "易错点", "value": " / ".join(str(item) for item in weak_points)},
+        {"key": "learning_progress", "name": "学习进度", "value": "正在进行循环结构专项补弱。"},
+        {"key": "emotional_motivation", "name": "情感动机", "value": f"目标是补齐 {course_name} 的循环结构薄弱点并完成课程任务。"},
     ]
     return {
         "studentId": payload.get("studentId") or payload.get("student_id") or "demo-student",
@@ -92,13 +91,13 @@ def _fallback_run_profile(payload: dict[str, Any], error: str = "") -> dict[str,
         "courseName": course_name,
         "summary": f"系统已根据 {student_name} 的 Python 循环结构学习情况生成个性化建议。",
         "dimensions": dimensions,
-        "learningGoal": dimensions[0]["value"],
-        "foundationLevel": dimensions[1]["value"],
+        "learningGoal": dimensions[5]["value"],
+        "foundationLevel": dimensions[0]["value"],
         "weakKnowledgePoints": [str(item) for item in weak_points],
-        "learningPreference": dimensions[3]["value"],
-        "timeArrangement": dimensions[4]["value"],
-        "learningRisk": dimensions[5]["value"],
-        "recommendedStrategy": dimensions[6]["value"],
+        "learningPreference": dimensions[2]["value"],
+        "timeArrangement": "每天 20 到 30 分钟循环结构专项练习",
+        "learningRisk": "需巩固",
+        "recommendedStrategy": "先修复 while 死循环，再区分 break / continue，最后完成循环嵌套实操",
         "mode": "structured-profile",
         "error": error,
     }
@@ -152,6 +151,18 @@ def dialog_run(payload: DialogRunPayload, current_user_id: str = Depends(get_dem
         result.setdefault("mode", "rule-compatible")
         if not result.get("dimensions"):
             return _fallback_run_profile({**data, **result}, "profile service returned no dimensions")
+        standard_values = {
+            "knowledge_base": stable_profile["knowledge_level"],
+            "cognitive_style": stable_profile.get("learning_style") or "步骤拆解型",
+            "learning_preference": stable_profile["learning_preference"],
+            "error_prone_points": stable_profile["weak_points"],
+            "learning_progress": stable_profile.get("risk_level") or "需巩固",
+            "emotional_motivation": stable_profile["learning_goal"],
+        }
+        result["dimensions"] = [
+            {"key": item["key"], "name": item["label"], "value": standard_values.get(item["key"], "")}
+            for item in PROFILE_DIMENSIONS
+        ]
         return result
     except Exception as exc:  # noqa: BLE001
         return _fallback_run_profile(data, str(exc))
@@ -256,16 +267,25 @@ def update_by_learning(
 
 def _build_profile_json(session: dict) -> dict:
     extracted = session.get("extracted", {})
-    weak_points = extracted.get("weak_points", [])
+    weak_points = extracted.get("error_prone_points") or extracted.get("weak_points", [])
     if isinstance(weak_points, str):
         weak_points = [weak_points]
     return {
         "student_name": session["student_name"],
-        "current_level": extracted.get("current_level", "待评估"),
-        "learning_goal": extracted.get("learning_goal", ""),
+        "knowledge_base": extracted.get("knowledge_base", "待评估"),
+        "cognitive_style": extracted.get("cognitive_style", "步骤拆解型"),
+        "error_prone_points": weak_points,
+        "learning_progress": extracted.get("learning_progress", ""),
+        "emotional_motivation": extracted.get("emotional_motivation", ""),
+        "current_level": extracted.get("knowledge_base", extracted.get("current_level", "待评估")),
+        "learning_goal": extracted.get("emotional_motivation", extracted.get("learning_goal", "")),
         "weak_points": weak_points,
         "learning_preference": extracted.get("learning_preference", "案例驱动"),
-        "diagnosis": extracted.get("diagnosis", f"当前主要短板集中在{', '.join(weak_points) if weak_points else '基础概念'}。"),
+        "diagnosis": extracted.get("learning_progress", extracted.get("diagnosis", f"当前主要短板集中在{', '.join(weak_points) if weak_points else '基础概念'}。")),
         "strategy": extracted.get("strategy", "采用短讲义、可运行案例、即时测验和错因反馈的组合。"),
+        "dimensions": [
+            {"key": item["key"], "label": item["label"], "value": extracted.get(item["key"], "")}
+            for item in PROFILE_DIMENSIONS
+        ],
         "source": "dialog",
     }

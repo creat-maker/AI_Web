@@ -2,28 +2,34 @@ import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { roleFromPath, roleHomePath, roleLabels, type UserRole } from '../config/roles';
 
-const STORAGE_KEY = 'edumind.demoRole';
-const LEGACY_STORAGE_KEY = 'edumind.currentRole';
-const DEMO_USER_KEY = 'edumind.demoUserId';
-const availableRoles: UserRole[] = ['student', 'teacher', 'admin'];
+const ROLE_KEY = 'edumind.demoRole';
+const LEGACY_ROLE_KEY = 'edumind.currentRole';
+const USER_ID_KEY = 'edumind.demoUserId';
+const TOKEN_KEY = 'edumind.accessToken';
+
+export const availableRoles: UserRole[] = ['student', 'teacher', 'admin'];
 
 export const demoStudents = [
-  { id: 'demo-basic', label: '李明｜基础薄弱 + 代码实操偏好型', shortName: '李明', profileType: '基础薄弱 + 代码实操偏好型' },
-  { id: 'demo-advanced', label: '陈浩｜项目实践提升型', shortName: '陈浩', profileType: '项目实践提升型' },
-  { id: 'demo-exam', label: '王悦｜考试冲刺型', shortName: '王悦', profileType: '考试冲刺型' }
+  { id: '1', label: '李明 - Python 循环结构专项提升', shortName: '李明', profileType: '基础薄弱 + 代码实践偏好' },
+  { id: '2', label: '陈浩 - 项目实践提升', shortName: '陈浩', profileType: '项目实践提升' },
+  { id: '3', label: '王悦 - 考试冲刺', shortName: '王悦', profileType: '考试冲刺' }
 ];
 
+export function readStoredRole(): UserRole | null {
+  const stored = (localStorage.getItem(ROLE_KEY) || localStorage.getItem(LEGACY_ROLE_KEY)) as UserRole | null;
+  return stored && availableRoles.includes(stored) ? stored : null;
+}
+
+export function hasDemoSession() {
+  return Boolean(localStorage.getItem(TOKEN_KEY) || readStoredRole());
+}
+
 export function demoStudentLabel(userId: string) {
-  return demoStudents.find((item) => item.id === userId)?.label || '李明｜基础薄弱 + 代码实操偏好型';
+  return demoStudents.find((item) => item.id === userId)?.label || demoStudents[0].label;
 }
 
-function readInitialRole(): UserRole {
-  const stored = (localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY)) as UserRole | null;
-  return stored && availableRoles.includes(stored) ? stored : 'student';
-}
-
-const storedRole = ref<UserRole>(readInitialRole());
-const demoUserId = ref(localStorage.getItem(DEMO_USER_KEY) || 'demo-basic');
+const storedRole = ref<UserRole>(readStoredRole() || 'student');
+const demoUserId = ref(localStorage.getItem(USER_ID_KEY) || '1');
 
 export function useRole() {
   const route = useRoute();
@@ -32,22 +38,26 @@ export function useRole() {
   const currentHomePath = computed(() => roleHomePath[currentRole.value]);
   const demoUserLabel = computed(() => demoStudentLabel(demoUserId.value));
 
-  function setRole(role: UserRole) {
+  function setRole(role: UserRole | null | undefined) {
+    if (!role || !availableRoles.includes(role)) return false;
     storedRole.value = role;
-    localStorage.setItem(STORAGE_KEY, role);
+    localStorage.setItem(ROLE_KEY, role);
+    localStorage.setItem(LEGACY_ROLE_KEY, role);
+    return true;
   }
 
   function setDemoUserId(userId: string) {
     demoUserId.value = userId;
-    localStorage.setItem(DEMO_USER_KEY, userId);
+    localStorage.setItem(USER_ID_KEY, userId);
   }
 
   function clearRole() {
     storedRole.value = 'student';
-    demoUserId.value = 'demo-basic';
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
-    localStorage.removeItem(DEMO_USER_KEY);
+    demoUserId.value = '1';
+    localStorage.removeItem(ROLE_KEY);
+    localStorage.removeItem(LEGACY_ROLE_KEY);
+    localStorage.removeItem(USER_ID_KEY);
+    localStorage.removeItem(TOKEN_KEY);
   }
 
   return {

@@ -217,3 +217,13 @@ npm run build
 ```bash
 python scripts/check-demo-ready.py
 ```
+# EduMind 赛题关键能力补强说明
+
+当前版本围绕赛题核心要求补齐了低风险可演示能力：
+
+- 对话式学生画像通过多轮自然对话抽取 6 个维度：知识基础、认知风格、学习偏好、易错点、学习进度、情感动机，并保留 current_level、learning_goal、weak_points、learning_preference、diagnosis、strategy 等旧字段兼容。
+- 多模态资源包支持 8 类资源：知识讲义、思维导图、练习题、HTML/SVG 动画、视频讲解脚本、语音讲解资源、代码案例、项目任务。
+- HTML/CSS 动画当前可在前端通过 sandbox iframe 预览；视频能力当前以讲解脚本和可选 FFmpeg 导出路径呈现，不宣传为完整生产级数字人视频。
+- 科大讯飞工具通过环境变量接入，优先支持 TTS；无 Key 时接口返回 `not_configured`，系统继续使用本地智能评测引擎稳定运行。
+- 测验提交后返回 `evaluation` 与 `path_adjustment`，前端可展示“测 -> 评 -> 调”的动态学习路径调整结果。
+- 内容安全采用“知识库引用 + 本地规则审核 + 可配置 AI 安全扩展”机制，AI 生成内容需经教师或管理员审核后进入正式教学资源。

@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     report_dir: str = Field(default="./backend/storage/reports", alias="REPORT_DIR")
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
     jwt_secret: str = Field(default="edumind-jwt-secret-2026", alias="JWT_SECRET")
+    xfyun_app_id: str | None = Field(default=None, alias="XFYUN_APP_ID")
+    xfyun_api_key: str | None = Field(default=None, alias="XFYUN_API_KEY")
+    xfyun_api_secret: str | None = Field(default=None, alias="XFYUN_API_SECRET")
+    xfyun_tts_url: str = Field(default="wss://tts-api.xfyun.cn/v2/tts", alias="XFYUN_TTS_URL")
+    xfyun_spark_url: str = Field(default="wss://spark-api.xf-yun.com/v3.5/chat", alias="XFYUN_SPARK_URL")
+    xfyun_enabled: bool = Field(default=False, alias="XFYUN_ENABLED")
 
     @property
     def resolved_database_url(self) -> str:
@@ -47,6 +53,10 @@ class Settings(BaseSettings):
         if self.llm_provider in {"qwen", "dashscope"}:
             return not bool(self.qwen_api_key or self.dashscope_api_key)
         return True
+
+    @property
+    def xfyun_configured(self) -> bool:
+        return bool(self.xfyun_enabled and self.xfyun_app_id and self.xfyun_api_key and self.xfyun_api_secret)
 
     def path_from_root(self, value: str) -> Path:
         path = Path(value)

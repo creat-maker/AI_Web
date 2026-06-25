@@ -18,27 +18,33 @@ from app.services.llm_service import llm_service
 # 内存中的对话会话存储（演示级，重启丢失）
 _sessions: dict[str, dict[str, Any]] = {}
 
-# 6 个画像维度及其标签（用于展示和 LLM 提示）
+# 赛题要求的 6 个画像维度及其标签（用于展示和 LLM 提示）
 PROFILE_DIMENSIONS = [
-    {"key": "current_level", "label": "当前水平"},
-    {"key": "learning_goal", "label": "学习目标"},
-    {"key": "weak_points", "label": "薄弱知识点"},
+    {"key": "knowledge_base", "label": "知识基础"},
+    {"key": "cognitive_style", "label": "认知风格"},
     {"key": "learning_preference", "label": "学习偏好"},
-    {"key": "diagnosis", "label": "学习诊断"},
-    {"key": "strategy", "label": "学习策略"},
+    {"key": "error_prone_points", "label": "易错点"},
+    {"key": "learning_progress", "label": "学习进度"},
+    {"key": "emotional_motivation", "label": "情感动机"},
 ]
 
 DIMENSION_MAP = {d["key"]: d["label"] for d in PROFILE_DIMENSIONS}
+LEGACY_FIELD_MAP = {
+    "current_level": "knowledge_base",
+    "weak_points": "error_prone_points",
+    "diagnosis": "learning_progress",
+    "strategy": "emotional_motivation",
+}
 
 SYSTEM_PROMPT = """你是 EduMind 的学习画像构建助手。你的任务是通过自然对话了解学生的学习情况，从中抽取 6 个维度的画像信息。
 
 画像维度：
-- current_level（当前水平）：学生对课程的掌握程度
-- learning_goal（学习目标）：学生学这门课的目的
-- weak_points（薄弱知识点）：学生觉得困难的知识点
+- knowledge_base（知识基础）：学生已有知识基础、当前水平和前置知识掌握情况
+- cognitive_style（认知风格）：学生理解知识时偏概念、步骤、图解、案例还是动手探索
 - learning_preference（学习偏好）：学生喜欢的学习方式
-- diagnosis（学习诊断）：学生学习中的主要障碍
-- strategy（学习策略）：学生遇到问题的处理方式
+- error_prone_points（易错点）：学生容易出错或觉得困难的知识点
+- learning_progress（学习进度）：学生当前学习阶段、完成度和近期表现
+- emotional_motivation（情感动机）：学习目标、动机、信心、焦虑或坚持方式
 
 对话规则：
 1. 用自然、友好的语气与学生交流，不要机械地逐个提问
@@ -105,6 +111,7 @@ def continue_dialog(session_id: str, user_message: str) -> dict[str, Any]:
 
     # 更新抽取的维度信息
     new_extracted = result.get("extracted", {})
+    new_extracted = _normalize_extracted(new_extracted)
     session["extracted"].update(new_extracted)
 
     # 记录 AI 回复
@@ -198,7 +205,7 @@ def _mock_dialog_turn(session: dict, user_message: str) -> dict[str, Any]:
     msg = user_message.lower()
 
     # 关键词匹配抽取各维度
-    if not existing.get("current_level"):
+    if not existing.get("knowledge_base"):
         level_keywords = {
             "零基础": "零基础", "没有基础": "零基础", "完全不会": "零基础",
             "有一些": "有基础", "了解一点": "有基础", "学过一点": "有基础", "入门": "有基础",
@@ -206,31 +213,31 @@ def _mock_dialog_turn(session: dict, user_message: str) -> dict[str, Any]:
         }
         for kw, level in level_keywords.items():
             if kw in msg:
-                extracted["current_level"] = level
+                extracted["knowledge_base"] = level
                 break
         # 如果用户提到了具体技术但没明确说水平，推断为有基础
-        if not extracted.get("current_level") and any(w in msg for w in ["python", "java", "编程", "代码", "学过", "做过"]):
-            extracted["current_level"] = "有基础"
+        if not extracted.get("knowledge_base") and any(w in msg for w in ["python", "java", "编程", "代码", "学过", "做过"]):
+            extracted["knowledge_base"] = "有基础"
 
-    if not existing.get("learning_goal"):
+    if not existing.get("emotional_motivation"):
         goal_keywords = {
-            "考试": "通过考试", "期末": "通过考试", "过考": "通过考试",
-            "项目": "完成项目", "做项目": "完成项目", "实战": "完成项目",
-            "工作": "职业发展", "就业": "职业发展", "面试": "职业发展",
-            "兴趣": "兴趣学习", "好奇": "兴趣学习",
+            "考试": "目标是通过考试，存在阶段性冲刺压力", "期末": "目标是期末冲刺",
+            "项目": "希望通过项目实战获得成就感", "做项目": "希望完成项目任务",
+            "工作": "学习动机偏职业发展", "就业": "学习动机偏职业发展", "面试": "学习动机偏职业发展",
+            "兴趣": "由兴趣驱动学习", "好奇": "由兴趣和好奇心驱动学习",
         }
         for kw, goal in goal_keywords.items():
             if kw in msg:
-                extracted["learning_goal"] = goal
+                extracted["emotional_motivation"] = goal
                 break
 
-    if not existing.get("weak_points"):
+    if not existing.get("error_prone_points"):
         weak_indicators = ["困难", "不会", "不懂", "薄弱", "难", "搞不懂", "不理解", "搞不清", "头疼", "吃力", "不太熟"]
         if any(w in msg for w in weak_indicators):
             # 尝试提取具体薄弱点
             points = _extract_weak_points(user_message)
             if points:
-                extracted["weak_points"] = points
+                extracted["error_prone_points"] = points
 
     if not existing.get("learning_preference"):
         pref_keywords = {
@@ -245,28 +252,53 @@ def _mock_dialog_turn(session: dict, user_message: str) -> dict[str, Any]:
                 extracted["learning_preference"] = pref
                 break
 
-    if not existing.get("diagnosis"):
+    if not existing.get("cognitive_style"):
+        style_keywords = {
+            "概念": "概念理解型，需要先解释概念边界",
+            "图": "图解直观型，适合流程图和变量变化表",
+            "步骤": "步骤拆解型，适合逐步推演",
+            "例子": "案例迁移型，适合从例题到变式",
+            "动手": "实践探索型，适合边写边调试",
+            "代码": "代码实操型，适合可运行案例",
+        }
+        for kw, style in style_keywords.items():
+            if kw in msg:
+                extracted["cognitive_style"] = style
+                break
+
+    if not existing.get("learning_progress"):
         diag_keywords = {
-            "概念": "概念理解困难", "理解": "概念理解困难",
-            "应用": "实践应用不足", "不会用": "实践应用不足",
-            "时间": "时间安排问题", "来不及": "时间安排问题", "拖延": "时间安排问题",
-            "基础": "基础薄弱", "底子": "基础薄弱",
+            "刚开始": "刚进入当前章节，需要建立基础框架",
+            "学到": "正在推进当前章节学习",
+            "作业": "正在围绕课程作业推进",
+            "测验": "已进入测验反馈和错因复盘阶段",
+            "应用": "需要从理解推进到应用",
+            "不会用": "概念到应用迁移不足",
+            "时间": "学习节奏受时间安排影响",
+            "来不及": "学习进度偏紧，需要短任务推进",
+            "拖延": "进度受拖延影响，需要明确阶段目标",
         }
         for kw, diag in diag_keywords.items():
             if kw in msg:
-                extracted["diagnosis"] = diag
+                extracted["learning_progress"] = diag
                 break
 
-    if not existing.get("strategy"):
+    if not existing.get("emotional_motivation"):
         strat_keywords = {
-            "查资料": "自主查资料", "搜索": "自主查资料", "百度": "自主查资料", "google": "自主查资料",
-            "问同学": "请教他人", "问老师": "请教他人", "请教": "请教他人",
-            "跳过": "回避问题", "放弃": "回避问题",
-            "反复练": "反复练习", "多练": "反复练习", "刷题": "反复练习",
+            "查资料": "遇到问题会自主查资料，具备主动解决动机",
+            "搜索": "遇到问题会主动搜索资料",
+            "问同学": "愿意通过同伴求助继续学习",
+            "问老师": "愿意向教师求助继续学习",
+            "请教": "遇到困难会寻求帮助",
+            "跳过": "遇到难题容易回避，需要低门槛任务增强信心",
+            "放弃": "遇到困难时信心不足，需要阶段性正反馈",
+            "反复练": "愿意通过反复练习巩固",
+            "多练": "愿意通过练习提升",
+            "刷题": "偏好通过题目训练建立信心",
         }
         for kw, strat in strat_keywords.items():
             if kw in msg:
-                extracted["strategy"] = strat
+                extracted["emotional_motivation"] = strat
                 break
 
     # 生成回复
@@ -341,12 +373,12 @@ def _generate_mock_reply(session: dict, user_message: str, new_extracted: dict) 
         confirm = "、".join(confirm_parts)
         next_dim = missing_dims[0]
         prompts = {
-            "current_level": "你目前对这门课程的掌握程度怎么样？",
-            "learning_goal": "你学习这门课的目标是什么呢？",
-            "weak_points": "你觉得哪些知识点比较困难？",
+            "knowledge_base": "你目前对这门课程的掌握程度怎么样？",
+            "cognitive_style": "你理解新知识时更依赖概念解释、步骤推演、图解还是代码案例？",
             "learning_preference": "你更喜欢哪种学习方式？比如看视频、动手写代码、还是跟着案例做？",
-            "diagnosis": "你觉得学习中最主要的障碍是什么？",
-            "strategy": "遇到不会的问题你一般怎么处理？",
+            "error_prone_points": "你觉得哪些知识点比较困难或容易出错？",
+            "learning_progress": "你现在学到哪一步了？最近测验、作业或练习进展如何？",
+            "emotional_motivation": "你学习这门课的目标、信心或主要压力是什么？",
         }
         return f"了解了，{confirm}。接下来想了解一下——{prompts.get(next_dim['key'], next_dim['label'])}"
 
@@ -357,12 +389,12 @@ def _generate_mock_reply(session: dict, user_message: str, new_extracted: dict) 
     if not confirm_parts and missing_dims:
         next_dim = missing_dims[0]
         prompts = {
-            "current_level": "你目前对这门课程的掌握程度怎么样？是完全零基础还是有一些了解？",
-            "learning_goal": "你学习这门课的目标是什么？是为了考试、做项目还是其他？",
-            "weak_points": "你在学习中觉得哪些知识点比较困难？可以具体说说。",
+            "knowledge_base": "你目前对这门课程的掌握程度怎么样？是完全零基础还是有一些了解？",
+            "cognitive_style": "你理解新知识时更依赖概念解释、步骤推演、图解还是代码案例？",
             "learning_preference": "你更喜欢哪种学习方式？",
-            "diagnosis": "你觉得目前学习中最大的障碍是什么？",
-            "strategy": "遇到不会的问题你会怎么处理？",
+            "error_prone_points": "你在学习中觉得哪些知识点比较困难？可以具体说说。",
+            "learning_progress": "你现在学到哪一步了？最近测验、作业或练习进展如何？",
+            "emotional_motivation": "你学习这门课的目标、信心或主要压力是什么？",
         }
         return prompts.get(next_dim["key"], f"能聊聊你的{next_dim['label']}吗？")
 
@@ -384,17 +416,41 @@ def _build_profile(session: dict) -> dict[str, Any]:
             pass
 
     # Mock 模式：直接组装，缺失维度用默认值
-    weak_points = extracted.get("weak_points", [])
+    extracted = _normalize_extracted(extracted)
+    weak_points = extracted.get("error_prone_points", [])
     if isinstance(weak_points, str):
         weak_points = [weak_points]
 
     return {
         "student_name": session["student_name"],
-        "current_level": extracted.get("current_level", "待评估"),
-        "learning_goal": extracted.get("learning_goal", "掌握课程核心内容"),
-        "weak_points": weak_points,
+        "knowledge_base": extracted.get("knowledge_base", "待评估"),
+        "cognitive_style": extracted.get("cognitive_style", "步骤拆解型"),
         "learning_preference": extracted.get("learning_preference", "案例驱动"),
-        "diagnosis": extracted.get("diagnosis", f"当前主要短板集中在{', '.join(weak_points) if weak_points else '基础概念'}。"),
-        "strategy": extracted.get("strategy", "采用短讲义、可运行案例、即时测验和错因反馈的组合。"),
+        "error_prone_points": weak_points,
+        "learning_progress": extracted.get("learning_progress", f"当前主要短板集中在{', '.join(weak_points) if weak_points else '基础概念'}。"),
+        "emotional_motivation": extracted.get("emotional_motivation", "希望通过阶段任务获得稳定进步。"),
+        "current_level": extracted.get("knowledge_base", "待评估"),
+        "learning_goal": extracted.get("emotional_motivation", "掌握课程核心内容"),
+        "weak_points": weak_points,
+        "diagnosis": extracted.get("learning_progress", f"当前主要短板集中在{', '.join(weak_points) if weak_points else '基础概念'}。"),
+        "strategy": "采用短讲义、可运行案例、即时测验和错因反馈的组合。",
+        "dimensions": [
+            {"key": dim["key"], "label": dim["label"], "value": extracted.get(dim["key"], "")}
+            for dim in PROFILE_DIMENSIONS
+        ],
         "source": "dialog",
     }
+
+
+def _normalize_extracted(extracted: dict[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for dim in PROFILE_DIMENSIONS:
+        key = dim["key"]
+        if key in extracted and extracted[key]:
+            normalized[key] = extracted[key]
+    for legacy_key, new_key in LEGACY_FIELD_MAP.items():
+        if new_key not in normalized and extracted.get(legacy_key):
+            normalized[new_key] = extracted[legacy_key]
+    if "learning_preference" not in normalized and extracted.get("learning_style"):
+        normalized["learning_preference"] = extracted["learning_style"]
+    return normalized

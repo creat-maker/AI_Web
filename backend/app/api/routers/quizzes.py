@@ -63,6 +63,7 @@ def _structured_quiz_result(score: float, feedback: dict) -> dict:
     ability_scores = feedback.get("abilityScores") or feedback.get("ability_scores") or FIXED_ABILITY_SCORES
     suggested_resources = feedback.get("suggestedResources") or feedback.get("suggested_resources") or FIXED_RESOURCES
     next_learning_path = feedback.get("nextLearningPath") or feedback.get("next_learning_path") or FIXED_NEXT_PATH
+    path_adjustment = feedback.get("path_adjustment") or _fallback_path_adjustment(feedback, suggested_resources)
     return {
         "score": round(float(score or 0), 1),
         "accuracy": accuracy,
@@ -74,6 +75,21 @@ def _structured_quiz_result(score: float, feedback: dict) -> dict:
         "profileUpdateSummary": "已根据本次循环结构专项测验同步更新学习建议，优先巩固 while 循环、循环嵌套和 break / continue。",
         "reportSummary": "本次测验结果已用于形成性评价报告，可继续查看错因分析、能力维度和下一步路径。",
         "syncMessage": "已同步更新学习建议",
+        "pathAdjustment": path_adjustment,
+        "errorAnalysis": feedback.get("mistake_analysis") or feedback.get("error_analysis") or "已根据答题结果识别主要错因。",
+        "nextSteps": feedback.get("next_steps") or ["完成新增专项练习", "复盘错因标签", "刷新学习路径页查看新任务"],
+    }
+
+
+def _fallback_path_adjustment(feedback: dict, suggested_resources: list[dict]) -> dict:
+    needed = bool(feedback.get("path_adjustment_needed"))
+    return {
+        "adjusted": needed,
+        "reason": feedback.get("adjustment_reason") or ("测评表现触发路径补弱。" if needed else "测验达标，保留当前路径。"),
+        "added_tasks": ["while 循环条件更新专项练习", "break / continue 对比复盘"] if needed else [],
+        "difficulty_change": "降低到基础巩固" if needed else "保持当前难度",
+        "recommended_resources": suggested_resources,
+        "next_learning_step": "先完成 while 循环条件更新练习，再进入 break / continue 对比复盘。" if needed else "按当前学习路径继续推进。",
     }
 
 
@@ -126,6 +142,17 @@ def submit(payload: SubmitPayload, db: Session = Depends(get_db)):
         "profileUpdateSummary": structured["profileUpdateSummary"],
         "reportSummary": structured["reportSummary"],
         "syncMessage": structured["syncMessage"],
+        "evaluation": {
+            "score": structured["score"],
+            "weak_points": structured["weakPoints"],
+            "error_analysis": structured["errorAnalysis"],
+            "path_adjustment_needed": feedback.get("path_adjustment_needed", False),
+            "recommended_resources": structured["suggestedResources"],
+            "next_steps": structured["nextSteps"],
+        },
+        "error_analysis": structured["errorAnalysis"],
+        "next_steps": structured["nextSteps"],
+        "path_adjustment": structured["pathAdjustment"],
         "feedback_json": feedback,
         "path_adjustment_needed": feedback.get("path_adjustment_needed", False),
         "adjustment_reason": feedback.get("adjustment_reason", ""),

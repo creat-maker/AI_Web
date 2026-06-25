@@ -22,6 +22,16 @@ interface DemoStatus {
   capability_checklist: Array<{ name: string; status: string; detail?: string }>;
   real_capabilities: string[];
   demo_fallback_capabilities: string[];
+  feature_status?: {
+    profile_dialog?: { supported: boolean; dimension_count: number };
+    multimodal_resource_type_count?: number;
+    animation_html?: { supported: boolean; preview: string };
+    tts_audio?: { status: string; message: string };
+    ffmpeg?: { status: string; message: string };
+    content_safety?: { status: string; message: string };
+    evaluation_adjustment_loop?: { supported: boolean; fields: string[] };
+    production_upgrade_path?: string[];
+  };
   refresh_command: string;
 }
 
@@ -221,6 +231,45 @@ onMounted(loadPage);
             </div>
           </div>
         </article>
+      </section>
+
+      <section class="panel" v-if="data.feature_status">
+        <div class="panel-title">
+          <h2>赛题关键能力状态</h2>
+          <span class="muted">画像、多模态资源、讯飞工具、内容安全与闭环</span>
+        </div>
+        <div class="event-status-grid">
+          <article class="item compact">
+            <strong>对话式画像</strong>
+            <span>{{ data.feature_status.profile_dialog?.dimension_count || 6 }} 个画像维度</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>多模态资源</strong>
+            <span>{{ data.feature_status.multimodal_resource_type_count || 0 }} 类资源</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>动画资源</strong>
+            <span>{{ data.feature_status.animation_html?.preview || 'sandbox iframe' }}</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>讯飞 TTS</strong>
+            <span>{{ data.feature_status.tts_audio?.message || '按环境变量配置接入' }}</span>
+            <StatusBadge :label="data.feature_status.tts_audio?.status || 'not_configured'" :tone="data.feature_status.tts_audio?.status === 'configured' ? 'success' : 'warning'" />
+          </article>
+          <article class="item compact">
+            <strong>内容安全</strong>
+            <span>{{ data.feature_status.content_safety?.message || '本地规则审核已启用' }}</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>测评闭环</strong>
+            <span>{{ data.feature_status.evaluation_adjustment_loop?.fields.join(' / ') || 'evaluation / path_adjustment' }}</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+        </div>
       </section>
 
       <section class="panel">

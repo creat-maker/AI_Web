@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from app.services.multimodal_resource_service import build_multimodal_resources
+
 
 DEMO_STUDENTS: list[dict[str, Any]] = [
     {
@@ -212,8 +214,13 @@ def normalize_profile_schema(profile: dict[str, Any] | None = None, user_id: str
         "course_name": raw.get("course_name") or base["course_name"],
         "learning_goal": raw.get("learning_goal") or base["learning_goal"],
         "knowledge_level": raw.get("knowledge_level") or current_level,
+        "knowledge_base": raw.get("knowledge_base") or raw.get("knowledge_level") or current_level,
+        "cognitive_style": raw.get("cognitive_style") or "步骤拆解 + 图解直观型",
         "current_level": current_level,
         "weak_points": weak_points,
+        "error_prone_points": raw.get("error_prone_points") or weak_points,
+        "learning_progress": raw.get("learning_progress") or f"当前进度 {raw.get('progress', base['progress'])}%，处于循环结构补弱阶段。",
+        "emotional_motivation": raw.get("emotional_motivation") or raw.get("learning_goal") or base["learning_goal"],
         "learning_style": learning_style,
         "learning_preference": learning_style,
         "mistake_pattern": raw.get("mistake_pattern") or base["mistake_pattern"],
@@ -532,8 +539,13 @@ def normalize_profile_schema(profile: dict[str, Any] | None = None, user_id: str
         "course_name": raw.get("course_name") or base["course_name"],
         "learning_goal": raw.get("learning_goal") or base["learning_goal"],
         "knowledge_level": raw.get("knowledge_level") or current_level,
+        "knowledge_base": raw.get("knowledge_base") or raw.get("knowledge_level") or current_level,
+        "cognitive_style": raw.get("cognitive_style") or "步骤拆解 + 图解直观型",
         "current_level": current_level,
         "weak_points": weak_points,
+        "error_prone_points": raw.get("error_prone_points") or weak_points,
+        "learning_progress": raw.get("learning_progress") or f"当前进度 {raw.get('progress', base['progress'])}%，处于循环结构补弱阶段。",
+        "emotional_motivation": raw.get("emotional_motivation") or raw.get("learning_goal") or base["learning_goal"],
         "learning_style": learning_style,
         "learning_preference": learning_style,
         "mistake_pattern": raw.get("mistake_pattern") or base["mistake_pattern"],
@@ -693,21 +705,10 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
     if isinstance(weak_points, str):
         weak_points = [weak_points]
     reason = "匹配李明基础薄弱、偏好代码案例和图解的画像，并聚焦循环结构薄弱点。"
-    specs = [
-        ("讲解文档", "循环结构讲解文档", "解释 if 条件、for、while、range、break、continue 和循环嵌套。", "基础"),
-        ("思维导图", "for / while 知识点思维导图", "用文字导图呈现遍历型循环、条件型循环和循环控制。", "基础"),
-        ("分层练习题", "循环结构分层练习题", "基础题、变式题、综合题，每题带错因标签。", "中等"),
-        ("拓展阅读", "循环结构拓展阅读材料", "补充循环不变量、边界条件和调试方法。", "中等"),
-        ("代码实操案例", "Python while 循环代码实操案例", "提供猜数字、计数器和输入校验案例。", "基础"),
-        ("PPT / 课件大纲", "循环结构课堂讲解课件大纲", "包含导入、概念、案例、练习和总结。", "基础"),
-        ("视频 / 动画脚本", "多模态教学视频 / 动画脚本", "以变量变化动画讲解 while 循环终止条件。", "基础"),
-    ]
+    base_resources = build_multimodal_resources([str(item) for item in weak_points])
     resources = [
         {
-            "resourceType": kind,
-            "resource_type": kind,
-            "title": title,
-            "content": content,
+            **item,
             "sourceAgent": "多类型资源生成 Agent",
             "source_agent": "多类型资源生成 Agent",
             "adaptedProfile": "循环结构需巩固，偏好代码实操",
@@ -715,7 +716,6 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
             "recommendation_reason": reason,
             "recommend_reason": reason,
             "relatedKnowledgePoints": weak_points[:3],
-            "difficulty": difficulty,
             "reviewStatus": "通过",
             "displayReviewStatus": "通过",
             "libraryStatus": "待加入",
@@ -723,8 +723,9 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
             "suitableLearner": "李明：循环结构需巩固，偏好代码实操",
             "references": ["Python 程序设计课程知识库 / 循环结构章节"],
             "estimatedMinutes": 15 + index * 5,
+            "difficulty": item.get("difficulty", "基础"),
         }
-        for index, (kind, title, content, difficulty) in enumerate(specs)
+        for index, item in enumerate(base_resources)
     ]
     return {
         "studentId": profile["user_id"],
@@ -739,6 +740,12 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
         "packageTitle": "Python 循环结构个性化补弱资源包",
         "resources": resources,
         "resourceCount": len(resources),
+        "resourceTypes": [item["resource_type"] for item in resources],
         "mode": "profile-aware",
         "auditFlow": ["生成", "审核", "入库", "推荐", "学习反馈"],
+        "multimodalCapability": {
+            "animation_html": "当前可生成安全 HTML/CSS 动画片段并在前端 sandbox iframe 预览。",
+            "tts_audio": "已接入可配置讯飞 TTS 路径；无 Key 时返回文本讲解和 not_configured 状态。",
+            "video_script": "当前提供视频讲解脚本；检测到 FFmpeg 后可扩展导出简易 MP4。",
+        },
     }

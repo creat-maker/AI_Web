@@ -9,7 +9,31 @@ import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
 type ChapterQuiz = typeof chapterQuiz;
-type QuizResult = typeof fallbackQuizResult;
+interface QuizResult {
+  score: number;
+  correct_count: number;
+  total: number;
+  weak_points: string[];
+  wrong_items: Array<{ question_id: string; stem?: string; selected?: string; correct_answer?: string; knowledge_point: string; reason: string; recommendation: string }>;
+  cause_analysis: Array<{ type: string; detail: string }>;
+  recommended_resources: Array<{ title: string; knowledge_point?: string; minutes?: number; type?: string; reason?: string }>;
+  next_step: string;
+  path_adjustment?: {
+    adjusted: boolean;
+    reason: string;
+    added_tasks: string[];
+    difficulty_change: string;
+    recommended_resources: Array<{ title: string; type?: string; reason?: string }>;
+    next_learning_step: string;
+  };
+  evaluation?: {
+    score: number;
+    weak_points: string[];
+    error_analysis: string;
+    path_adjustment_needed: boolean;
+    next_steps: string[];
+  };
+}
 
 const quiz = ref<ChapterQuiz>(chapterQuiz);
 const answers = reactive<Record<string, string>>({});
@@ -127,6 +151,17 @@ onMounted(loadQuiz);
             </article>
           </div>
 
+          <div v-if="result.path_adjustment" class="analysis-block path-adjustment">
+            <span>学习路径动态调整</span>
+            <article>
+              <strong>{{ result.path_adjustment.adjusted ? '已根据测评结果调整学习路径' : '当前路径保持不变' }}</strong>
+              <p>{{ result.path_adjustment.reason }}</p>
+              <p>难度变化：{{ result.path_adjustment.difficulty_change }}</p>
+              <p v-if="result.path_adjustment.added_tasks.length">新增任务：{{ result.path_adjustment.added_tasks.join('、') }}</p>
+              <p>下一步：{{ result.path_adjustment.next_learning_step }}</p>
+            </article>
+          </div>
+
           <div class="next-step">{{ result.next_step }}</div>
         </div>
       </DataCard>
@@ -208,6 +243,11 @@ onMounted(loadQuiz);
   gap: 8px;
   border-top: 1px solid var(--color-border);
   padding-top: 12px;
+}
+
+.path-adjustment article {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
 }
 
 .analysis-block article {
