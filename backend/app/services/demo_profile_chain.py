@@ -747,5 +747,6 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
             "animation_html": "当前可生成安全 HTML/CSS 动画片段并在前端 sandbox iframe 预览。",
             "tts_audio": "已接入可配置讯飞 TTS 路径；无 Key 时返回文本讲解和 not_configured 状态。",
             "video_script": "当前提供视频讲解脚本；检测到 FFmpeg 后可扩展导出简易 MP4。",
+            "video_mp4": "MP4 合成为可选部署能力；无 FFmpeg 时稳定返回 HTML 动画、视频脚本和 TTS 资源。",
         },
     }

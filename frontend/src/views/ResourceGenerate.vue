@@ -22,6 +22,9 @@ interface ResourceCard {
   content?: string;
   description?: string;
   format?: string;
+  status?: string;
+  file_path?: string;
+  fallback_resources?: string[];
   tts_status?: { status?: string; message?: string };
   tts_result?: { status?: string; message?: string; audio_path?: string | null };
   ffmpeg_status?: { status?: string; message?: string };
@@ -95,6 +98,7 @@ const defaultResources: ResourceCard[] = [
   ['while 循环条件更新动画', 'animation_html', '基础'],
   ['循环结构视频讲解脚本', 'video_script', '基础'],
   ['循环结构语音讲解资源', 'tts_audio', '基础'],
+  ['Python 循环结构简易 MP4 视频', 'video_mp4', '基础'],
   ['Python while 循环代码实操案例', 'code_case', '基础'],
   ['循环结构项目任务', 'project_task', '中等']
 ].map(([title, resourceType, difficulty]) => ({
@@ -157,6 +161,10 @@ function isAnimation(item: ResourceCard) {
 
 function isTts(item: ResourceCard) {
   return typeOf(item) === 'tts_audio';
+}
+
+function isVideoMp4(item: ResourceCard) {
+  return typeOf(item) === 'video_mp4';
 }
 
 function agentOf(item: ResourceCard) {
@@ -370,6 +378,10 @@ function markAction(action: string, item: ResourceCard) {
           <div v-if="typeOf(item) === 'video_script' && item.ffmpeg_status" class="review-summary">
             <strong>视频导出状态</strong>
             <p>{{ item.ffmpeg_status.message }}</p>
+          </div>
+          <div v-if="isVideoMp4(item)" class="review-summary">
+            <strong>MP4 合成状态</strong>
+            <p>{{ item.status === 'generated' ? `已生成：${item.file_path || 'MP4 文件'}` : item.description || '配置 FFmpeg 后可合成 MP4，HTML 动画为当前稳定预览能力。' }}</p>
           </div>
           <div class="status-flow">
             <StatusBadge :label="item.reviewStatus || '已审核'" :tone="statusTone(item.reviewStatus)" />

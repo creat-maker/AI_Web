@@ -1,36 +1,46 @@
-const { student, learningPath } = require('../../utils/demoData');
+const { student, learningPath, quizResult } = require('../../utils/demoData');
 
-const fallbackPath = [
-  {
-    profileType: '基础薄弱 + 代码实操偏好型',
-    title: 'while 循环补弱',
-    goal: '能判断循环是否会终止。',
-    knowledge: 'while 循环',
-    resource: 'while 死循环修复案例',
-    practice: '完成 3 道补全题。',
-    aiAdvice: '先写变量变化表，再运行代码。',
-    status: '进行中',
-    percent: 56
-  }
-];
+function decoratePath(rows) {
+  return rows.map((item) => ({
+    ...item,
+    resourceText: (item.resources || []).join('、')
+  }));
+}
+
+function normalizeAdjustment(value) {
+  const source = value || quizResult.path_adjustment;
+  return {
+    adjusted: source.adjusted !== false,
+    adjustedText: source.adjusted !== false ? '已调整' : '保持原路径',
+    reason: source.reason || quizResult.path_adjustment.reason,
+    added_tasks: source.added_tasks || source.addedTasks || quizResult.path_adjustment.added_tasks,
+    recommended_resources: source.recommended_resources || source.recommendedResources || quizResult.path_adjustment.recommended_resources,
+    next_step: source.next_step || source.nextStep || quizResult.path_adjustment.next_step
+  };
+}
 
 Page({
   data: {
-    student: student || { name: '李明' },
-    pathTitle: '李明的一人一堂循环结构补弱路径',
-    learningPath: learningPath && learningPath.length ? learningPath : fallbackPath,
-    updateMessage: '学习路径已根据最近一次循环结构测验更新。'
+    student,
+    pathTitle: 'Python 循环结构专项学习路径',
+    learningPath: decoratePath(learningPath),
+    adjustment: normalizeAdjustment(),
+    updateMessage: '学习路径会根据测评表现持续调整。'
   },
 
-  onLoad() {
+  onShow() {
+    const latest = wx.getStorageSync('latestPathAdjustment');
     this.setData({
-      student: student || { name: '李明' },
-      learningPath: learningPath && learningPath.length ? learningPath : fallbackPath,
-      updateMessage: '学习路径已根据最近一次循环结构测验更新。'
+      adjustment: normalizeAdjustment(latest),
+      updateMessage: latest ? '已读取最近一次测评后的路径调整。' : '当前展示循环结构专项路径。'
     });
   },
 
   goResources() {
     wx.switchTab({ url: '/pages/resources/index' });
+  },
+
+  goQuiz() {
+    wx.navigateTo({ url: '/pages/quiz/index' });
   }
 });

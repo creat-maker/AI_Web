@@ -134,7 +134,7 @@ def _capability_checklist() -> list[dict]:
             "已存在，返回 StudentAssistant 兼容的单轮画像结构。",
         ),
         _route_capability(
-            "8 类资源包生成接口",
+            "9 类资源包生成接口",
             "POST /api/v1/resources/generate-pack",
             "backend/app/api/routers/resources.py",
             '@router.post("/generate-pack")',
@@ -260,6 +260,8 @@ def _base_response(status: str, message: str) -> dict:
                 "animation_html": True,
                 "tts_audio": "xfyun_configurable",
                 "video_script": True,
+                "video_mp4": "ffmpeg_optional",
+                "ffmpeg_available": ffmpeg_capability()["enabled"],
             },
             "multimodal_resource_type_count": len(RESOURCE_TYPE_CATALOG),
             "animation_html": {"supported": True, "preview": "sandbox iframe"},

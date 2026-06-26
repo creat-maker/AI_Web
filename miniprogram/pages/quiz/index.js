@@ -1,55 +1,79 @@
-const { quizAnalysis, wrongQuestions, recommendedResources } = require('../../utils/demoData');
+const { post } = require('../../utils/request');
+const { quizResult, resourcePack } = require('../../utils/demoData');
 
-const safeQuizAnalysis = quizAnalysis || {};
-const safeWrongQuestions = wrongQuestions && wrongQuestions.length ? wrongQuestions : [
-  { course: 'Python 程序设计', title: 'while 循环变量更新', answer: '检查循环体是否推进变量。', status: '待复习', cause: '循环终止条件不清' }
-];
-const safeResources = recommendedResources && recommendedResources.length ? recommendedResources : [
-  { title: 'while 循环条件更新专项练习', type: '专项练习', duration: '20 分钟', reason: '针对死循环和变量更新遗漏。' }
-];
+function normalizeResult(data) {
+  const source = data || quizResult;
+  const adjustment = source.path_adjustment || source.pathAdjustment || quizResult.path_adjustment;
+  return {
+    score: source.score || quizResult.score,
+    accuracy: source.accuracy ? `${source.accuracy}%`.replace('%%', '%') : quizResult.accuracy,
+    weak_points: source.weak_points || source.weakPoints || quizResult.weak_points,
+    error_analysis: source.error_analysis || source.mistakeReasons || source.mistake_reasons || quizResult.error_analysis,
+    path_adjustment_needed: source.path_adjustment_needed !== undefined ? source.path_adjustment_needed : true,
+    path_adjustment: {
+      adjusted: adjustment.adjusted !== undefined ? adjustment.adjusted : true,
+      reason: adjustment.reason || adjustment.summary || quizResult.path_adjustment.reason,
+      added_tasks: adjustment.added_tasks || adjustment.addedTasks || quizResult.path_adjustment.added_tasks,
+      recommended_resources: adjustment.recommended_resources || adjustment.recommendedResources || quizResult.path_adjustment.recommended_resources,
+      next_step: adjustment.next_step || adjustment.nextStep || quizResult.path_adjustment.next_step
+    }
+  };
+}
 
 Page({
   data: {
     title: '循环结构专项测验',
-    score: safeQuizAnalysis.score || 67,
-    accuracy: `${safeQuizAnalysis.score || 67}%`,
-    weakPoints: safeQuizAnalysis.weakPoints && safeQuizAnalysis.weakPoints.length ? safeQuizAnalysis.weakPoints : ['while 循环条件更新', '循环嵌套变量变化', 'break / continue 区分'],
-    causes: safeQuizAnalysis.causes && safeQuizAnalysis.causes.length ? safeQuizAnalysis.causes : ['循环终止条件不清'],
-    nextStep: safeQuizAnalysis.nextStep || '完成错题复盘后进入下一步补弱路径。',
-    recommendedResources: safeResources,
-    wrongQuestions: safeWrongQuestions,
+    question: '下面哪一项最容易导致 while 循环无法结束？',
+    options: ['循环体中更新变量', '循环条件最终变为 False', '循环变量没有更新', '使用 for 遍历列表'],
+    selected: '',
     submitted: false,
-    submitText: '提交测验并查看错因',
-    syncMessage: ''
+    result: normalizeResult(quizResult),
+    syncMessage: '',
+    submitText: '提交测验'
   },
 
-  onLoad() {
-    this.setData({
-      score: safeQuizAnalysis.score || 67,
-      accuracy: `${safeQuizAnalysis.score || 67}%`,
-      weakPoints: safeQuizAnalysis.weakPoints && safeQuizAnalysis.weakPoints.length ? safeQuizAnalysis.weakPoints : ['while 循环条件更新', '循环嵌套变量变化', 'break / continue 区分'],
-      causes: safeQuizAnalysis.causes && safeQuizAnalysis.causes.length ? safeQuizAnalysis.causes : ['循环终止条件不清'],
-      nextStep: safeQuizAnalysis.nextStep || '完成错题复盘后进入下一步补弱路径。',
-      recommendedResources: safeResources,
-      wrongQuestions: safeWrongQuestions
-    });
+  chooseOption(event) {
+    if (this.data.submitted) return;
+    this.setData({ selected: event.currentTarget.dataset.value });
   },
 
   submitQuiz() {
     if (this.data.submitted) return;
-    this.setData({
-      submitted: true,
-      submitText: '错因已生成，可查看报告',
-      syncMessage: '已同步更新学习建议'
-    });
-    wx.showToast({ title: '已生成错因分析', icon: 'success' });
-    setTimeout(() => {
-      wx.setStorageSync('reportFromQuiz', true);
-      wx.switchTab({ url: '/pages/report/index' });
-    }, 1300);
+    post('/quizzes/submit', {
+      quiz_id: 1,
+      student_profile_id: 1,
+      answers: { q1: this.data.selected || '循环变量没有更新' }
+    }, null, { loadingText: '提交测验' })
+      .then((res) => {
+        const normalized = normalizeResult(res.data || res);
+        this.applyResult(normalized);
+      })
+      .catch(() => {
+        this.applyResult(normalizeResult(quizResult));
+      });
   },
 
-  goReport() {
-    wx.switchTab({ url: '/pages/report/index' });
+  applyResult(result) {
+    wx.setStorageSync('latestPathAdjustment', result.path_adjustment);
+    wx.setStorageSync('latestQuizResult', result);
+    this.setData({
+      submitted: true,
+      result,
+      syncMessage: '系统已根据本次测评表现更新学习路径',
+      submitText: '已生成测评反馈'
+    });
+    wx.showToast({ title: '已更新路径', icon: 'success' });
+  },
+
+  goResources() {
+    wx.switchTab({ url: '/pages/resources/index' });
+  },
+
+  goPath() {
+    wx.switchTab({ url: '/pages/path/index' });
+  },
+
+  resetQuiz() {
+    this.setData({ selected: '', submitted: false, syncMessage: '', submitText: '提交测验' });
   }
 });

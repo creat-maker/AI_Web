@@ -1,30 +1,36 @@
 <view class="page">
   <view class="header">
-    <text class="eyebrow">一人一堂学习路径</text>
-    <text class="title">{{pathTitle}}</text>
-    <text class="subtitle">系统已根据你的学习情况生成个性化路径，建议优先完成 while 循环专项练习，再推进 break / continue 和循环嵌套。</text>
-    <text class="subtitle">{{updateMessage}}</text>
+    <view class="eyebrow">{{student.course}}</view>
+    <view class="title">{{pathTitle}}</view>
+    <view class="subtitle">{{updateMessage}}</view>
   </view>
 
-  <view class="section">
-    <view class="card" wx:for="{{learningPath}}" wx:key="title">
-      <view class="row">
-        <view class="col">
-          <text class="primary-text">{{item.title}}</text>
-          <text class="muted">{{item.profileType}}</text>
+  <view class="stage-list">
+    <view wx:for="{{learningPath}}" wx:key="id" class="stage">
+      <view class="stage-top">
+        <text class="stage-index">{{item.id}}</text>
+        <view class="stage-main">
+          <view class="stage-title">{{item.title}}</view>
+          <view class="stage-status">{{item.status}}</view>
         </view>
-        <text class="tag">{{item.status}}</text>
       </view>
-      <view class="progress"><view class="progress-bar" style="width: {{item.percent}}%;"></view></view>
-      <text class="body-text">目标：{{item.goal}}</text>
-      <text class="body-text">知识点：{{item.knowledge}}</text>
-      <text class="body-text">资源：{{item.resource}}</text>
-      <text class="body-text">练习：{{item.practice}}</text>
-      <text class="muted">AI 建议：{{item.aiAdvice}}</text>
+      <view class="stage-desc">{{item.description}}</view>
+      <view class="stage-meta">任务：{{item.task}}</view>
+      <view class="stage-meta">资源：{{item.resourceText}}</view>
     </view>
   </view>
 
-  <view class="section action-grid">
-    <button class="button-primary" bindtap="goResources">查看个性化资源包</button>
+  <view class="adjust-panel">
+    <view class="panel-title">测评后的路径调整</view>
+    <view class="adjust-row">是否调整：{{adjustment.adjustedText}}</view>
+    <view class="adjust-row">调整原因：{{adjustment.reason}}</view>
+    <view class="adjust-row">新增任务：{{adjustment.added_tasks}}</view>
+    <view class="adjust-row">推荐资源：{{adjustment.recommended_resources}}</view>
+    <view class="adjust-row">下一步建议：{{adjustment.next_step}}</view>
+  </view>
+
+  <view class="actions">
+    <button bindtap="goResources">查看推荐资源</button>
+    <button class="secondary" bindtap="goQuiz">进入测验评价</button>
   </view>
 </view>

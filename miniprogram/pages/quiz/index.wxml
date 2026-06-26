@@ -1,79 +1,56 @@
 <view class="page">
   <view class="header">
-    <text class="eyebrow">专项测验与错因分析</text>
+    <text class="eyebrow">测验评价</text>
     <text class="title">{{title}}</text>
-    <text class="subtitle">围绕 while 循环、循环嵌套和 break / continue 生成形成性评价依据。</text>
-  </view>
-
-  <view class="section grid-2">
-    <view class="stat-card">
-      <text class="stat-label">本次得分</text>
-      <text class="stat-value">{{score}}</text>
-    </view>
-    <view class="stat-card">
-      <text class="stat-label">正确率</text>
-      <text class="stat-value">{{accuracy}}</text>
-    </view>
-    <view class="stat-card">
-      <text class="stat-label">测验对象</text>
-      <text class="stat-value">李明</text>
-    </view>
+    <text class="subtitle">提交后展示得分、错因分析、路径调整、新增任务和推荐资源。</text>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">薄弱知识点</text></view>
     <view class="card">
-      <view class="chip-row">
-        <text class="chip" wx:for="{{weakPoints}}" wx:key="*this">{{item}}</text>
+      <text class="primary-text">{{question}}</text>
+      <view class="option-list">
+        <view wx:for="{{options}}" wx:key="*this" data-value="{{item}}" bindtap="chooseOption" class="option {{selected === item ? 'option-selected' : ''}}">
+          <text class="option-index">{{index + 1}}</text>
+          <text class="option-text">{{item}}</text>
+        </view>
       </view>
+      <button class="button-primary submit-btn" bindtap="submitQuiz">{{submitText}}</button>
     </view>
   </view>
 
   <view class="section" wx:if="{{submitted}}">
-    <view class="section-head"><text class="section-title">提交后联动结果</text><text class="tag tag-success">已生成</text></view>
+    <view class="section-head"><text class="section-title">测 -> 评 -> 调结果</text><text class="tag tag-success">已更新</text></view>
     <view class="card result-card">
-      <text class="primary-text">正确率：{{accuracy}}</text>
+      <text class="primary-text">{{syncMessage}}</text>
       <view class="divider"></view>
-      <text class="primary-text">薄弱知识点</text>
-      <view class="chip-row">
-        <text class="chip" wx:for="{{weakPoints}}" wx:key="*this">{{item}}</text>
+      <view class="grid-2">
+        <view class="stat-card"><text class="stat-label">得分</text><text class="stat-value">{{result.score}}</text></view>
+        <view class="stat-card"><text class="stat-label">正确率</text><text class="stat-value">{{result.accuracy}}</text></view>
       </view>
       <view class="divider"></view>
-      <text class="primary-text">主要错因</text>
-      <view class="analysis">
-        <text class="body-text" wx:for="{{causes}}" wx:key="*this">{{index + 1}}. {{item}}</text>
-      </view>
+      <text class="primary-text">薄弱点</text>
+      <view class="chip-row"><text class="chip" wx:for="{{result.weak_points}}" wx:key="*this">{{item}}</text></view>
+      <view class="divider"></view>
+      <text class="primary-text">错因分析</text>
+      <text class="body-text" wx:for="{{result.error_analysis}}" wx:key="*this">{{index + 1}}. {{item}}</text>
+      <view class="divider"></view>
+      <text class="primary-text">调整原因</text>
+      <text class="body-text">{{result.path_adjustment.reason}}</text>
+      <view class="divider"></view>
+      <text class="primary-text">新增任务</text>
+      <text class="body-text" wx:for="{{result.path_adjustment.added_tasks}}" wx:key="*this">{{index + 1}}. {{item}}</text>
       <view class="divider"></view>
       <text class="primary-text">推荐资源</text>
-      <view class="analysis">
-        <text class="body-text" wx:for="{{recommendedResources}}" wx:key="title">{{index + 1}}. {{item.title}} / {{item.type || item.resourceType || '学习资源'}}</text>
-      </view>
+      <text class="body-text" wx:for="{{result.path_adjustment.recommended_resources}}" wx:key="*this">{{index + 1}}. {{item}}</text>
       <view class="divider"></view>
-      <text class="primary-text">下一步路径</text>
-      <text class="muted">{{nextStep}}</text>
-      <text class="tag tag-success sync-tag">{{syncMessage}}</text>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">错题记录</text></view>
-    <view class="card" wx:for="{{wrongQuestions}}" wx:key="title">
-      <text class="primary-text">{{item.title}}</text>
-      <text class="muted">{{item.course}} / {{item.status}}</text>
-      <text class="body-text">错因：{{item.cause}}</text>
-      <text class="body-text">订正建议：{{item.answer}}</text>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="card">
-      <text class="primary-text">下一步路径</text>
-      <text class="body-text">{{nextStep}}</text>
+      <text class="primary-text">下一步学习建议</text>
+      <text class="body-text">{{result.path_adjustment.next_step}}</text>
     </view>
   </view>
 
   <view class="section action-grid">
-    <button class="button-secondary" bindtap="submitQuiz">{{submitText}}</button>
-    <button class="button-primary" bindtap="goReport">查看形成性评价报告</button>
+    <button class="button-secondary" bindtap="goResources">查看推荐资源</button>
+    <button class="button-secondary" bindtap="goPath">查看学习路径</button>
+    <button class="button-primary" bindtap="resetQuiz">重新练习</button>
   </view>
 </view>

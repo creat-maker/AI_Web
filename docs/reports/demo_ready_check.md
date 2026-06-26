@@ -1,6 +1,6 @@
 # EduMind 演示状态检查报告
 
-- 检查时间：2026-06-25T16:46:57
+- 检查时间：2026-06-26T12:43:28
 - 总体状态：READY
 - 通过 / 警告 / 失败：25 / 0 / 0
 - 后端地址：http://127.0.0.1:8000
@@ -25,12 +25,12 @@
 | data | course_documents | PASS | 13 | 3 | 满足演示要求 |
 | data | tutor_question_logs | PASS | 31 | 5 | 满足演示要求 |
 | data | quizzes | PASS | 13 | 1 | 满足演示要求 |
-| data | quiz_submissions | PASS | 24 | 1 | 满足演示要求 |
+| data | quiz_submissions | PASS | 25 | 1 | 满足演示要求 |
 | data | learning_reports | PASS | 15 | 3 | 满足演示要求 |
 | data | agent_runs | PASS | 14 | 3 | 满足演示要求 |
 | data | learning_paths | PASS | 25 | 3 | 满足演示要求 |
-| data | generated_resources | PASS | 139 | 3 | 满足演示要求 |
-| data | business_events | PASS | 162 | 9 | 满足演示要求 |
+| data | generated_resources | PASS | 140 | 3 | 满足演示要求 |
+| data | business_events | PASS | 167 | 9 | 满足演示要求 |
 | file | backend/storage/uploads | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/reports | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/chroma | PASS | exists | exists | 文件或目录已存在 |
@@ -69,15 +69,3 @@
 5. /agent-workflow Agent 工作流
 6. /logs 日志管理
 7. /settings 系统设置
-
-## Contest Hard Requirement Status Fields
-
-- `CONTEST_REQUIREMENT_FLAGS.dialogue_profile_6_dimensions = true`
-- `CONTEST_REQUIREMENT_FLAGS.multimodal_resources_animation_audio_video_script = true`
-- `CONTEST_REQUIREMENT_FLAGS.xfyun_tts_spark_safety_configurable = true`
-- `CONTEST_REQUIREMENT_FLAGS.quiz_evaluation_path_adjustment = true`
-- `CONTEST_REQUIREMENT_FLAGS.anti_hallucination_citation_review = true`
-- `/api/v1/demo-status.feature_status.profile_dialog.dimensions = 6`
-- `/api/v1/demo-status.feature_status.multimodal_resources.resource_types = 8`
-- `/api/v1/demo-status.feature_status.assessment_adjustment.flow = quiz -> evaluation -> path_adjustment -> recommended_resources`
-- `/api/v1/demo-status.feature_status.content_safety.rule_based = true`

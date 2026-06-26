@@ -1,16 +1,22 @@
-<view class="page">
+<view class="page profile-dialog-page">
   <view class="header">
-    <text class="eyebrow">对话式画像构建</text>
-    <text class="title">李明的 Python 循环结构画像</text>
-    <text class="subtitle">通过对话识别学习目标、当前水平、薄弱点、学习偏好和风险等级。</text>
+    <text class="eyebrow">{{sourceLabel}}</text>
+    <text class="title">{{student.name}}的 Python 循环结构画像</text>
+    <text class="subtitle">{{updateNote}}</text>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">画像维度</text></view>
-    <view class="grid-2">
-      <view class="stat-card" wx:for="{{dimensions}}" wx:key="name">
-        <text class="stat-label">{{item.name}}</text>
-        <text class="stat-value">{{item.value}}</text>
+    <view class="section-head"><text class="section-title">6 维学习画像</text><text class="tag">随学更新</text></view>
+    <view class="dimension-card" wx:for="{{dimensions}}" wx:key="name">
+      <text class="primary-text">{{item.name}}</text>
+      <text class="muted">{{item.explanation}}</text>
+      <view class="dimension-block">
+        <text class="block-label">当前判断</text>
+        <text class="body-text">{{item.judgement}}</text>
+      </view>
+      <view class="dimension-block">
+        <text class="block-label">推荐策略</text>
+        <text class="body-text">{{item.strategy}}</text>
       </view>
     </view>
   </view>
@@ -26,17 +32,17 @@
 
   <view class="section chat-list">
     <view class="card message-card {{item.role === 'user' ? 'user-message' : 'ai-message'}}" wx:for="{{messages}}" wx:key="content">
-      <text class="primary-text">{{item.role === 'user' ? '李明' : '画像助手'}}</text>
+      <text class="primary-text">{{item.role === 'user' ? student.name : '画像助手'}}</text>
       <text class="body-text">{{item.content}}</text>
     </view>
   </view>
 
   <view class="section input-panel">
-    <input value="{{inputValue}}" bindinput="onInput" placeholder="补充你的循环结构学习困难" />
-    <button class="button-primary" bindtap="sendMessage">发送</button>
+    <input class="dialog-input" value="{{inputValue}}" bindinput="onInput" placeholder="补充你的循环结构学习困难" />
+    <button class="button-primary send-btn" bindtap="sendMessage">发送</button>
   </view>
 
   <view class="section action-grid">
-    <button class="button-primary" bindtap="goPath">查看一人一堂路径</button>
+    <button class="button-primary" bindtap="goPath">查看学习路径</button>
   </view>
 </view>

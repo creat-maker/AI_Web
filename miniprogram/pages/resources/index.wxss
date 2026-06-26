@@ -1,88 +1,52 @@
-.generate-btn {
-  margin-top: 24rpx;
-}
-
-.step-list {
+.search-card {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
-}
-
-.step-item {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  opacity: 0.55;
-}
-
-.step-active {
-  opacity: 1;
-}
-
-.step-dot {
-  width: 18rpx;
-  height: 18rpx;
-  border-radius: 50%;
-  background: #d0d5dd;
-}
-
-.step-active .step-dot {
-  background: #2f6fed;
-}
-
-.basis-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.reason-card {
-  display: flex;
-  flex-direction: column;
-  gap: 18rpx;
-}
-
-.reason-item {
-  display: flex;
-  align-items: flex-start;
   gap: 16rpx;
-  padding: 18rpx;
+}
+
+.search-card input,
+.picker-value {
+  min-height: 78rpx;
+  padding: 0 20rpx;
   border-radius: 20rpx;
   background: #f5f7fb;
+  color: #162033;
+  font-size: 26rpx;
+  line-height: 78rpx;
 }
 
-.reason-index {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42rpx;
-  height: 42rpx;
-  border-radius: 50%;
-  background: #2f6fed;
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 900;
-}
-
-.reason-text {
-  flex: 1;
-}
-
-.resource-card .muted {
+.resource-card .muted,
+.resource-card .body-text {
   display: block;
   margin-top: 12rpx;
 }
 
-.practice-btn {
-  margin-top: 20rpx;
+.resource-note {
+  display: block;
+  margin-top: 14rpx;
+  padding: 16rpx;
+  border-radius: 18rpx;
+  background: #f5f8ff;
+  color: #2459bd;
+  font-size: 25rpx;
+  line-height: 1.5;
+}
+
+.practice-btn,
+.task-added-btn {
+  margin-top: 18rpx;
 }
 
 .task-added-btn {
-  margin-top: 20rpx;
   background: #e7f8ef;
   color: #087443;
 }
 
-.action-grid .task-added-btn {
-  margin-top: 0;
+.action-grid {
+  display: flex;
+  gap: 24rpx;
+}
+
+.action-grid button {
+  flex: 1;
 }

@@ -51,7 +51,7 @@ const defaultChain: WorkflowStep[] = [
   name,
   input_summary: index === 0 ? '李明的自然语言对话、学习历史、测验结果和 AI 问答记录' : '上游 Agent 输出 + Python 循环结构知识库',
   tool_summary: index === 7 ? '事实准确性、知识点匹配度、难度匹配度、引用完整性审核规则' : '课程知识库、规则模板、结构化模板',
-  output_summary: index === 4 ? 'Python 循环结构个性化补弱资源包，含 8 类资源' : '结构化中间结果进入下一节点',
+  output_summary: index === 4 ? 'Python 循环结构个性化补弱资源包，含 9 类资源' : '结构化中间结果进入下一节点',
   evidence: 'Python 程序设计课程知识库 / 循环结构章节',
   duration_ms: 180 + index * 70,
   duration: `${180 + index * 70}ms`,

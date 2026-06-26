@@ -16,6 +16,9 @@ interface ResourceItem {
   content?: string;
   description?: string;
   format?: string;
+  status?: string;
+  file_path?: string;
+  fallback_resources?: string[];
   tts_status?: { status?: string; message?: string };
   tts_result?: { status?: string; message?: string; audio_path?: string | null };
   difficulty?: string;
@@ -92,6 +95,10 @@ function isTts(item: ResourceItem) {
   return (item.resource_type || item.resourceType) === 'tts_audio';
 }
 
+function isVideoMp4(item: ResourceItem) {
+  return (item.resource_type || item.resourceType) === 'video_mp4';
+}
+
 async function loadData() {
   loading.value = true;
   error.value = '';
@@ -166,6 +173,9 @@ onMounted(loadData);
           </div>
           <p v-if="isTts(item)" class="tts-status">
             {{ item.tts_result?.message || item.tts_status?.message || '语音讲解文本已生成，科大讯飞 TTS 可按环境配置接入。' }}
+          </p>
+          <p v-if="isVideoMp4(item)" class="tts-status">
+            {{ item.status === 'generated' ? `MP4 已生成：${item.file_path || '视频文件'}` : item.description || '配置 FFmpeg 后可合成 MP4，HTML 动画为当前稳定预览能力。' }}
           </p>
           <div class="tag-row">
             <span v-for="tag in item.knowledge" :key="tag">{{ tag }}</span>

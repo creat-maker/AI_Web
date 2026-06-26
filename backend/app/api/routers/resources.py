@@ -199,7 +199,7 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         db,
         event_type="resource_pack_generated",
         title=f"{pack.get('resourceTypeCount', len(pack.get('resources', [])))} 类个性化资源包已生成",
-        description=f"{pack['courseName']} 已生成讲义、思维导图、练习题、HTML 动画、视频脚本、语音讲解任务、代码案例和项目任务。",
+        description=f"{pack['courseName']} 已生成讲义、思维导图、练习题、HTML 动画、视频脚本、语音讲解任务、简易 MP4 视频、代码案例和项目任务。",
         actor_role="student",
         actor_name=student["student_name"],
         target_type="resource_pack",

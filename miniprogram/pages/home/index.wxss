@@ -1,155 +1,61 @@
 .cockpit-banner {
-  padding-bottom: 28rpx;
-}
-
-.cockpit-meta {
   display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.topic-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 18rpx;
-  margin-top: 26rpx;
-}
-
-.meta-item {
-  flex: 1;
-  padding: 20rpx;
+  margin-top: 10rpx;
+  padding: 22rpx;
   border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.15);
 }
 
-.meta-label,
-.advice-label {
-  display: block;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 24rpx;
-  font-weight: 800;
-}
-
-.meta-value {
-  display: block;
-  margin-top: 8rpx;
+.topic-main,
+.topic-sub {
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 900;
-  line-height: 1.3;
 }
 
-.advice-strip {
-  margin-top: 18rpx;
-  padding: 20rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.advice-text {
+.flow-text {
   display: block;
-  margin-top: 8rpx;
+  padding: 18rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
-  font-size: 28rpx;
-  font-weight: 850;
-  line-height: 1.45;
-}
-
-.start-btn {
-  margin-top: 24rpx;
-  background: #ffffff;
-  color: #2f6fed;
-}
-
-.weak-row {
-  margin-top: 14rpx;
-}
-
-.natural-card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 18rpx;
-}
-
-.natural-card {
-  padding: 26rpx;
-  border: 1rpx solid #e4e7ec;
-  border-radius: 28rpx;
-  background: #ffffff;
-  box-shadow: 0 12rpx 28rpx rgba(16, 24, 40, 0.06);
-}
-
-.natural-title {
-  color: #162033;
-  font-size: 32rpx;
-  font-weight: 900;
-}
-
-.natural-content {
-  display: block;
-  margin-top: 16rpx;
-  color: #344054;
-  font-size: 27rpx;
+  font-size: 25rpx;
   line-height: 1.55;
 }
 
-.natural-action {
-  display: inline-flex;
-  margin-top: 18rpx;
-  color: #2f6fed;
-  font-size: 26rpx;
-  font-weight: 900;
-}
-
-.task-plan-card {
-  padding: 24rpx;
-}
-
-.task-plan-desc {
-  display: block;
-  margin-bottom: 18rpx;
-  padding: 18rpx;
-  border-radius: 20rpx;
-  background: #f5f8ff;
-  color: #2459bd;
-  font-weight: 800;
-}
-
-.personal-task {
+.entry-card {
   display: flex;
-  align-items: center;
-  gap: 16rpx;
-  min-height: 112rpx;
-  margin-top: 16rpx;
-  padding: 18rpx;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 156rpx;
+  margin: 0;
+  padding: 22rpx;
   border: 1rpx solid #e4e7ec;
-  border-radius: 22rpx;
+  border-radius: 24rpx;
   background: #ffffff;
+  text-align: left;
+  box-shadow: 0 10rpx 24rpx rgba(16, 24, 40, 0.05);
 }
 
-.personal-task:first-of-type {
-  margin-top: 0;
-}
-
-.task-status-dot {
-  width: 18rpx;
-  height: 18rpx;
-  border-radius: 50%;
-  background: #2f6fed;
-}
-
-.task-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.task-name {
-  display: block;
+.entry-title {
+  color: #162033;
   font-size: 30rpx;
-}
-
-.task-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8rpx;
-  margin-top: 8rpx;
-}
-
-.task-separator {
-  color: #98a2b3;
   font-weight: 900;
+}
+
+.entry-desc {
+  margin-top: 10rpx;
+  color: #475467;
+  font-size: 24rpx;
+  line-height: 1.45;
 }

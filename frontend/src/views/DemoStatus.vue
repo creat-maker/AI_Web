@@ -24,7 +24,7 @@ interface DemoStatus {
   demo_fallback_capabilities: string[];
   feature_status?: {
     profile_dialog?: { supported: boolean; status?: string; dimensions?: number; dimension_count: number; dimension_labels?: string[]; update_mode?: string };
-    multimodal_resources?: { status: string; resource_types: number; animation_html: boolean; tts_audio: string; video_script: boolean };
+    multimodal_resources?: { status: string; resource_types: number; animation_html: boolean; tts_audio: string; video_script: boolean; video_mp4?: string; ffmpeg_available?: boolean };
     assessment_adjustment?: { status: string; flow: string };
     multimodal_resource_type_count?: number;
     animation_html?: { supported: boolean; preview: string };
@@ -255,6 +255,11 @@ onMounted(loadPage);
             <strong>动画资源</strong>
             <span>{{ data.feature_status.animation_html?.preview || 'sandbox iframe' }}</span>
             <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>MP4 合成</strong>
+            <span>{{ data.feature_status.multimodal_resources?.ffmpeg_available ? 'FFmpeg 已检测到，可合成简易 MP4' : '可选部署能力，当前运行环境未检测到 FFmpeg' }}</span>
+            <StatusBadge :label="data.feature_status.multimodal_resources?.ffmpeg_available ? 'available' : 'optional'" :tone="data.feature_status.multimodal_resources?.ffmpeg_available ? 'success' : 'warning'" />
           </article>
           <article class="item compact">
             <strong>讯飞 TTS</strong>

@@ -1,16 +1,3 @@
-.result-card .muted {
-  display: block;
-  margin-top: 12rpx;
-}
-
-.report-btn {
-  margin-top: 22rpx;
-}
-
-.question-title {
-  flex: 1;
-}
-
 .option-list {
   margin-top: 20rpx;
 }
@@ -30,11 +17,6 @@
 .option-selected {
   border-color: #2f6fed;
   background: #eaf1ff;
-}
-
-.option-correct {
-  border-color: #12b76a;
-  background: #e7f8ef;
 }
 
 .option-index {
@@ -57,21 +39,17 @@
   line-height: 1.45;
 }
 
-.analysis {
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  margin-top: 20rpx;
-  padding: 18rpx;
-  border-radius: 20rpx;
-  background: #f5f7fb;
+.submit-btn {
+  margin-top: 22rpx;
+}
+
+.result-card .body-text {
+  display: block;
+  margin-top: 10rpx;
 }
 
 .action-grid {
   display: flex;
-  gap: 24rpx;
-}
-
-.action-grid button {
-  flex: 1;
+  flex-direction: column;
+  gap: 18rpx;
 }

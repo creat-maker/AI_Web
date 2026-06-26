@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import re
 import shutil
+import subprocess
+from datetime import datetime
 from html import escape
+from pathlib import Path
 from typing import Any
 
+from app.core.config import settings
 from app.services.xfyun_tts_service import xfyun_tts_service
 
 
@@ -14,6 +19,7 @@ RESOURCE_TYPE_CATALOG = [
     {"key": "animation_html", "label": "HTML/SVG 动画"},
     {"key": "video_script", "label": "视频讲解脚本"},
     {"key": "tts_audio", "label": "语音讲解资源"},
+    {"key": "video_mp4", "label": "简易 MP4 视频"},
     {"key": "code_case", "label": "代码案例"},
     {"key": "project_task", "label": "项目任务"},
 ]
@@ -29,7 +35,11 @@ def ffmpeg_capability() -> dict:
         "enabled": bool(found),
         "status": "available" if found else "not_available",
         "path": found,
-        "message": "检测到 FFmpeg，可扩展导出简易 MP4。" if found else "当前未检测到 FFmpeg，保留 HTML 动画预览和讲解脚本。",
+        "message": (
+            "检测到 FFmpeg，可合成最小 MP4 教学视频。"
+            if found
+            else "当前运行环境未检测到 FFmpeg；HTML 动画为当前稳定预览能力，MP4 合成为可选部署能力。"
+        ),
     }
 
 
@@ -62,11 +72,150 @@ def build_loop_animation_html(title: str = "while 循环条件更新动画") -> 
 """.strip()
 
 
+def _safe_video_filename(topic: str) -> str:
+    normalized = re.sub(r"[^a-zA-Z0-9_-]+", "-", topic or "loop-learning").strip("-").lower()
+    stem = normalized[:48] or "loop-learning"
+    suffix = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    return f"{stem}-{suffix}.mp4"
+
+
+def _video_output_dir() -> Path:
+    output_dir = settings.path_from_root("backend/storage/generated/videos")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def _relative_to_root(path: Path) -> str:
+    try:
+        return path.relative_to(settings.path_from_root(".")).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _video_response(
+    *,
+    status: str,
+    topic: str,
+    script: str,
+    description: str,
+    preview_supported: bool,
+    file_path: str | None = None,
+    error: str | None = None,
+) -> dict[str, Any]:
+    response: dict[str, Any] = {
+        "type": "video_mp4",
+        "resourceType": "video_mp4",
+        "resource_type": "video_mp4",
+        "status": status,
+        "title": f"{topic or 'Python Loop'} 简易 MP4 视频",
+        "description": description,
+        "format": "mp4",
+        "content": script,
+        "script": script,
+        "preview_supported": preview_supported,
+        "fallback_resources": ["animation_html", "video_script", "tts_audio"],
+    }
+    if file_path:
+        response["file_path"] = file_path
+    if error:
+        response["error"] = error
+    return response
+
+
+def generate_ffmpeg_video_task(topic: str, script: str, animation_html: str | None = None) -> dict[str, Any]:
+    ffmpeg_path = shutil.which("ffmpeg")
+    if not ffmpeg_path:
+        return _video_response(
+            status="ffmpeg_not_available",
+            topic=topic,
+            script=script,
+            description="当前运行环境未检测到 FFmpeg，系统已提供 HTML 动画和视频脚本，生产部署可启用 FFmpeg 合成 MP4。",
+            preview_supported=False,
+        )
+
+    output_path = _video_output_dir() / _safe_video_filename(topic)
+    drawtext = "text='Python Loop Learning':fontcolor=white:fontsize=54:x=(w-text_w)/2:y=(h-text_h)/2"
+    command = [
+        ffmpeg_path,
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c=0x10233f:s=1280x720:d=6,drawtext={drawtext}",
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc=channel_layout=stereo:sample_rate=44100",
+        "-shortest",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        str(output_path),
+    ]
+    fallback_command = [
+        ffmpeg_path,
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=0x10233f:s=1280x720:d=6",
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc=channel_layout=stereo:sample_rate=44100",
+        "-shortest",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        str(output_path),
+    ]
+
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=20, check=False)
+        if result.returncode != 0:
+            result = subprocess.run(fallback_command, capture_output=True, text=True, timeout=20, check=False)
+        if result.returncode != 0:
+            return _video_response(
+                status="failed",
+                topic=topic,
+                script=script,
+                description="FFmpeg 已检测到，但本次 MP4 合成未完成；HTML 动画和视频脚本仍可稳定使用。",
+                preview_supported=False,
+                error=(result.stderr or result.stdout or "ffmpeg failed")[-500:],
+            )
+    except Exception as exc:  # noqa: BLE001
+        return _video_response(
+            status="failed",
+            topic=topic,
+            script=script,
+            description="FFmpeg 已检测到，但本次 MP4 合成未完成；HTML 动画和视频脚本仍可稳定使用。",
+            preview_supported=False,
+            error=str(exc),
+        )
+
+    return _video_response(
+        status="generated",
+        topic=topic,
+        script=script,
+        description="基于 FFmpeg 合成的最小教学视频示例。",
+        preview_supported=True,
+        file_path=_relative_to_root(output_path),
+    )
+
+
 def build_multimodal_resources(weak_points: list[str] | None = None) -> list[dict[str, Any]]:
     weak_points = weak_points or ["while 循环", "循环嵌套", "break / continue"]
     tts_status = xfyun_tts_service.status()
     script = "本节围绕 while 循环条件更新、break / continue 区分和循环嵌套变量追踪进行讲解。"
     tts_result = xfyun_tts_service.synthesize(script)
+    animation_html = build_loop_animation_html()
+    video_mp4 = generate_ffmpeg_video_task("Python Loop Learning", script, animation_html)
     return [
         {
             "resourceType": "handout",
@@ -95,7 +244,7 @@ def build_multimodal_resources(weak_points: list[str] | None = None) -> list[dic
             "type": "animation_html",
             "title": "while 循环条件更新动画",
             "description": "通过逐步高亮变量变化说明 while 循环执行过程。",
-            "content": build_loop_animation_html(),
+            "content": animation_html,
             "preview_url": "",
             "knowledge_points": ["while 循环", "条件更新", "变量追踪"],
             "format": "html",
@@ -120,6 +269,7 @@ def build_multimodal_resources(weak_points: list[str] | None = None) -> list[dic
             "tts_status": tts_status,
             "tts_result": tts_result,
         },
+        video_mp4,
         {
             "resourceType": "code_case",
             "resource_type": "code_case",
@@ -148,7 +298,7 @@ class MultimodalResourceService:
             "description": "通过逐步高亮变量变化说明 while 循环执行过程",
             "format": "html",
             "content": build_loop_animation_html(title),
-            "knowledge_points": knowledge_points or ["while循环", "条件更新", "变量追踪"],
+            "knowledge_points": knowledge_points or ["while 循环", "条件更新", "变量追踪"],
             "preview_supported": True,
         }
 
@@ -181,6 +331,9 @@ class MultimodalResourceService:
             "tts_result": result,
             "preview_supported": result.get("status") == "success",
         }
+
+    def generate_ffmpeg_video_task(self, topic: str, script: str, animation_html: str | None = None) -> dict:
+        return generate_ffmpeg_video_task(topic, script, animation_html)
 
     def generate_resource_pack(self, course: str, chapter: str, topic: str) -> dict:
         resources = build_multimodal_resources([topic or chapter or "while 循环"])

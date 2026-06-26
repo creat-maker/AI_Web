@@ -118,7 +118,7 @@ def create_resource_package(payload: ResourcePackagePayload, db: Session = Depen
         db,
         event_type="resource_generated",
         title="生成个性化资源包",
-        description=f"已为 {profile.student_name if profile else '演示学生'} 生成 8 类资源包。",
+        description=f"已为 {profile.student_name if profile else '演示学生'} 生成 9 类资源包。",
         actor_role=payload.actor_role,
         actor_name=payload.actor_name,
         target_type="resource_package",
@@ -157,7 +157,7 @@ def add_resource_to_path(payload: AddToPathPayload, db: Session = Depends(get_db
     stages.append(
         {
             "name": "个性化资源包学习",
-            "target": f"学习资源包 {payload.package_id} 中的 8 类资源，并完成一次复盘。",
+            "target": f"学习资源包 {payload.package_id} 中的 9 类资源，并完成一次复盘。",
             "resource_package_id": payload.package_id,
             "source": "resource_added_to_path",
             "demo_fallback": True,

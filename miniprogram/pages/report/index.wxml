@@ -1,89 +1,60 @@
 <view class="page">
   <view class="header">
     <text class="eyebrow">学习报告</text>
-    <text class="title">李明 / {{reportTitle}}</text>
-    <text class="subtitle">包含正确率、错题知识点、错因分析、能力维度、AI 建议、下一步路径和资源调整方向。</text>
-  </view>
-
-  <view class="section">
-    <view class="card mastery-card">
-      <view class="mastery-ring">
-        <text class="mastery-value">{{mastery}}%</text>
-        <text class="mastery-label">学习进度</text>
-      </view>
-      <view class="mastery-copy">
-        <text class="primary-text">系统发现你在循环结构上还需要加强</text>
-        <text class="muted">{{summary}}</text>
-      </view>
-    </view>
+    <text class="title">{{student.name}} / {{report.title}}</text>
+    <text class="subtitle">包含学习摘要、正确率、薄弱点、推荐资源、下一步计划和教师干预建议。</text>
   </view>
 
   <view class="section grid-2">
-    <view class="stat-card"><text class="stat-label">测验正确率</text><text class="stat-value">{{accuracy}}</text></view>
-    <view class="stat-card"><text class="stat-label">学习时长</text><text class="stat-value">{{studyTime}}</text></view>
-    <view class="stat-card"><text class="stat-label">任务完成</text><text class="stat-value">{{completion}}</text></view>
-    <view class="stat-card"><text class="stat-label">报告对象</text><text class="stat-value">李明</text></view>
+    <view class="stat-card"><text class="stat-label">正确率</text><text class="stat-value">{{report.accuracy}}</text></view>
+    <view class="stat-card"><text class="stat-label">学习进度</text><text class="stat-value">{{report.progress}}%</text></view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">形成性评价</text><text class="tag tag-success">已同步</text></view>
-    <view class="card advice-card" wx:for="{{formativeItems}}" wx:key="title">
+    <view class="section-head"><text class="section-title">学习摘要</text></view>
+    <view class="card"><text class="body-text">{{report.summary}}</text></view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">报告口径</text><text class="tag tag-success">已同步</text></view>
+    <view class="card advice-card" wx:for="{{evaluationItems}}" wx:key="title">
       <text class="primary-text">{{item.title}}</text>
       <text class="body-text">{{item.detail}}</text>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">错因分析</text><text class="tag tag-warning">来自测验</text></view>
-    <view class="card advice-card" wx:for="{{causes}}" wx:key="*this">
+    <view class="section-head"><text class="section-title">薄弱点</text></view>
+    <view class="card">
+      <view class="chip-row"><text class="chip" wx:for="{{report.weakPoints}}" wx:key="*this">{{item}}</text></view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head"><text class="section-title">推荐资源</text></view>
+    <view class="card advice-card" wx:for="{{report.recommendedResources}}" wx:key="*this">
       <text class="body-text">{{index + 1}}. {{item}}</text>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">能力维度评分</text></view>
-    <view class="card ability-card">
-      <view class="ability-item" wx:for="{{abilities}}" wx:key="name">
-        <view class="row">
-          <text class="primary-text ability-name">{{item.name}}</text>
-          <text class="tag">{{item.value}}%</text>
-        </view>
-        <view class="ability-track"><view class="ability-bar" style="width: {{item.value}}%;"></view></view>
-      </view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">错题知识点</text><text class="tag tag-warning">持续跟踪</text></view>
-    <view class="card rank-card" wx:for="{{weakRanks}}" wx:key="name">
-      <view class="row">
-        <view class="col">
-          <text class="primary-text">{{index + 1}}. {{item.name}}</text>
-          <text class="muted">{{item.status}}</text>
-        </view>
-        <text class="tag">{{item.value}}%</text>
-      </view>
-      <view class="progress"><view class="progress-bar" style="width: {{item.value}}%;"></view></view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">AI 学习建议</text></view>
-    <view class="card advice-card" wx:for="{{suggestions}}" wx:key="*this">
+    <view class="section-head"><text class="section-title">下一步学习计划</text></view>
+    <view class="card advice-card" wx:for="{{report.nextPlan}}" wx:key="*this">
       <text class="body-text">{{index + 1}}. {{item}}</text>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">下一步建议</text></view>
-    <view class="card" wx:for="{{nextPlan}}" wx:key="title">
-      <text class="primary-text">{{item.title}}</text>
-      <text class="muted plan-detail">{{item.detail}}</text>
-    </view>
+    <view class="section-head"><text class="section-title">教师干预建议</text></view>
+    <view class="card"><text class="body-text">{{report.teacherAdvice}}</text></view>
+  </view>
+
+  <view class="section">
+    <view class="card export-card"><text class="body-text">{{report.exportNote}}</text></view>
   </view>
 
   <view class="section action-grid">
     <button class="button-secondary" bindtap="goQuiz">进入专项测验</button>
-    <button class="button-primary" bindtap="goTutor">诊断式 AI 学伴</button>
+    <button class="button-primary" bindtap="goTutor">咨询智能答疑</button>
   </view>
 </view>

@@ -11,6 +11,11 @@ from urllib.parse import quote, urlencode, urlparse
 
 from app.core.config import settings
 
+try:
+    import websocket  # type: ignore
+except ImportError:  # pragma: no cover - depends on optional runtime package
+    websocket = None
+
 
 NOT_CONFIGURED_MESSAGE = "当前未配置科大讯飞密钥，系统使用本地智能评测引擎保持稳定运行"
 
@@ -30,6 +35,13 @@ class XfyunTTSService:
                 "status": "not_configured",
                 "provider": self.provider,
                 "message": NOT_CONFIGURED_MESSAGE,
+            }
+        if websocket is None:
+            return {
+                "enabled": False,
+                "status": "dependency_missing",
+                "provider": self.provider,
+                "message": "缺少 websocket-client 依赖，请安装后启用科大讯飞 TTS",
             }
         return {
             "enabled": True,
@@ -76,16 +88,14 @@ class XfyunTTSService:
                 "message": NOT_CONFIGURED_MESSAGE,
                 "text_resource": text,
             }
-
-        try:
-            import websocket  # type: ignore
-        except Exception:
+        if websocket is None:
             return {
-                "status": "failed",
+                "status": "dependency_missing",
                 "audio_path": None,
                 "provider": self.provider,
-                "message": "当前环境未安装 websocket-client，已保留 TTS 签名接入路径但未发起真实合成。",
+                "message": "缺少 websocket-client 依赖，请安装后启用科大讯飞 TTS",
                 "signed_url_ready": True,
+                "text_resource": text,
             }
 
         audio_chunks: list[bytes] = []

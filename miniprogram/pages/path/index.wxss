@@ -1,81 +1,13 @@
-.stage-name {
-  flex: 1;
-}
-
-.stage-goal {
-  display: block;
-  margin-top: 18rpx;
-}
-
 .task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
   margin-top: 18rpx;
 }
 
-.task-item {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin-top: 10rpx;
-}
-
-.task-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: #2f6fed;
-}
-
-.graph-card {
-  padding: 24rpx;
-}
-
-.graph-node {
-  padding: 22rpx;
-  border: 1rpx solid #e4e7ec;
-  border-radius: 24rpx;
-  background: #f9fafb;
-}
-
-.root-node {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18rpx;
-  border-color: #b9cdfa;
-  background: #eaf1ff;
-}
-
-.node-main {
-  flex: 1;
-}
-
-.node-main .muted,
-.graph-node .muted {
+.adjustment-card .body-text {
   display: block;
-  margin-top: 8rpx;
-}
-
-.graph-branch {
   margin-top: 10rpx;
-}
-
-.graph-item {
-  position: relative;
-  padding-left: 34rpx;
-  padding-top: 20rpx;
-}
-
-.graph-line {
-  position: absolute;
-  left: 12rpx;
-  top: 0;
-  width: 2rpx;
-  height: 100%;
-  background: #d0d5dd;
-}
-
-.node-title {
-  flex: 1;
 }
 
 .action-grid {
