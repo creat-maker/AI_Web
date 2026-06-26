@@ -1,36 +1,82 @@
-<view class="page">
-  <view class="header">
-    <view class="eyebrow">{{student.course}}</view>
-    <view class="title">{{pathTitle}}</view>
-    <view class="subtitle">{{updateMessage}}</view>
+<view class="page path-page">
+  <view class="hero-card path-hero">
+    <text class="eyebrow">{{student.course}}</text>
+    <text class="title">{{pathTitle}}</text>
+    <text class="subtitle">当前主题：{{topicTitle}}。{{updateMessage}}</text>
   </view>
 
-  <view class="stage-list">
-    <view wx:for="{{learningPath}}" wx:key="id" class="stage">
-      <view class="stage-top">
-        <text class="stage-index">{{item.id}}</text>
-        <view class="stage-main">
-          <view class="stage-title">{{item.title}}</view>
-          <view class="stage-status">{{item.status}}</view>
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <view class="section-title">学习路线图</view>
+        <view class="section-subtitle">按阶段推进，优先补强薄弱节点</view>
+      </view>
+    </view>
+    <view class="timeline">
+      <view wx:for="{{learningPath}}" wx:key="title" class="timeline-item">
+        <view class="timeline-line"></view>
+        <view class="timeline-dot {{item.statusClass}}">{{item.id}}</view>
+        <view class="glass-card stage-card">
+          <view class="stage-head">
+            <view>
+              <view class="stage-title">{{item.title}}</view>
+              <view class="stage-desc">{{item.goal}}</view>
+            </view>
+            <text class="stage-status {{item.statusClass}}">{{item.status}}</text>
+          </view>
+          <view class="stage-progress">
+            <view class="progress">
+              <view class="progress-bar" style="{{item.progressStyle}}"></view>
+            </view>
+            <text class="progress-percent">{{item.percent}}%</text>
+          </view>
+          <view class="stage-meta-grid">
+            <view>
+              <text class="meta-label">推荐任务</text>
+              <text class="meta-value">{{item.taskText}}</text>
+            </view>
+            <view>
+              <text class="meta-label">推荐资源</text>
+              <text class="meta-value">{{item.resourceText}}</text>
+            </view>
+          </view>
         </view>
       </view>
-      <view class="stage-desc">{{item.description}}</view>
-      <view class="stage-meta">任务：{{item.task}}</view>
-      <view class="stage-meta">资源：{{item.resourceText}}</view>
     </view>
   </view>
 
-  <view class="adjust-panel">
-    <view class="panel-title">测评后的路径调整</view>
-    <view class="adjust-row">是否调整：{{adjustment.adjustedText}}</view>
-    <view class="adjust-row">调整原因：{{adjustment.reason}}</view>
-    <view class="adjust-row">新增任务：{{adjustment.added_tasks}}</view>
-    <view class="adjust-row">推荐资源：{{adjustment.recommended_resources}}</view>
-    <view class="adjust-row">下一步建议：{{adjustment.next_step}}</view>
+  <view class="section">
+    <view class="adjust-panel">
+      <view class="adjust-head">
+        <view>
+          <view class="section-title">已根据测评结果调整路径</view>
+          <view class="section-subtitle">{{adjustment.adjustedText}}</view>
+        </view>
+        <text class="tag tag-purple">路径更新</text>
+      </view>
+      <view class="adjust-content">
+        <view class="adjust-row">
+          <text class="adjust-label">调整原因</text>
+          <text class="adjust-value">{{adjustment.reason}}</text>
+        </view>
+        <view class="adjust-row">
+          <text class="adjust-label">新增任务</text>
+          <text class="adjust-value">{{adjustment.added_tasks}}</text>
+        </view>
+        <view class="adjust-row">
+          <text class="adjust-label">推荐资源</text>
+          <text class="adjust-value">{{adjustment.recommended_resources}}</text>
+        </view>
+        <view class="adjust-row">
+          <text class="adjust-label">下一步建议</text>
+          <text class="adjust-value">{{adjustment.next_step}}</text>
+        </view>
+      </view>
+    </view>
   </view>
 
-  <view class="actions">
-    <button bindtap="goResources">查看推荐资源</button>
-    <button class="secondary" bindtap="goQuiz">进入测验评价</button>
+  <view class="section action-grid">
+    <button class="secondary-btn" bindtap="goResources">查看推荐资源</button>
+    <button class="primary-btn" bindtap="goQuiz">进入测验评价</button>
   </view>
 </view>

@@ -1,19 +1,115 @@
-.advice-card {
-  border-left: 8rpx solid #2f6fed;
+.report-page {
+  padding-bottom: 82rpx;
 }
 
-.advice-card .body-text {
-  display: block;
+.report-cover {
+  min-height: 300rpx;
+}
+
+.report-stats {
+  margin-top: 24rpx;
+}
+
+.summary-card {
+  border-left: 8rpx solid #2563eb;
+}
+
+.report-block {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 18rpx;
+}
+
+.report-block:first-child {
+  margin-top: 0;
+}
+
+.report-block-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 48rpx;
+  width: 48rpx;
+  height: 48rpx;
+  margin-top: 8rpx;
+  border-radius: 18rpx;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.report-block-card {
+  flex: 1;
+}
+
+.report-block-card .body-text {
   margin-top: 10rpx;
 }
 
+.weak-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  padding: 24rpx;
+  border-radius: 26rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.06);
+}
+
+.two-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.list-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.list-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 20rpx;
+  font-weight: 900;
+}
+
+.teacher-card {
+  padding: 28rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #eef4ff, #f3e8ff);
+}
+
+.teacher-title {
+  margin-bottom: 12rpx;
+  color: #1d4ed8;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
 .export-card {
-  background: #f5f8ff;
+  padding: 20rpx 24rpx;
+  border-radius: 22rpx;
+  background: #f8fbff;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 1.55;
 }
 
 .action-grid {
   display: flex;
-  gap: 24rpx;
+  gap: 18rpx;
 }
 
 .action-grid button {

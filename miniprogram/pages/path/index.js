@@ -1,9 +1,20 @@
 const { student, learningPath, quizResult } = require('../../utils/demoData');
 
+function statusClass(status) {
+  if (status === '已完成') return 'status-done';
+  if (status === '进行中') return 'status-active';
+  if (status === '推荐补强') return 'status-recommend';
+  return 'status-wait';
+}
+
 function decoratePath(rows) {
-  return rows.map((item) => ({
+  return rows.map((item, index) => ({
     ...item,
-    resourceText: (item.resources || []).join('、')
+    id: index + 1,
+    resourceText: (item.resources || []).join('、'),
+    taskText: (item.tasks || []).join('、'),
+    progressStyle: `width: ${item.percent || 0}%;`,
+    statusClass: statusClass(item.status)
   }));
 }
 
@@ -22,7 +33,8 @@ function normalizeAdjustment(value) {
 Page({
   data: {
     student,
-    pathTitle: 'Python 循环结构专项学习路径',
+    pathTitle: '个性化学习路径',
+    topicTitle: 'Python 循环结构',
     learningPath: decoratePath(learningPath),
     adjustment: normalizeAdjustment(),
     updateMessage: '学习路径会根据测评表现持续调整。'

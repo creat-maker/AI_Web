@@ -1,14 +1,30 @@
 const { post } = require('../../utils/request');
 const { student, profileDimensions } = require('../../utils/demoData');
 
+const dimensionMeta = [
+  { icon: '知', level: '巩固中', progress: 58, progressStyle: 'width: 58%;' },
+  { icon: '认', level: '已识别', progress: 76, progressStyle: 'width: 76%;' },
+  { icon: '偏', level: '清晰', progress: 82, progressStyle: 'width: 82%;' },
+  { icon: '错', level: '需关注', progress: 46, progressStyle: 'width: 46%;' },
+  { icon: '进', level: '68%', progress: 68, progressStyle: 'width: 68%;' },
+  { icon: '动', level: '稳定', progress: 72, progressStyle: 'width: 72%;' }
+];
+
 function normalizeDimensions(rows) {
   const source = rows && rows.length ? rows : profileDimensions;
-  return source.map((item) => ({
-    name: item.name || item.label || item.key,
-    explanation: item.explanation || item.description || '对话式画像维度，随学习过程持续更新。',
-    judgement: item.judgement || item.value || '已形成当前判断。',
-    strategy: item.strategy || '根据当前判断推荐匹配的学习资源和路径。'
-  }));
+  return source.map((item, index) => {
+    const meta = dimensionMeta[index] || dimensionMeta[0];
+    return {
+      name: item.name || item.label || item.key,
+      explanation: item.explanation || item.description || '对话式画像维度，随学习过程持续更新。',
+      judgement: item.judgement || item.value || '已形成当前判断。',
+      strategy: item.strategy || '根据当前判断推荐匹配的学习资源和路径。',
+      icon: meta.icon,
+      level: meta.level,
+      progress: meta.progress,
+      progressStyle: meta.progressStyle
+    };
+  });
 }
 
 Page({
@@ -17,9 +33,9 @@ Page({
     sourceLabel: '对话式画像构建',
     updateNote: '画像会随测验、答疑和资源使用记录持续更新。',
     messages: [
-      { role: 'ai', content: '你好李明，我会通过对话构建你的 Python 循环结构学习画像。' },
-      { role: 'user', content: '我写 while 循环时，经常不知道为什么会死循环。' },
-      { role: 'ai', content: '已记录你的主要薄弱点：while 循环条件更新、循环嵌套变量变化、break / continue 区分。' }
+      { role: 'ai', speaker: '画像助手', avatarText: '画', bubbleClass: 'ai-message', content: '你好李明，我会通过对话构建你的 Python 循环结构学习画像。' },
+      { role: 'user', speaker: student.name, avatarText: '我', bubbleClass: 'user-message', content: '我写 while 循环时，经常不知道为什么会死循环。' },
+      { role: 'ai', speaker: '画像助手', avatarText: '画', bubbleClass: 'ai-message', content: '已记录你的主要薄弱点：while 循环条件更新、循环嵌套变量变化、break / continue 区分。' }
     ],
     dimensions: normalizeDimensions(profileDimensions),
     weakPoints: ['while 循环', '循环嵌套', 'break / continue'],
@@ -65,8 +81,8 @@ Page({
     this.setData({
       inputValue: '',
       messages: this.data.messages.concat(
-        { role: 'user', content: value },
-        { role: 'ai', content: '已记录补充信息，并会用于更新循环结构补弱路径。' }
+        { role: 'user', speaker: student.name, avatarText: '我', bubbleClass: 'user-message', content: value },
+        { role: 'ai', speaker: '画像助手', avatarText: '画', bubbleClass: 'ai-message', content: '已记录补充信息，并会用于更新循环结构补弱路径。' }
       )
     });
   },

@@ -1,49 +1,82 @@
-<view class="page">
-  <view class="hero">
-    <view class="brand">EduMind Studio 学生端</view>
-    <view class="title">{{positioning}}</view>
-    <view class="subtitle">{{subtitle}}</view>
-    <view class="flow">{{flowText}}</view>
-  </view>
-
-  <view class="stat-grid">
-    <view class="stat">
-      <text class="stat-label">当前章节</text>
-      <text class="stat-value">{{stats.chapter}}</text>
+<view class="page home-page">
+  <view class="hero-card home-hero">
+    <view class="hero-top">
+      <view>
+        <view class="brand">EduMind Studio</view>
+        <view class="title">{{positioning}}</view>
+        <view class="subtitle">{{courseTitle}} · {{chapterTitle}}</view>
+      </view>
+      <view class="hero-badge">闭环</view>
     </view>
-    <view class="stat">
-      <text class="stat-label">学习进度</text>
-      <text class="stat-value">{{stats.progress}}</text>
-    </view>
-    <view class="stat">
-      <text class="stat-label">正确率</text>
-      <text class="stat-value">{{stats.accuracy}}</text>
-    </view>
-    <view class="stat">
-      <text class="stat-label">推荐资源数</text>
-      <text class="stat-value">{{stats.resourceCount}}</text>
+    <view class="hero-copy">{{subtitle}}</view>
+    <view class="hero-stats">
+      <view wx:for="{{stats}}" wx:key="label" class="hero-stat">
+        <text class="hero-stat-label">{{item.label}}</text>
+        <text class="hero-stat-value">{{item.value}}</text>
+      </view>
     </view>
   </view>
 
-  <view class="section-title">学习闭环入口</view>
-  <view class="entry-grid">
-    <button
-      wx:for="{{entries}}"
-      wx:key="name"
-      class="entry"
-      bindtap="goPage"
-      data-path="{{item.path}}"
-    >
-      <text class="entry-name">{{item.name}}</text>
-      <text class="entry-desc">{{item.desc}}</text>
-    </button>
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <view class="section-title">核心学习流程</view>
+        <view class="section-subtitle">从画像诊断到学习报告，形成完整学习闭环</view>
+      </view>
+    </view>
+    <view class="flow-rail">
+      <view wx:for="{{flowSteps}}" wx:key="*this" class="flow-step">
+        <text class="flow-index">{{index + 1}}</text>
+        <text class="flow-name">{{item}}</text>
+      </view>
+    </view>
   </view>
 
-  <view class="panel">
-    <view class="panel-title">今日学习重点</view>
-    <view class="task-name">{{currentTask.title}}</view>
-    <view class="task-desc">{{currentTask.description}}</view>
-    <view class="panel-meta">推荐资源：{{resourceCount}} 项 · 报告正确率：{{reportAccuracy}}</view>
-    <view class="panel-note">{{reportSummary}}</view>
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <view class="section-title">学习入口</view>
+        <view class="section-subtitle">选择当前要完成的学习动作</view>
+      </view>
+    </view>
+    <view class="entry-grid">
+      <button
+        wx:for="{{entries}}"
+        wx:key="name"
+        class="entry-card entry-{{item.accent}}"
+        bindtap="goPage"
+        data-path="{{item.path}}"
+      >
+        <view class="entry-icon">{{item.icon}}</view>
+        <view class="entry-main">
+          <text class="entry-name">{{item.name}}</text>
+          <text class="entry-desc">{{item.desc}}</text>
+        </view>
+        <text class="entry-arrow">›</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="glass-card advice-card">
+      <view class="advice-head">
+        <view>
+          <view class="section-title">今日学习建议</view>
+          <view class="section-subtitle">{{reportSummary}}</view>
+        </view>
+        <view class="accuracy-pill">{{reportAccuracy}}</view>
+      </view>
+      <view class="task-card">
+        <text class="task-label">当前任务</text>
+        <text class="task-name">{{currentTask.title}}</text>
+        <text class="task-desc">{{currentTask.description}}</text>
+      </view>
+      <view class="advice-list">
+        <view wx:for="{{todayAdvice}}" wx:key="*this" class="advice-item">
+          <text class="advice-dot">{{index + 1}}</text>
+          <text class="body-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
   </view>
 </view>

@@ -1,60 +1,86 @@
-<view class="page">
-  <view class="header">
-    <text class="eyebrow">学习报告</text>
-    <text class="title">{{student.name}} / {{report.title}}</text>
-    <text class="subtitle">包含学习摘要、正确率、薄弱点、推荐资源、下一步计划和教师干预建议。</text>
+<view class="page report-page">
+  <view class="hero-card report-cover">
+    <text class="eyebrow">学习诊断报告</text>
+    <text class="title">{{report.title}}</text>
+    <text class="subtitle">{{student.name}} · {{student.course}} · {{student.chapter}} · {{generatedAt}}</text>
   </view>
 
-  <view class="section grid-2">
-    <view class="stat-card"><text class="stat-label">正确率</text><text class="stat-value">{{report.accuracy}}</text></view>
-    <view class="stat-card"><text class="stat-label">学习进度</text><text class="stat-value">{{report.progress}}%</text></view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">学习摘要</text></view>
-    <view class="card"><text class="body-text">{{report.summary}}</text></view>
-  </view>
-
-  <view class="section">
-    <view class="section-head"><text class="section-title">报告口径</text><text class="tag tag-success">已同步</text></view>
-    <view class="card advice-card" wx:for="{{evaluationItems}}" wx:key="title">
-      <text class="primary-text">{{item.title}}</text>
-      <text class="body-text">{{item.detail}}</text>
+  <view class="section stat-grid report-stats">
+    <view class="stat-card">
+      <text class="stat-label">正确率</text>
+      <text class="stat-value">{{report.accuracy}}</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-label">学习进度</text>
+      <text class="stat-value">{{report.progress}}%</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-label">薄弱点数</text>
+      <text class="stat-value">{{report.weakPoints.length}}</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-label">推荐资源</text>
+      <text class="stat-value">{{report.recommendedResources.length}}</text>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">薄弱点</text></view>
-    <view class="card">
-      <view class="chip-row"><text class="chip" wx:for="{{report.weakPoints}}" wx:key="*this">{{item}}</text></view>
+    <view class="section-head">
+      <view>
+        <view class="section-title">诊断摘要</view>
+        <view class="section-subtitle">根据测评表现、薄弱点和学习路径生成</view>
+      </view>
+    </view>
+    <view class="glass-card summary-card">
+      <text class="body-text">{{report.summary}}</text>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">推荐资源</text></view>
-    <view class="card advice-card" wx:for="{{report.recommendedResources}}" wx:key="*this">
-      <text class="body-text">{{index + 1}}. {{item}}</text>
+    <view class="report-block" wx:for="{{evaluationItems}}" wx:key="title">
+      <view class="report-block-icon">{{index + 1}}</view>
+      <view class="glass-card report-block-card">
+        <text class="primary-text">{{item.title}}</text>
+        <text class="body-text">{{item.detail}}</text>
+      </view>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">下一步学习计划</text></view>
-    <view class="card advice-card" wx:for="{{report.nextPlan}}" wx:key="*this">
-      <text class="body-text">{{index + 1}}. {{item}}</text>
+    <view class="section-title">易错点</view>
+    <view class="weak-card">
+      <text class="chip" wx:for="{{report.weakPoints}}" wx:key="*this">{{item}}</text>
     </view>
   </view>
 
-  <view class="section">
-    <view class="section-head"><text class="section-title">教师干预建议</text></view>
-    <view class="card"><text class="body-text">{{report.teacherAdvice}}</text></view>
+  <view class="section two-list">
+    <view class="glass-card">
+      <text class="primary-text">推荐资源</text>
+      <view class="list-row" wx:for="{{report.recommendedResources}}" wx:key="*this">
+        <text class="list-index">{{index + 1}}</text>
+        <text class="body-text">{{item}}</text>
+      </view>
+    </view>
+    <view class="glass-card">
+      <text class="primary-text">下一步学习计划</text>
+      <view class="list-row" wx:for="{{report.nextPlan}}" wx:key="*this">
+        <text class="list-index">{{index + 1}}</text>
+        <text class="body-text">{{item}}</text>
+      </view>
+    </view>
   </view>
 
-  <view class="section">
-    <view class="card export-card"><text class="body-text">{{report.exportNote}}</text></view>
+  <view class="section teacher-card">
+    <view class="teacher-title">教师干预建议</view>
+    <text class="body-text">{{report.teacherAdvice}}</text>
+  </view>
+
+  <view class="section export-card">
+    <text>{{report.exportNote}}</text>
   </view>
 
   <view class="section action-grid">
-    <button class="button-secondary" bindtap="goQuiz">进入专项测验</button>
-    <button class="button-primary" bindtap="goTutor">咨询智能答疑</button>
+    <button class="secondary-btn" bindtap="goQuiz">进入专项测验</button>
+    <button class="primary-btn" bindtap="goTutor">咨询智能答疑</button>
   </view>
 </view>

@@ -4,67 +4,221 @@
   padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
 }
 
+.profile-hero {
+  min-height: 230rpx;
+}
+
+.soft-tip {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 20rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 22rpx;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.tip-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 999rpx;
+  background: #2563eb;
+}
+
+.dimension-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
 .dimension-card {
-  margin-top: 18rpx;
   padding: 26rpx;
-  border: 1rpx solid #e4e7ec;
-  border-radius: 24rpx;
-  background: #ffffff;
-  box-shadow: 0 10rpx 24rpx rgba(16, 24, 40, 0.05);
+}
+
+.dimension-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+}
+
+.dimension-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 58rpx;
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.dimension-title-wrap {
+  flex: 1;
+}
+
+.dimension-title {
+  display: block;
+  color: #0f172a;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.dimension-level {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 18rpx;
+}
+
+.mini-progress {
+  flex: 1;
+  height: 12rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: #e2e8f0;
+}
+
+.mini-progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
 }
 
 .dimension-block {
-  margin-top: 16rpx;
+  margin-top: 18rpx;
   padding: 18rpx;
-  border-radius: 18rpx;
-  background: #f5f8ff;
+  border-radius: 20rpx;
+  background: #f8fbff;
+}
+
+.strategy-block {
+  background: #fbf7ff;
 }
 
 .block-label {
   display: block;
   margin-bottom: 8rpx;
-  color: #2f6fed;
+  color: #2563eb;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.chat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+}
+
+.user-message {
+  flex-direction: row-reverse;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 22rpx;
+  background: #eef4ff;
+  color: #2563eb;
   font-size: 24rpx;
   font-weight: 900;
 }
 
-.message-card .body-text {
+.user-message .avatar {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.bubble {
+  max-width: 590rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.06);
+}
+
+.user-message .bubble {
+  background: #eef4ff;
+}
+
+.bubble-speaker {
+  display: block;
+  color: #2563eb;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.bubble-text {
   display: block;
   margin-top: 8rpx;
-}
-
-.user-message {
-  background: #eaf1ff;
-}
-
-.ai-message {
-  background: #ffffff;
+  color: #334155;
+  font-size: 26rpx;
+  line-height: 1.65;
 }
 
 .input-panel {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 92rpx;
   display: flex;
-  gap: 12rpx;
-  padding: 20rpx 32rpx 28rpx;
-  padding-bottom: calc(28rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  border-top: 1rpx solid #e4e7ec;
+  gap: 14rpx;
+  padding: 18rpx 28rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1rpx solid #e2e8f0;
 }
 
 .dialog-input {
   flex: 1;
   min-height: 82rpx;
-  padding: 0 20rpx;
-  border-radius: 24rpx;
-  background: #f5f7fb;
-  color: #162033;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: #f1f5f9;
+  color: #0f172a;
   font-size: 26rpx;
 }
 
 .send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 132rpx;
+  min-height: 82rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+.floating-path-btn {
+  position: fixed;
+  left: 28rpx;
+  right: 28rpx;
+  bottom: 20rpx;
+  bottom: calc(20rpx + constant(safe-area-inset-bottom));
+  bottom: calc(20rpx + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 74rpx;
+  border-radius: 999rpx;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 900;
 }

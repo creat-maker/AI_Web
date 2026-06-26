@@ -1,10 +1,23 @@
 const { post } = require('../../utils/request');
 const { student, resourcePack, resourceTypeLabels } = require('../../utils/demoData');
 
+const resourceTypeMeta = {
+  handout: { icon: '讲', className: 'type-blue', audience: '基础复习' },
+  mindmap: { icon: '图', className: 'type-purple', audience: '结构梳理' },
+  quiz: { icon: '练', className: 'type-orange', audience: '测后巩固' },
+  animation_html: { icon: '动', className: 'type-cyan', audience: '步骤理解' },
+  video_script: { icon: '稿', className: 'type-indigo', audience: '讲解复盘' },
+  tts_audio: { icon: '听', className: 'type-green', audience: '通勤复习' },
+  video_mp4: { icon: '视', className: 'type-red', audience: '视频学习' },
+  code_case: { icon: '码', className: 'type-slate', audience: '实操训练' },
+  project_task: { icon: '项', className: 'type-teal', audience: '综合应用' }
+};
+
 function normalizeResource(item) {
   const type = item.resource_type || item.resourceType || 'handout';
   const label = resourceTypeLabels[type] || item.resourceType || item.type || '学习资源';
   const knowledgePoints = item.knowledgePoints || item.knowledge_points || item.relatedKnowledgePoints || ['循环结构'];
+  const meta = resourceTypeMeta[type] || resourceTypeMeta.handout;
   let note = item.description || item.content || '';
 
   if (type === 'animation_html') {
@@ -27,14 +40,18 @@ function normalizeResource(item) {
     ...item,
     type,
     label,
+    icon: meta.icon,
+    typeClass: meta.className,
+    audience: item.audience || meta.audience,
     title: item.title || label,
     content: item.content || item.description || label,
     knowledgeText: knowledgePoints.join('、'),
+    knowledgeTags: knowledgePoints,
     difficultyText: item.difficulty || '基础',
     estimateText: item.estimatedMinutes || 15,
     note,
     joined: false,
-    taskText: '加入今日任务'
+    taskText: '加入学习'
   };
 }
 
@@ -55,8 +72,8 @@ Page({
   data: {
     pack: normalizePack(resourcePack),
     keyword: '循环',
-    typeFilter: '全部类型',
-    typeOptions: ['全部类型'].concat(Object.values(resourceTypeLabels)),
+    typeFilter: '全部',
+    typeOptions: ['全部'].concat(Object.values(resourceTypeLabels)),
     filteredResources: normalizePack(resourcePack).resources,
     emptyText: '',
     sourceMessage: ''
@@ -91,7 +108,12 @@ Page({
   },
 
   onTypeChange(event) {
-    this.setData({ typeFilter: this.data.typeOptions[Number(event.detail.value)] || '全部类型' });
+    this.setData({ typeFilter: this.data.typeOptions[Number(event.detail.value)] || '全部' });
+    this.applyFilter();
+  },
+
+  clearFilter() {
+    this.setData({ keyword: '', typeFilter: '全部' });
     this.applyFilter();
   },
 
@@ -101,12 +123,12 @@ Page({
     const rows = this.data.pack.resources.filter((item) => {
       const haystack = [item.title, item.content, item.label, item.knowledgeText, this.data.pack.courseName, this.data.pack.chapter].join(' ').toLowerCase();
       const matchWord = !word || haystack.indexOf(word) >= 0;
-      const matchType = typeFilter === '全部类型' || item.label === typeFilter;
+      const matchType = typeFilter === '全部' || item.label === typeFilter;
       return matchWord && matchType;
     });
     this.setData({
       filteredResources: rows,
-      emptyText: rows.length ? '' : '没有找到匹配资源，请调整关键词或类型。'
+      emptyText: rows.length ? '' : '暂未找到相关资源'
     });
   },
 
@@ -115,9 +137,21 @@ Page({
     const resources = this.data.filteredResources.slice();
     if (!resources[index]) return;
     resources[index].joined = true;
-    resources[index].taskText = '已加入今日任务';
+    resources[index].taskText = '已加入';
     this.setData({ filteredResources: resources });
-    wx.showToast({ title: '已加入任务', icon: 'success' });
+    wx.showToast({ title: '已加入学习', icon: 'success' });
+  },
+
+  previewResource(event) {
+    const index = Number(event.currentTarget.dataset.index);
+    const item = this.data.filteredResources[index];
+    if (!item) return;
+    wx.showModal({
+      title: item.title,
+      content: `${item.label}｜${item.knowledgeText}\n\n${item.note || item.content}`,
+      showCancel: false,
+      confirmText: '知道了'
+    });
   },
 
   goTutor() {

@@ -13,7 +13,7 @@ const profileDimensions = [
   {
     name: '知识基础',
     explanation: '判断学生对 Python 基础语法和循环结构的掌握情况。',
-    judgement: '基础薄弱，while 循环终止条件仍不稳定。',
+    judgement: '基础仍需巩固，while 循环终止条件还不稳定。',
     strategy: '先复习条件表达式和变量更新，再进入代码练习。'
   },
   {
@@ -59,7 +59,7 @@ const learningPath = [
   { title: '条件判断复习', status: '已完成', percent: 100, goal: '复习 if 条件表达式，为 while 条件判断做准备。', tasks: ['完成条件表达式速查', '判断 5 个布尔表达式结果'], resources: ['条件判断复习卡'] },
   { title: 'for 循环', status: '已完成', percent: 82, goal: '掌握已知次数循环和序列遍历。', tasks: ['改写 2 段列表遍历代码'], resources: ['for / range 对照表'] },
   { title: 'while 循环', status: '进行中', percent: 56, goal: '判断 while 循环是否会终止，并解释变量如何更新。', tasks: ['完成 while 补全题', '记录前三轮变量变化'], resources: ['while 死循环修复案例'] },
-  { title: 'break / continue', status: '推荐', percent: 30, goal: '区分结束循环和跳过本轮循环。', tasks: ['完成 6 道输出判断题'], resources: ['控制语句对比卡'] },
+  { title: 'break / continue', status: '推荐补强', percent: 30, goal: '区分结束循环和跳过本轮循环。', tasks: ['完成 6 道输出判断题'], resources: ['控制语句对比卡'] },
   { title: '循环嵌套', status: '待学习', percent: 10, goal: '追踪内外层循环变量变化。', tasks: ['补全九九乘法表'], resources: ['嵌套循环变量变化表'] },
   { title: '综合练习', status: '待学习', percent: 0, goal: '用循环完成列表统计小项目。', tasks: ['提交代码和运行截图'], resources: ['课程作业项目任务书'] }
 ];
@@ -68,10 +68,10 @@ const resourceTypeLabels = {
   handout: '知识讲义',
   mindmap: '思维导图',
   quiz: '练习题',
-  animation_html: 'HTML/SVG 动画',
-  video_script: '视频讲解脚本',
-  tts_audio: '语音讲解资源',
-  video_mp4: 'MP4 合成任务',
+  animation_html: '动画资源',
+  video_script: '视频脚本',
+  tts_audio: '语音讲解',
+  video_mp4: 'MP4 合成',
   code_case: '代码案例',
   project_task: '项目任务'
 };

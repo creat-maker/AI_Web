@@ -1,5 +1,5 @@
 const { post } = require('../../utils/request');
-const { quizResult, resourcePack } = require('../../utils/demoData');
+const { quizResult } = require('../../utils/demoData');
 
 function normalizeResult(data) {
   const source = data || quizResult;
@@ -22,34 +22,43 @@ function normalizeResult(data) {
 
 Page({
   data: {
-    title: '循环结构专项测验',
+    title: '循环结构测评',
     question: '下面哪一项最容易导致 while 循环无法结束？',
     options: ['循环体中更新变量', '循环条件最终变为 False', '循环变量没有更新', '使用 for 遍历列表'],
     selected: '',
+    selectedStatus: '待选择',
+    submitting: false,
+    submitDisabled: false,
     submitted: false,
     result: normalizeResult(quizResult),
     syncMessage: '',
-    submitText: '提交测验'
+    submitText: '提交测评',
+    progressText: '1 / 1',
+    progressStyle: 'width: 100%;'
   },
 
   chooseOption(event) {
     if (this.data.submitted) return;
-    this.setData({ selected: event.currentTarget.dataset.value });
+    this.setData({ selected: event.currentTarget.dataset.value, selectedStatus: '已选择' });
   },
 
   submitQuiz() {
-    if (this.data.submitted) return;
+    if (this.data.submitted || this.data.submitting) return;
+    this.setData({ submitting: true, submitDisabled: true });
     post('/quizzes/submit', {
       quiz_id: 1,
       student_profile_id: 1,
       answers: { q1: this.data.selected || '循环变量没有更新' }
-    }, null, { loadingText: '提交测验' })
+    }, null, { loadingText: '提交测评' })
       .then((res) => {
         const normalized = normalizeResult(res.data || res);
         this.applyResult(normalized);
       })
       .catch(() => {
         this.applyResult(normalizeResult(quizResult));
+      })
+      .finally(() => {
+        this.setData({ submitting: false });
       });
   },
 
@@ -60,7 +69,8 @@ Page({
       submitted: true,
       result,
       syncMessage: '系统已根据本次测评表现更新学习路径',
-      submitText: '已生成测评反馈'
+      submitText: '已生成测评反馈',
+      submitDisabled: true
     });
     wx.showToast({ title: '已更新路径', icon: 'success' });
   },
@@ -74,6 +84,14 @@ Page({
   },
 
   resetQuiz() {
-    this.setData({ selected: '', submitted: false, syncMessage: '', submitText: '提交测验' });
+    this.setData({
+      selected: '',
+      selectedStatus: '待选择',
+      submitting: false,
+      submitDisabled: false,
+      submitted: false,
+      syncMessage: '',
+      submitText: '提交测评'
+    });
   }
 });

@@ -18,8 +18,8 @@ function reportFromStorage() {
 
 function buildEvaluationItems(nextReport) {
   return [
-    { title: '学习诊断报告', detail: nextReport.summary },
-    { title: '形成性评价', detail: '正确率、错因和资源使用情况已用于生成下一步学习计划。' },
+    { title: '学习摘要', detail: nextReport.summary },
+    { title: '错因分析', detail: '正确率、错因和资源使用情况已用于生成下一步学习计划。' },
     { title: '路径调整依据', detail: quizResult.path_adjustment.reason }
   ];
 }
@@ -28,7 +28,8 @@ Page({
   data: {
     student,
     report,
-    evaluationItems: buildEvaluationItems(report)
+    evaluationItems: buildEvaluationItems(report),
+    generatedAt: '今日更新'
   },
 
   onShow() {

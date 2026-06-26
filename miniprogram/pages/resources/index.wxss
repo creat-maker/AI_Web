@@ -1,52 +1,226 @@
-.search-card {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
+.resources-page {
+  padding-bottom: 80rpx;
 }
 
-.search-card input,
-.picker-value {
+.resources-hero {
+  min-height: 260rpx;
+}
+
+.source-banner {
+  margin-top: 22rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 23rpx;
+  line-height: 1.45;
+}
+
+.search-panel {
+  display: flex;
+  gap: 16rpx;
+  padding: 18rpx;
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
   min-height: 78rpx;
   padding: 0 20rpx;
-  border-radius: 20rpx;
-  background: #f5f7fb;
-  color: #162033;
-  font-size: 26rpx;
-  line-height: 78rpx;
+  border-radius: 999rpx;
+  background: #f1f5f9;
 }
 
-.resource-card .muted,
-.resource-card .body-text {
-  display: block;
-  margin-top: 12rpx;
+.search-icon {
+  margin-right: 10rpx;
+  color: #64748b;
+  font-size: 30rpx;
+  font-weight: 900;
 }
 
-.resource-note {
-  display: block;
-  margin-top: 14rpx;
-  padding: 16rpx;
-  border-radius: 18rpx;
-  background: #f5f8ff;
-  color: #2459bd;
+.search-input-wrap input {
+  flex: 1;
+  color: #0f172a;
   font-size: 25rpx;
-  line-height: 1.5;
 }
 
-.practice-btn,
-.task-added-btn {
+.filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150rpx;
+  min-height: 78rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.type-scroll {
+  width: 100%;
+  margin-top: 18rpx;
+  white-space: nowrap;
+}
+
+.type-row {
+  display: flex;
+  gap: 12rpx;
+  padding-bottom: 4rpx;
+}
+
+.type-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #475569;
+  font-size: 23rpx;
+  font-weight: 800;
+  box-shadow: 0 8rpx 18rpx rgba(15, 23, 42, 0.05);
+}
+
+.resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.resource-card {
+  padding: 26rpx;
+}
+
+.resource-head {
+  display: flex;
+  gap: 18rpx;
+}
+
+.type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 64rpx;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 22rpx;
+  color: #ffffff;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.type-blue { background: #2563eb; }
+.type-purple { background: #7c3aed; }
+.type-orange { background: #ea580c; }
+.type-cyan { background: #0891b2; }
+.type-indigo { background: #4f46e5; }
+.type-green { background: #059669; }
+.type-red { background: #dc2626; }
+.type-slate { background: #334155; }
+.type-teal { background: #0f766e; }
+
+.resource-main {
+  flex: 1;
+}
+
+.resource-title {
+  color: #0f172a;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.resource-meta {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 23rpx;
+}
+
+.resource-content {
+  margin-top: 18rpx;
+  color: #334155;
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.resource-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
   margin-top: 18rpx;
 }
 
-.task-added-btn {
-  background: #e7f8ef;
-  color: #087443;
+.resource-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-top: 18rpx;
 }
 
-.action-grid {
+.resource-info > view {
+  padding: 16rpx;
+  border-radius: 18rpx;
+  background: #f8fbff;
+}
+
+.info-label,
+.info-value {
+  display: block;
+}
+
+.info-label {
+  color: #64748b;
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.info-value {
+  margin-top: 6rpx;
+  color: #0f172a;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.resource-note {
+  margin-top: 18rpx;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.card-actions {
   display: flex;
-  gap: 24rpx;
+  gap: 16rpx;
+  margin-top: 22rpx;
 }
 
-.action-grid button {
+.detail-btn,
+.learn-btn {
   flex: 1;
+  min-height: 76rpx;
+  font-size: 25rpx;
+}
+
+.tip-card {
+  margin-top: 24rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 22rpx;
+  background: #f8fbff;
+  color: #64748b;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+
+.ask-btn {
+  margin-top: 24rpx;
+}
+
+.empty-btn {
+  min-width: 220rpx;
 }
