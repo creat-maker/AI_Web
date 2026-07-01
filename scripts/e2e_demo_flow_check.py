@@ -300,7 +300,7 @@ class DemoFlowChecker:
         )
 
         self.run_step("H. 查询业务事件", "GET", "/api/v1/events?limit=200", None, None, lambda body: {"event_count": len(body or [])})
-        self.run_step("I. 查询业务日志", "GET", "/api/v1/logs?type=business_event", None, None, lambda body: {"log_count": len(body.get("items", body) if isinstance(body, dict) else body or [])})
+        self.run_step("I. 查询治理审计日志", "GET", "/api/v1/audit-logs", None, None, lambda body: {"log_count": len(body or [])})
         self.run_step("J. 查询 Agent 工作流", "GET", "/api/v1/agent-workflow", None, None, lambda body: {"template_count": len(body.get("workflow_templates", [])), "event_run_count": len(body.get("business_event_records", []))})
         self.run_step("K. 查询学习路径", "GET", "/api/v1/learning-paths", None, None, lambda body: {"path_count": len(body or []), "package_id_checked": package_id})
 

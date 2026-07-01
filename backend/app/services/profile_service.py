@@ -56,6 +56,11 @@ def latest_profile_by_user_id(db: Session, user_id: str | int, course_id: int | 
 
 def profile_to_dict(profile: StudentProfile) -> dict:
     raw_json = loads(profile.profile_json, {})
+    dimension_scores = loads(getattr(profile, "dimension_scores", None), raw_json.get("dimension_scores", {}))
+    evidence_items = loads(getattr(profile, "evidence_items", None), raw_json.get("evidence_items", []))
+    cognitive_state = loads(getattr(profile, "cognitive_state", None), raw_json.get("cognitive_state", {}))
+    profile_history = loads(getattr(profile, "profile_history", None), raw_json.get("profile_history", []))
+    risk_level = getattr(profile, "risk_level", None) or raw_json.get("risk_level") or "medium"
     normalized = normalize_profile_schema(
         {
             **raw_json,
@@ -65,6 +70,11 @@ def profile_to_dict(profile: StudentProfile) -> dict:
             "learning_goal": profile.learning_goal,
             "weak_points": loads(profile.weak_points, raw_json.get("weak_points", [])),
             "learning_preference": profile.learning_preference,
+            "dimension_scores": dimension_scores,
+            "evidence_items": evidence_items,
+            "cognitive_state": cognitive_state,
+            "profile_history": profile_history,
+            "risk_level": risk_level,
             "updated_at": profile.updated_at.isoformat() if profile.updated_at else raw_json.get("updated_at"),
         },
         raw_json.get("user_id"),
@@ -72,6 +82,11 @@ def profile_to_dict(profile: StudentProfile) -> dict:
     return {
         "id": profile.id,
         **normalized,
+        "dimension_scores": dimension_scores,
+        "evidence_items": evidence_items,
+        "cognitive_state": cognitive_state,
+        "profile_history": profile_history,
+        "risk_level": risk_level,
         "profile_json": normalized,
         "created_at": profile.created_at,
         "updated_at": profile.updated_at or normalized["updated_at"],

@@ -201,7 +201,7 @@ onMounted(loadCourses);
           <div class="course-side">
             <StatusBadge :label="course.status" :tone="course.status === '启用' ? 'success' : 'warning'" />
             <span>{{ course.chapterCount }} 章</span>
-            <RouterLink class="btn ghost" :to="`/admin/resource-generate?course_id=${course.id}`">生成资源</RouterLink>
+            <RouterLink class="btn ghost" :to="`/teacher/resource-generation?course_id=${course.id}`">生成资源</RouterLink>
           </div>
         </article>
       </div>

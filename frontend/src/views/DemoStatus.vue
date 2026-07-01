@@ -87,7 +87,7 @@ const demoGroups = (Object.keys(demoRoutes) as DemoRole[]).map((key) => ({
     route: item.route,
     goal: item.goal,
     script: roleScripts[key][Math.min(index, roleScripts[key].length - 1)],
-    expected: `页面可访问，并展示 ${item.title} 相关演示数据或能力边界说明。`
+    expected: `页面可访问，并展示 ${item.title} 相关业务数据或能力边界说明。`
   }))
 }));
 
@@ -158,7 +158,7 @@ onMounted(loadPage);
     <article class="placeholder-hero">
       <StatusBadge :label="`演示状态：${statusLabel}`" :tone="statusTone" />
       <h2>演示闭环与最终验收</h2>
-      <p>用于答辩前确认三端路由、后端健康、演示数据、关键能力、Agent 工作流和最近验收报告。</p>
+      <p>用于答辩前确认三端路由、后端健康、业务数据、关键能力、Agent 工作流和最近验收报告。</p>
     </article>
 
     <p v-if="loading" class="panel muted">正在读取最近一次验收报告...</p>
@@ -179,7 +179,7 @@ onMounted(loadPage);
 
       <section class="panel">
         <div class="panel-title">
-          <h2>统一演示数据口径</h2>
+          <h2>统一业务数据口径</h2>
           <span class="muted">前后端样例数据均围绕以下对象组织</span>
         </div>
         <div class="data-grid">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -13,45 +13,79 @@ interface LogItem {
   module: string;
   action: string;
   summary: string;
+  status: string;
   user?: string;
+  actor_name?: string;
+  actor_role?: string;
+  target_type?: string;
+  target_id?: string;
+  detail?: string;
+  error_message?: string;
   source?: string;
+  ip_address?: string;
+}
+
+interface LogSummary {
+  today_log_count: number;
+  error_log_count: number;
+  agent_run_count: number;
+  denied_count: number;
+  audit_count: number;
+  total_count: number;
 }
 
 const logs = ref<LogItem[]>([]);
+const summary = ref<LogSummary | null>(null);
 const error = ref('');
 const loading = ref(true);
+const filters = ref({ actor_role: 'all', status: 'all', action: 'all', keyword: '' });
 
 const fallbackLogs: LogItem[] = [
-  { id: 'log-1', time: '05-31 10:25:18', level: 'WARNING', module: 'AI 服务', action: '调用延迟', summary: '模型服务平均响应超过 2 秒，已进入观察队列。', user: 'system', source: '10.0.0.8' },
-  { id: 'log-2', time: '05-31 10:12:06', level: 'ERROR', module: '资源生成', action: '任务失败', summary: 'Web 前端课件提纲生成失败，原因：引用资源缺失。', user: 'Admin', source: '10.0.0.12' },
-  { id: 'log-3', time: '05-31 09:48:30', level: 'INFO', module: '用户权限', action: '角色分配', summary: '已为李助教分配 Python 课程组助教权限。', user: '赵管理员', source: '10.0.0.21' },
-  { id: 'log-4', time: '05-31 09:20:11', level: 'SUCCESS', module: 'Agent 工作流', action: '运行完成', summary: '学习路径推荐工作流运行成功，写回 3 个推荐节点。', user: 'system', source: '10.0.0.8' }
+  { id: 'audit-1', time: new Date().toISOString(), level: 'INFO', module: 'AuditCenter', action: 'review_approved', summary: '资源包审核通过，已发布到学生端。', status: 'success', actor_name: '管理员', actor_role: 'admin', target_type: 'resource_pack', target_id: '1', source: 'local' },
+  { id: 'audit-2', time: new Date().toISOString(), level: 'WARNING', module: 'AuditCenter', action: 'task_failed_rollback', summary: '生成失败，当前仍使用上一版内容。', status: 'failed', actor_name: '系统治理', actor_role: 'admin', target_type: 'learning_report', target_id: '2', source: 'local' }
 ];
 
-const alerts = [
-  { title: 'AI 服务响应延迟较高', level: '警告', module: 'AI 服务', time: '5 分钟前' },
-  { title: '资源生成失败率升高', level: '错误', module: '资源生成', time: '18 分钟前' },
-  { title: '知识库解析队列积压', level: '警告', module: '知识库', time: '32 分钟前' }
-];
+const actionOptions = computed(() => ['all', ...Array.from(new Set(logs.value.map((item) => item.action).filter(Boolean)))]);
 
-function levelTone(level: string) {
-  if (level === 'ERROR' || level === '错误') return 'danger';
-  if (level === 'WARNING' || level === '警告') return 'warning';
-  if (level === 'SUCCESS') return 'success';
+function levelTone(level: string, status?: string) {
+  if (status === 'denied' || status === 'failed' || level === 'ERROR') return 'danger';
+  if (level === 'WARNING') return 'warning';
+  if (level === 'SUCCESS' || status === 'success') return 'success';
   return 'info';
+}
+
+function roleLabel(role?: string) {
+  const map: Record<string, string> = { student: '学生', teacher: '教师', admin: '管理员', guest: '访客' };
+  return map[role || ''] || role || 'system';
 }
 
 async function loadLogs() {
   loading.value = true;
   error.value = '';
   try {
-    logs.value = await api.get<LogItem[]>('/api/v1/logs');
+    const params = new URLSearchParams();
+    Object.entries(filters.value).forEach(([key, value]) => {
+      if (value && value !== 'all') params.set(key, value);
+    });
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const [rows, stat] = await Promise.all([
+      api.get<LogItem[]>(`/api/v1/logs${query}`),
+      api.get<LogSummary>('/api/v1/logs/summary')
+    ]);
+    logs.value = rows;
+    summary.value = stat;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '日志接口暂不可用，当前显示演示日志。';
+    error.value = err instanceof Error ? err.message : '日志接口暂不可用，当前显示本地审计摘要。';
     logs.value = fallbackLogs;
+    summary.value = { today_log_count: 2, error_log_count: 1, agent_run_count: 0, denied_count: 0, audit_count: 2, total_count: 2 };
   } finally {
     loading.value = false;
   }
+}
+
+function clearFilters() {
+  filters.value = { actor_role: 'all', status: 'all', action: 'all', keyword: '' };
+  loadLogs();
 }
 
 onMounted(loadLogs);
@@ -59,107 +93,92 @@ onMounted(loadLogs);
 
 <template>
   <section class="page">
-    <PageHeader title="日志管理" description="集中查看系统日志、AI 调用、接口异常和平台告警。">
+    <PageHeader title="操作审计" description="集中查看权限、AI 任务、人工复核、失败回滚和系统运行日志。">
       <template #actions>
-        <button>导出日志</button>
-        <button class="secondary" :disabled="loading" @click="loadLogs">{{ loading ? '刷新中' : '刷新日志' }}</button>
+        <button class="secondary" type="button" @click="clearFilters">清空筛选</button>
+        <button :disabled="loading" type="button" @click="loadLogs">{{ loading ? '刷新中' : '刷新日志' }}</button>
       </template>
     </PageHeader>
 
-    <p v-if="error" class="demo-banner">{{ error }}</p>
+    <p v-if="error" class="panel warning-text">{{ error }}</p>
 
     <div class="stat-grid">
-      <StatCard label="今日日志" value="1,286" unit="条" icon="志" />
-      <StatCard label="警告数" value="36" unit="条" icon="警" tone="orange" />
-      <StatCard label="错误数" value="8" unit="条" icon="错" tone="red" />
-      <StatCard label="AI 调用次数" value="18,620" unit="次" icon="AI" tone="purple" />
-      <StatCard label="接口异常" value="5" unit="次" icon="异" tone="cyan" />
+      <StatCard label="今日日志" :value="summary?.today_log_count || 0" unit="条" icon="志" />
+      <StatCard label="审计事件" :value="summary?.audit_count || 0" unit="条" icon="审" tone="purple" />
+      <StatCard label="权限拒绝" :value="summary?.denied_count || 0" unit="次" icon="拒" tone="orange" />
+      <StatCard label="失败事件" :value="summary?.error_log_count || 0" unit="条" icon="错" tone="red" />
     </div>
 
-    <DataCard title="日志筛选" subtitle="按级别、模块和时间范围定位问题">
+    <DataCard title="日志筛选" subtitle="按角色、状态、操作类型和关键词定位事件">
       <div class="filter-row log-filter">
-        <select><option>全部级别</option><option>INFO</option><option>WARNING</option><option>ERROR</option><option>SUCCESS</option></select>
-        <select><option>全部模块</option><option>AI 服务</option><option>资源生成</option><option>Agent 工作流</option><option>用户权限</option></select>
-        <input type="date" />
-        <input placeholder="搜索内容、用户、IP..." />
+        <select v-model="filters.actor_role" @change="loadLogs">
+          <option value="all">全部角色</option>
+          <option value="student">学生</option>
+          <option value="teacher">教师</option>
+          <option value="admin">管理员</option>
+          <option value="guest">访客</option>
+        </select>
+        <select v-model="filters.status" @change="loadLogs">
+          <option value="all">全部状态</option>
+          <option value="success">success</option>
+          <option value="failed">failed</option>
+          <option value="denied">denied</option>
+        </select>
+        <select v-model="filters.action" @change="loadLogs">
+          <option v-for="item in actionOptions" :key="item" :value="item">{{ item === 'all' ? '全部操作' : item }}</option>
+        </select>
+        <input v-model="filters.keyword" placeholder="搜索详情、对象、用户..." @keyup.enter="loadLogs" />
       </div>
     </DataCard>
 
-    <div class="content-with-aside">
-      <DataCard title="日志列表" subtitle="时间、级别、模块、用户、内容和 IP">
+    <DataCard title="审计日志列表" subtitle="展示时间、操作者、角色、操作、对象、状态、详情和失败原因">
+      <div class="table-wrap">
         <table class="table">
           <thead>
             <tr>
               <th>时间</th>
-              <th>级别</th>
-              <th>模块</th>
-              <th>用户</th>
-              <th>内容</th>
-              <th>IP</th>
-              <th>操作</th>
+              <th>操作者</th>
+              <th>角色</th>
+              <th>操作类型</th>
+              <th>操作对象</th>
+              <th>状态</th>
+              <th>详情</th>
+              <th>失败原因</th>
+              <th>来源</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in logs" :key="item.id">
               <td>{{ item.time }}</td>
-              <td><StatusBadge :label="item.level" :tone="levelTone(item.level)" /></td>
-              <td><strong>{{ item.module }}</strong></td>
-              <td>{{ item.user || 'system' }}</td>
-              <td>{{ item.summary || item.action }}</td>
-              <td>{{ item.source || '10.0.0.8' }}</td>
-              <td>
-                <div class="row-actions">
-                  <button class="ghost">详情</button>
-                  <button class="ghost">已处理</button>
-                </div>
-              </td>
+              <td>{{ item.actor_name || item.user || 'system' }}</td>
+              <td>{{ roleLabel(item.actor_role) }}</td>
+              <td><strong>{{ item.action }}</strong><p>{{ item.module }}</p></td>
+              <td>{{ item.target_type || item.module }}<p>{{ item.target_id || '-' }}</p></td>
+              <td><StatusBadge :label="item.status || item.level" :tone="levelTone(item.level, item.status)" /></td>
+              <td>{{ item.detail || item.summary }}</td>
+              <td>{{ item.error_message || (item.status === 'failed' ? item.summary : '-') }}</td>
+              <td>{{ item.ip_address || item.source || 'local' }}</td>
             </tr>
           </tbody>
         </table>
-      </DataCard>
-
-      <DataCard title="系统告警" subtitle="需要管理员关注的风险事件">
-        <div class="list">
-          <article v-for="item in alerts" :key="item.title" class="alert-row">
-            <div>
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.module }} · {{ item.time }}</p>
-            </div>
-            <StatusBadge :label="item.level" :tone="levelTone(item.level)" />
-          </article>
-        </div>
-      </DataCard>
-    </div>
+      </div>
+    </DataCard>
   </section>
 </template>
 
 <style scoped>
 .log-filter {
-  grid-template-columns: 160px 180px 180px minmax(240px, 1fr);
+  grid-template-columns: 150px 150px 220px minmax(240px, 1fr);
 }
 
-.row-actions,
-.alert-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: center;
+.table-wrap {
+  overflow-x: auto;
 }
 
-.row-actions {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-}
-
-.alert-row {
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 12px;
-  background: #fbfdff;
-}
-
-.alert-row p {
-  margin: 4px 0 0;
+td p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

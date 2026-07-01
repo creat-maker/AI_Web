@@ -6,8 +6,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_roles
 from app.db.session import get_db
-from app.models import AgentRun, Course, CourseDocument, LearningReport, SystemLog, TutorQuestionLog
+from app.models import AgentRun, AuditLog, Course, CourseDocument, LearningReport, SystemLog, TutorQuestionLog
+from app.services.governance_service import ensure_governance_seed
 from app.services.json_utils import dumps, loads
 
 
@@ -113,8 +115,44 @@ def _fallback_logs() -> list[dict[str, Any]]:
 
 
 def _collect_logs(db: Session) -> list[dict[str, Any]]:
+    ensure_governance_seed(db)
     course_titles = _course_titles(db)
     rows: list[dict[str, Any]] = []
+
+    for item in db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(200).all():
+        rows.append(
+            {
+                "id": f"audit-{item.id}",
+                "type": "audit",
+                "category": "governance",
+                "title": item.action,
+                "content": item.detail or "",
+                "summary": _short(item.detail, "审计事件"),
+                "level": "WARNING" if item.status in {"denied", "failed"} else "INFO",
+                "module": "AuditCenter",
+                "user": item.actor_name or "system",
+                "related_id": item.target_id,
+                "related_type": item.target_type,
+                "created_at": _to_iso(item.created_at),
+                "time": _to_iso(item.created_at),
+                "duration_ms": 0,
+                "status": item.status,
+                "error_message": item.detail if item.status == "failed" else "",
+                "metadata": {},
+                "action": item.action,
+                "source": item.ip_address or "local",
+                "course_id": None,
+                "course_title": "Python 程序设计",
+                "suggestion": "审计事件已脱敏，仅展示必要摘要。",
+                "actor_id": item.actor_id,
+                "actor_name": item.actor_name or "system",
+                "actor_role": item.actor_role,
+                "target_type": item.target_type,
+                "target_id": item.target_id,
+                "detail": item.detail or "",
+                "ip_address": item.ip_address or "",
+            }
+        )
 
     for item in db.query(SystemLog).order_by(SystemLog.created_at.desc()).limit(200).all():
         rows.append(
@@ -258,6 +296,9 @@ def _apply_filters(
     keyword: str | None,
     start_time: str | None,
     end_time: str | None,
+    actor_role: str | None = None,
+    status: str | None = None,
+    action: str | None = None,
 ) -> list[dict[str, Any]]:
     keyword_text = (keyword or "").strip().lower()
     start_dt = _parse_dt(start_time)
@@ -278,6 +319,12 @@ def _apply_filters(
             continue
         if module and module != "all" and item["module"] != module:
             continue
+        if actor_role and actor_role != "all" and item.get("actor_role") != actor_role:
+            continue
+        if status and status != "all" and item.get("status") != status:
+            continue
+        if action and action != "all" and item.get("action") != action:
+            continue
         if keyword_text and keyword_text not in haystack:
             continue
         if start_dt and created_at and created_at < start_dt:
@@ -294,21 +341,40 @@ def list_logs(
     category: str | None = None,
     level: str | None = None,
     module: str | None = None,
+    actor_role: str | None = None,
+    status: str | None = None,
+    action: str | None = None,
     keyword: str | None = None,
     start_time: str | None = None,
     end_time: str | None = None,
     order: str = "desc",
     limit: int = 120,
     db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("admin")),
 ):
-    rows = _apply_filters(_collect_logs(db), type, category, level, module, keyword, start_time, end_time)
+    rows = _apply_filters(
+        _collect_logs(db),
+        type,
+        category,
+        level,
+        module,
+        keyword,
+        start_time,
+        end_time,
+        actor_role,
+        status,
+        action,
+    )
     reverse = order != "asc"
     rows = sorted(rows, key=lambda item: item["created_at"], reverse=reverse)
     return rows[: min(max(limit, 1), 200)]
 
 
 @router.get("/summary")
-def logs_summary(db: Session = Depends(get_db)):
+def logs_summary(
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("admin")),
+):
     rows = _collect_logs(db)
     today = datetime.utcnow().date()
     return {
@@ -316,13 +382,19 @@ def logs_summary(db: Session = Depends(get_db)):
         "error_log_count": sum(1 for item in rows if item["level"] == "ERROR" or item["type"] == "error"),
         "agent_run_count": sum(1 for item in rows if item["type"] == "agent_workflow"),
         "question_count": sum(1 for item in rows if item["type"] == "qa"),
+        "denied_count": sum(1 for item in rows if item.get("status") == "denied"),
+        "audit_count": sum(1 for item in rows if item["type"] == "audit"),
         "total_count": len(rows),
-        "type_counts": {key: sum(1 for item in rows if item["type"] == key) for key in TYPE_TO_CATEGORY},
+        "type_counts": {key: sum(1 for item in rows if item["type"] == key) for key in [*TYPE_TO_CATEGORY, "audit"]},
     }
 
 
 @router.get("/{log_id}")
-def get_log_detail(log_id: str, db: Session = Depends(get_db)):
+def get_log_detail(
+    log_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("admin")),
+):
     for item in _collect_logs(db):
         if item["id"] == log_id:
             return item

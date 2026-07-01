@@ -31,6 +31,12 @@ def create_learning_report(
     weak_points = summary.get("weak_points") or []
     stages = summary.get("stages") or summary.get("learning_path") or []
     suggestions = summary.get("teaching_suggestions") or summary.get("learning_suggestions") or []
+    dimension_scores = summary.get("dimension_scores") or {}
+    cognitive_state = summary.get("cognitive_state") or {}
+    citations = summary.get("citations") or summary.get("references") or []
+    adjustment_log = summary.get("adjustment_log") or []
+    resources = summary.get("resources") or summary.get("recommended_resources") or []
+    arbitration = summary.get("teacher_arbitration") or summary.get("audit_records") or []
 
     if Document:
         doc = Document()
@@ -40,6 +46,12 @@ def create_learning_report(
         doc.add_paragraph(f"学习目标：{profile.learning_goal or '围绕当前章节完成学习闭环'}")
         doc.add_heading("画像摘要", level=2)
         doc.add_paragraph(str(profile_summary))
+        doc.add_heading("6 维度画像", level=2)
+        for name, value in (dimension_scores or {}).items():
+            doc.add_paragraph(f"{name}：{value.get('score', value)}", style="List Bullet")
+        doc.add_heading("DKVMN 知识掌握状态", level=2)
+        for item in (cognitive_state.get("concepts") or [])[:10]:
+            doc.add_paragraph(f"{item.get('name')}：{round(float(item.get('mastery', 0)) * 100)}%", style="List Bullet")
         doc.add_heading("薄弱知识点", level=2)
         for point in weak_points or ["循环结构综合应用"]:
             doc.add_paragraph(str(point), style="List Bullet")
@@ -51,6 +63,18 @@ def create_learning_report(
                 doc.add_paragraph(f"{name}：{target}", style="List Bullet")
         doc.add_heading("测评反馈", level=2)
         doc.add_paragraph(str(evaluation_summary))
+        doc.add_heading("RAG 引用证据", level=2)
+        for item in citations or ["学生画像", "学习路径", "测评反馈", "课程知识库"]:
+            doc.add_paragraph(str(item), style="List Bullet")
+        doc.add_heading("路径调整历史", level=2)
+        for item in adjustment_log or ["暂无路径调整记录"]:
+            doc.add_paragraph(str(item), style="List Bullet")
+        doc.add_heading("资源推荐", level=2)
+        for item in resources or ["循环结构讲义、HTML 动画、代码案例和专项练习"]:
+            doc.add_paragraph(str(item), style="List Bullet")
+        doc.add_heading("审核与教师仲裁", level=2)
+        for item in arbitration or ["当前为本地轻量审核记录，外部安全服务未配置时使用 fallback。"]:
+            doc.add_paragraph(str(item), style="List Bullet")
         doc.add_heading("后续建议", level=2)
         for item in suggestions or ["完成分层练习后更新学习报告。"]:
             content = item.get("content") if isinstance(item, dict) else item
@@ -67,11 +91,29 @@ def create_learning_report(
             "## 画像摘要",
             str(profile_summary),
             "",
+            "## 6 维度画像",
+            *[f"- {name}：{value.get('score', value)}" for name, value in (dimension_scores or {}).items()],
+            "",
+            "## DKVMN 知识掌握状态",
+            *[f"- {item.get('name')}：{round(float(item.get('mastery', 0)) * 100)}%" for item in (cognitive_state.get("concepts") or [])[:10]],
+            "",
             "## 薄弱知识点",
             *[f"- {point}" for point in (weak_points or ["循环结构综合应用"])],
             "",
             "## 测评反馈",
             str(evaluation_summary),
+            "",
+            "## RAG 引用证据",
+            *[f"- {item}" for item in (citations or ["学生画像", "学习路径", "测评反馈", "课程知识库"])],
+            "",
+            "## 路径调整历史",
+            *[f"- {item}" for item in (adjustment_log or ["暂无路径调整记录"])],
+            "",
+            "## 资源推荐",
+            *[f"- {item}" for item in (resources or ["循环结构讲义、HTML 动画、代码案例和专项练习"])],
+            "",
+            "## 审核与教师仲裁",
+            *[f"- {item}" for item in (arbitration or ["当前为本地轻量审核记录，外部安全服务未配置时使用 fallback。"])],
             "",
             "## 后续建议",
             *[f"- {item.get('content') if isinstance(item, dict) else item}" for item in (suggestions or ["完成分层练习后更新学习报告。"])],

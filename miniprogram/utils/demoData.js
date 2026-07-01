@@ -9,6 +9,14 @@ const student = {
   todayFocus: 'while 循环、循环嵌套、break / continue'
 };
 
+const dkvmnSummary = {
+  averageMastery: 0.57,
+  weakConcepts: ['while 循环', 'break/continue', '循环嵌套'],
+  strongConcepts: ['for 循环', '列表遍历'],
+  riskLevel: 'medium',
+  latestReason: '测验后 DKVMN 显示 while 循环掌握度低于 0.5，路径已插入补弱任务。'
+};
+
 const profileDimensions = [
   {
     name: '知识基础',
@@ -107,7 +115,8 @@ const quizResult = {
     added_tasks: ['while 循环补全题 6 道', 'break / continue 输出判断题 6 道', '循环嵌套变量变化表'],
     recommended_resources: ['while 死循环修复案例', '控制语句对比卡', '循环结构分层练习题'],
     next_step: '先完成 while 循环补全，再进入 break / continue 对比练习。'
-  }
+  },
+  dkvmn: dkvmnSummary
 };
 
 const report = {
@@ -119,6 +128,7 @@ const report = {
   recommendedResources: quizResult.path_adjustment.recommended_resources,
   nextPlan: ['完成 while 循环补全题', '复盘 break / continue 输出判断', '完成循环嵌套综合任务'],
   teacherAdvice: '建议教师课堂点拨变量更新位置，并要求学生提交变量变化表。',
+  arbitration: '中风险路径调整已记录，重大干预需教师确认后推送。',
   exportNote: '完整报告可在 Web 端导出。'
 };
 
@@ -126,6 +136,7 @@ module.exports = {
   student,
   profileDimensions,
   homeStats,
+  dkvmnSummary,
   learningPath,
   resourceTypeLabels,
   resourcePack,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { api } from '../api/client';
+import CitationCard from '../components/CitationCard.vue';
 import type { Course } from '../types';
 
 interface RetrievedContext {
@@ -32,6 +33,7 @@ interface TutorAnswer {
   cards?: TutorCard[];
   retrieved_context?: RetrievedContext[];
   citation_sources?: CitationSource[];
+  citations?: Array<{ citation_id?: string; source_file?: string; sourceFile?: string; section_title?: string; section?: string; page_number?: number | null; confidence?: number; snippet?: string }>;
   follow_up_suggestions?: string[];
   based_on_material?: boolean;
   confidence?: number;
@@ -46,6 +48,11 @@ interface TutorAnswer {
   learning_basis_note?: string;
   lowEvidenceRisk?: string;
   nextStep?: string;
+  curriculum_alignment_score?: number;
+  is_out_of_curriculum?: boolean;
+  boundary_warning?: string;
+  suggested_actions?: string[];
+  retrieval_debug?: Record<string, unknown>;
   mode: string;
 }
 
@@ -218,22 +225,22 @@ async function ask() {
   error.value = '';
   actionMessage.value = '正在生成个性化学习建议...';
   try {
-    const result = await api.post<TutorAnswer & { citation?: string; citations?: Array<{ snippet?: string }>; nextLearningPath?: string }>('/api/v1/ai-tutor/ask', {
+    const result = await api.post<TutorAnswer & { citation?: string; citations?: Array<{ snippet?: string; source_file?: string; sourceFile?: string; section_title?: string; section?: string; confidence?: number }>; nextLearningPath?: string }>('/api/v1/rag/ask', {
       question: form.question.trim(),
-      mode: form.heuristic_mode ? '启发式答疑' : '智能答疑',
-      studentId: 'student-li-ming',
-      courseName: courses.value.find((item) => item.id === form.course_id)?.title || 'Python 程序设计'
+      courseId: 'python-programming',
+      studentId: 'demo-basic'
     });
     answer.value = {
       ...result,
+      mode: result.mode || '课程约束 RAG',
       retrieved_context: [],
       citation_sources: [
-        {
-          document_name: result.citation || 'Python 程序设计课程知识库 / 循环结构章节',
-          snippet: result.citations?.[0]?.snippet || result.citation || 'Python 程序设计课程知识库 / 循环结构章节',
+        ...(result.citations || []).map((item) => ({
+          document_name: item.source_file || item.sourceFile || 'Python 程序设计课程知识库 / 循环结构章节',
+          snippet: item.snippet || 'Python 程序设计课程知识库 / 循环结构章节',
           relevance: 0.86,
-          confidence: result.confidence || 0.86
-        }
+          confidence: item.confidence || result.confidence || 0.86
+        }))
       ],
       based_on_material: true,
       confidence_level: 'high',
@@ -381,12 +388,15 @@ onMounted(loadCourses);
       <div class="answer-flags">
         <span>{{ answer.based_on_material ? '基于资料回答' : '根据学习问题生成回答' }}</span>
         <span>置信度 {{ answer.confidence ?? '-' }}</span>
+        <span>课程对齐 {{ answer.curriculum_alignment_score ?? '-' }}</span>
+        <span>{{ answer.is_out_of_curriculum ? '存在超纲风险' : '课程范围内' }}</span>
         <span>依据风险 {{ evidenceRisk(answer) }}</span>
         <span>下一步：{{ answer.nextStep || '完成 while 循环专项练习' }}</span>
         <span>{{ form.no_direct_answer ? '不直接给答案' : '可给出结构化回答' }}</span>
         <span>提示层级 {{ answer.hint_level || form.hint_level }}</span>
         <span>掌握度变化 +{{ answer.mastery_delta ?? 0 }}</span>
       </div>
+      <p v-if="answer.boundary_warning" class="basis-note">{{ answer.boundary_warning }}</p>
       <div v-if="answer.teaching_strategy || answer.detected_misconception" class="teaching-card">
         <strong>教学策略：{{ answer.teaching_strategy || '暂无策略' }}</strong>
         <p>错因识别：{{ answer.detected_misconception || '暂无识别' }}</p>
@@ -433,6 +443,11 @@ onMounted(loadCourses);
         </span>
       </div>
       <div class="source-grid">
+        <CitationCard
+          v-for="item in answer.citations || []"
+          :key="item.citation_id || item.snippet"
+          :citation="item"
+        />
         <article v-for="item in answer.citation_sources || []" :key="`${item.document_name}-${item.snippet}`" class="source-card">
           <div class="source-header">
             <strong>{{ item.document_name || '未知来源' }}</strong>

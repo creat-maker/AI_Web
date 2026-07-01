@@ -18,6 +18,27 @@
   </view>
 
   <view class="section">
+    <view class="glass-card dkvmn-card">
+      <view class="dkvmn-head">
+        <view>
+          <view class="section-title">DKVMN 掌握状态</view>
+          <view class="section-subtitle">李明 · Python 循环结构</view>
+        </view>
+        <view class="accuracy-pill">{{dkvmn.masteryText}}</view>
+      </view>
+      <view class="dkvmn-row">
+        <text class="dkvmn-label">薄弱</text>
+        <text class="body-text">{{dkvmn.weakText}}</text>
+      </view>
+      <view class="dkvmn-row">
+        <text class="dkvmn-label">优势</text>
+        <text class="body-text">{{dkvmn.strongText}}</text>
+      </view>
+      <text class="muted">{{dkvmn.reason}}</text>
+    </view>
+  </view>
+
+  <view class="section">
     <view class="section-head">
       <view>
         <view class="section-title">核心学习流程</view>

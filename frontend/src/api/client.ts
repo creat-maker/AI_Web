@@ -3,6 +3,7 @@ const DEFAULT_BASE = '';
 export const apiBase = String(import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE).replace(/\/$/, '');
 
 const DEMO_USER_KEY = 'edumind.demoUserId';
+const TOKEN_KEY = 'edumind.accessToken';
 
 function currentDemoUserId() {
   return localStorage.getItem(DEMO_USER_KEY) || 'demo-basic';
@@ -27,6 +28,10 @@ function withDemoUser(path: string, init?: RequestInit) {
   }
   const headers = new Headers(init?.headers);
   headers.set('X-Demo-User-Id', userId);
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
   return {
     path: `${url.pathname}${url.search}${url.hash}`,
     init: { ...init, headers }

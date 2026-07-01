@@ -54,6 +54,13 @@
       </view>
     </view>
 
+    <view class="glass-card dkvmn-result-card">
+      <view class="section-title">DKVMN 掌握更新</view>
+      <text class="body-text">平均掌握度：{{result.dkvmn.averageMastery}}</text>
+      <text class="body-text">薄弱概念：{{result.dkvmn.weakConcepts}}</text>
+      <text class="muted">{{result.dkvmn.latestReason}}</text>
+    </view>
+
     <view class="glass-card detail-card">
       <view class="section-title">错因分析</view>
       <view class="detail-item" wx:for="{{result.error_analysis}}" wx:key="*this">

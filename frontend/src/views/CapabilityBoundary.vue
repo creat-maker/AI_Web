@@ -36,13 +36,13 @@ onMounted(() => {
         </article>
 
         <article class="panel">
-          <h2>demo / mock / fallback 能力</h2>
+          <h2>本地运行与降级能力</h2>
           <div class="list">
-            <div class="item compact">未配置真实模型 Key 时使用 mock LLM。</div>
+            <div class="item compact">未配置真实模型 Key 时使用本地智能评测引擎。</div>
             <div class="item compact">科大讯飞 TTS / Spark / Safety 为可配置服务；无 Key 时系统使用本地智能评测引擎稳定运行。</div>
             <div class="item compact">防幻觉机制包含课程知识库引用、内容审核、人工复核和可接入讯飞安全服务。</div>
             <div class="item compact">RAG 质量诊断、query rewrite、错因识别和掌握度变化为规则估计。</div>
-            <div class="item compact">Agent 工作流为 EduMind 内置演示编排，未接真实 LangGraph。</div>
+            <div class="item compact">Agent 工作流为 EduMind 内置轻量编排，后续可接入真实 LangGraph。</div>
           </div>
         </article>
       </div>
@@ -52,7 +52,7 @@ onMounted(() => {
           <h2>后续真实能力接入位置</h2>
           <div class="list">
             <div class="item compact">真实 RAG：替换 `backend/app/rag/vector_store.py` 和 TutorChat 检索链。</div>
-            <div class="item compact">真实 LangGraph：替换 AgentWorkflow 的模拟节点执行和 run_id 写入。</div>
+            <div class="item compact">真实 LangGraph：替换 AgentWorkflow 的本地节点执行和 run_id 写入。</div>
             <div class="item compact">真实知识追踪：将 TeacherAnalysis 的规则掌握度替换为 BKT/DKT 服务。</div>
           </div>
         </article>

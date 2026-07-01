@@ -1,0 +1,50 @@
+{
+  "dataset_size": 5,
+  "scope": "演示测试集验证结果",
+  "warning": "当前样本量较小，仅用于演示检索链路是否命中预期证据，不代表真实大规模评测结论。",
+  "MRR": 1.0,
+  "Recall@K": 1.0,
+  "NDCG@K": 1.0,
+  "details": [
+    {
+      "question": "for 循环适合什么场景？",
+      "hit_ranks": [
+        1,
+        2
+      ],
+      "top_k": 2
+    },
+    {
+      "question": "while 循环为什么会死循环？",
+      "hit_ranks": [
+        1,
+        2
+      ],
+      "top_k": 2
+    },
+    {
+      "question": "break 和 continue 有什么区别？",
+      "hit_ranks": [
+        1,
+        2
+      ],
+      "top_k": 2
+    },
+    {
+      "question": "循环嵌套怎么跟踪变量？",
+      "hit_ranks": [
+        1
+      ],
+      "top_k": 2
+    },
+    {
+      "question": "列表遍历常见错误是什么？",
+      "hit_ranks": [
+        1,
+        2
+      ],
+      "top_k": 2
+    }
+  ],
+  "mode": "tfidf-or-json-fallback-eval"
+}

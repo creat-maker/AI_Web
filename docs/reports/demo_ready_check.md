@@ -1,36 +1,37 @@
 # EduMind 演示状态检查报告
 
-- 检查时间：2026-06-26T12:43:28
+- 检查时间：2026-06-30T15:33:02
 - 总体状态：READY
-- 通过 / 警告 / 失败：25 / 0 / 0
+- 通过 / 警告 / 失败：27 / 0 / 0
 - 后端地址：http://127.0.0.1:8000
 - 前端地址：http://127.0.0.1:5173
 
 ## 核心演示对象
 
-- 学生：张三、李四、王五
+- 学生：李明、张三、李四、王五
 - 教师：王老师、陈老师、张老师
-- 课程：Python 爬虫基础与实践、人工智能导论、数据结构与算法、Web 开发技术
+- 课程：Python 程序设计、Python 爬虫基础与实践、人工智能导论、数据结构与算法、Web 开发技术
 - 班级：计科大三 1 班、计科大三 2 班
 
 ## 检查明细
 
 | 分类 | 项目 | 状态 | 当前 | 期望 | 建议 |
 | --- | --- | --- | --- | --- | --- |
-| data | courses | PASS | 6 | 4 | 满足演示要求 |
-| data | core_courses | PASS | 4 | 4 | 满足演示要求 |
-| data | student_profiles | PASS | 25 | 3 | 满足演示要求 |
-| data | core_students | PASS | 12 | 3 | 满足演示要求 |
+| data | courses | PASS | 6 | 5 | 满足演示要求 |
+| data | core_courses | PASS | 5 | 5 | 满足演示要求 |
+| data | student_profiles | PASS | 28 | 4 | 满足演示要求 |
+| data | core_students | PASS | 16 | 4 | 满足演示要求 |
 | data | core_teachers | PASS | 3 | 3 | 满足演示要求 |
-| data | course_documents | PASS | 13 | 3 | 满足演示要求 |
-| data | tutor_question_logs | PASS | 31 | 5 | 满足演示要求 |
+| data | course_documents | PASS | 16 | 3 | 满足演示要求 |
+| data | tutor_question_logs | PASS | 34 | 5 | 满足演示要求 |
 | data | quizzes | PASS | 13 | 1 | 满足演示要求 |
-| data | quiz_submissions | PASS | 25 | 1 | 满足演示要求 |
-| data | learning_reports | PASS | 15 | 3 | 满足演示要求 |
+| data | quiz_submissions | PASS | 28 | 1 | 满足演示要求 |
+| data | learning_reports | PASS | 16 | 3 | 满足演示要求 |
 | data | agent_runs | PASS | 14 | 3 | 满足演示要求 |
-| data | learning_paths | PASS | 25 | 3 | 满足演示要求 |
-| data | generated_resources | PASS | 140 | 3 | 满足演示要求 |
-| data | business_events | PASS | 167 | 9 | 满足演示要求 |
+| data | learning_paths | PASS | 28 | 3 | 满足演示要求 |
+| data | generated_resources | PASS | 186 | 3 | 满足演示要求 |
+| data | audit_logs | PASS | 23 | 3 | 满足演示要求 |
+| data | business_events | PASS | 206 | 9 | 满足演示要求 |
 | file | backend/storage/uploads | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/reports | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/chroma | PASS | exists | exists | 文件或目录已存在 |
@@ -42,6 +43,7 @@
 | script | check-demo-ready.bat | PASS | exists | exists | 文件或目录已存在 |
 | script | scripts/seed_demo_data.py | PASS | exists | exists | 文件或目录已存在 |
 | script | scripts/e2e_demo_flow_check.py | PASS | exists | exists | 文件或目录已存在 |
+| script | scripts/eval_retrieval.py | PASS | exists | exists | 文件或目录已存在 |
 
 ## 三端推荐演示路线
 

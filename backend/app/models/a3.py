@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
@@ -45,6 +45,11 @@ class StudentProfile(Base, TimestampMixin):
     weak_points = Column(Text, nullable=True)
     learning_preference = Column(String(100), nullable=True)
     profile_json = Column(Text, nullable=True)
+    dimension_scores = Column(Text, nullable=True)
+    evidence_items = Column(Text, nullable=True)
+    cognitive_state = Column(Text, nullable=True)
+    profile_history = Column(Text, nullable=True)
+    risk_level = Column(String(50), nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
@@ -58,6 +63,9 @@ class LearningPath(Base, TimestampMixin):
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
     path_json = Column(Text, nullable=False)
     adjustment_log = Column(Text, nullable=True)
+    current_difficulty = Column(String(50), nullable=True)
+    inserted_tasks = Column(Text, nullable=True)
+    teacher_arbitration_required = Column(Boolean, default=False, nullable=False)
 
 
 class GeneratedResource(Base, TimestampMixin):
@@ -74,6 +82,12 @@ class GeneratedResource(Base, TimestampMixin):
     difficulty = Column(String(50), nullable=True)
     source_agent = Column(String(100), nullable=False)
     recommend_reason = Column(Text, nullable=True)
+    file_path = Column(String(500), nullable=True)
+    resource_url = Column(String(500), nullable=True)
+    preview_type = Column(String(50), nullable=True)
+    rating = Column(Float, nullable=True)
+    generation_status = Column(String(50), default="generated", nullable=False)
+    audit_status = Column(String(50), default="pending_review", nullable=False)
 
 
 class Quiz(Base, TimestampMixin):
@@ -110,6 +124,15 @@ class AgentRun(Base, TimestampMixin):
     input_json = Column(Text, nullable=False)
     output_json = Column(Text, nullable=True)
     status = Column(String(50), default="running", nullable=False)
+    run_id = Column(String(100), nullable=True)
+    current_node = Column(String(100), nullable=True)
+    state = Column(Text, nullable=True)
+    messages = Column(Text, nullable=True)
+    audit_result = Column(Text, nullable=True)
+    retry_count = Column(Integer, default=0, nullable=False)
+    teacher_arbitration_result = Column(Text, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
 
 
 class TutorQuestionLog(Base, TimestampMixin):
@@ -151,3 +174,73 @@ class LearningReport(Base, TimestampMixin):
     report_title = Column(String(200), nullable=False)
     report_path = Column(String(500), nullable=False)
     report_json = Column(Text, nullable=False)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    actor_id = Column(String(100), nullable=True)
+    actor_name = Column(String(100), nullable=True)
+    actor_role = Column(String(50), nullable=False, default="guest")
+    action = Column(String(100), nullable=False)
+    target_type = Column(String(100), nullable=False)
+    target_id = Column(String(100), nullable=True)
+    status = Column(String(50), nullable=False, default="success")
+    detail = Column(Text, nullable=True)
+    ip_address = Column(String(100), nullable=True)
+    retry_count = Column(Integer, default=0, nullable=False)
+    xfyun_result = Column(Text, nullable=True)
+    rule_engine_result = Column(Text, nullable=True)
+    risk_level = Column(String(50), nullable=True)
+    arbitration_status = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AITaskRun(Base):
+    __tablename__ = "ai_task_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_type = Column(String(100), nullable=False)
+    title = Column(String(200), nullable=False)
+    actor_id = Column(String(100), nullable=True)
+    actor_role = Column(String(50), nullable=False, default="teacher")
+    input_summary = Column(Text, nullable=True)
+    output_summary = Column(Text, nullable=True)
+    status = Column(String(50), nullable=False, default="draft")
+    confidence = Column(Float, default=0.0, nullable=False)
+    error_message = Column(Text, nullable=True)
+    trace_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ReviewItem(Base):
+    __tablename__ = "review_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    item_type = Column(String(100), nullable=False)
+    item_title = Column(String(200), nullable=False)
+    source_task_id = Column(Integer, ForeignKey("ai_task_runs.id", ondelete="SET NULL"), nullable=True)
+    content_json = Column(Text, nullable=False)
+    status = Column(String(50), nullable=False, default="pending_review")
+    reviewer_id = Column(String(100), nullable=True)
+    reviewer_name = Column(String(100), nullable=True)
+    review_comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    reviewed_at = Column(DateTime, nullable=True)
+    published_at = Column(DateTime, nullable=True)
+
+
+class ContentVersion(Base):
+    __tablename__ = "content_versions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    item_type = Column(String(100), nullable=False)
+    item_key = Column(String(200), nullable=False)
+    version_no = Column(Integer, nullable=False, default=1)
+    content_json = Column(Text, nullable=False)
+    status = Column(String(50), nullable=False, default="draft")
+    is_active = Column(Boolean, nullable=False, default=False)
+    source_task_id = Column(Integer, ForeignKey("ai_task_runs.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

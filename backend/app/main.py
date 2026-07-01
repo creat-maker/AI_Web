@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agent_workflow, ai_tutor, auth, competition, content_review, courses, dashboard, decision_center, demo_status, events, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, student_profile, system_settings, tutor, user_profile_ws, xfyun
+from app.api.routers import agent_workflow, ai_tutor, auth, competition, content_review, courses, dashboard, decision_center, demo_capabilities, demo_status, events, governance, knowledge_base, learning_paths, logs, profile_dialog, profiles, quizzes, rag, reports, resources, student_profile, system_settings, tutor, user_profile_ws, xfyun
 from app.api.routers import admin_reports, admin_users, student_courses
 from app.core.config import settings
 from app.db.session import Base, engine
@@ -17,22 +17,60 @@ Base.metadata.create_all(bind=engine)
 with engine.connect() as conn:
     from sqlalchemy import inspect
     insp = inspect(engine)
-    if "generated_resources" in insp.get_table_names():
-        existing_cols = {col["name"] for col in insp.get_columns("generated_resources")}
-        if "recommend_reason" not in existing_cols:
-            conn.execute(
-                __import__("sqlalchemy").text(
-                    "ALTER TABLE generated_resources ADD COLUMN recommend_reason TEXT"
+    table_columns = {
+        "student_profiles": {
+            "dimension_scores": "TEXT",
+            "evidence_items": "TEXT",
+            "cognitive_state": "TEXT",
+            "profile_history": "TEXT",
+            "risk_level": "VARCHAR(50)",
+        },
+        "learning_paths": {
+            "adjustment_log": "TEXT",
+            "current_difficulty": "VARCHAR(50)",
+            "inserted_tasks": "TEXT",
+            "teacher_arbitration_required": "BOOLEAN DEFAULT 0 NOT NULL",
+        },
+        "generated_resources": {
+            "recommend_reason": "TEXT",
+            "file_path": "VARCHAR(500)",
+            "resource_url": "VARCHAR(500)",
+            "preview_type": "VARCHAR(50)",
+            "rating": "FLOAT",
+            "generation_status": "VARCHAR(50) DEFAULT 'generated' NOT NULL",
+            "audit_status": "VARCHAR(50) DEFAULT 'pending_review' NOT NULL",
+        },
+        "audit_logs": {
+            "retry_count": "INTEGER DEFAULT 0 NOT NULL",
+            "xfyun_result": "TEXT",
+            "rule_engine_result": "TEXT",
+            "risk_level": "VARCHAR(50)",
+            "arbitration_status": "VARCHAR(50)",
+        },
+        "agent_runs": {
+            "run_id": "VARCHAR(100)",
+            "current_node": "VARCHAR(100)",
+            "state": "TEXT",
+            "messages": "TEXT",
+            "audit_result": "TEXT",
+            "retry_count": "INTEGER DEFAULT 0 NOT NULL",
+            "teacher_arbitration_result": "TEXT",
+            "started_at": "DATETIME",
+            "finished_at": "DATETIME",
+        },
+    }
+    tables = set(insp.get_table_names())
+    for table_name, columns in table_columns.items():
+        if table_name not in tables:
+            continue
+        existing_cols = {col["name"] for col in insp.get_columns(table_name)}
+        for column_name, column_type in columns.items():
+            if column_name not in existing_cols:
+                conn.execute(
+                    __import__("sqlalchemy").text(
+                        f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                    )
                 )
-            )
-    if "learning_paths" in insp.get_table_names():
-        existing_cols = {col["name"] for col in insp.get_columns("learning_paths")}
-        if "adjustment_log" not in existing_cols:
-            conn.execute(
-                __import__("sqlalchemy").text(
-                    "ALTER TABLE learning_paths ADD COLUMN adjustment_log TEXT"
-                )
-            )
     conn.commit()
 
 app = FastAPI(
@@ -70,9 +108,11 @@ app.include_router(admin_users.router, prefix=API_PREFIX)
 app.include_router(agent_workflow.router, prefix=API_PREFIX)
 app.include_router(system_settings.router, prefix=API_PREFIX)
 app.include_router(xfyun.router, prefix=API_PREFIX)
+app.include_router(governance.router, prefix=API_PREFIX)
 app.include_router(logs.router, prefix=API_PREFIX)
 app.include_router(events.router, prefix=API_PREFIX)
 app.include_router(demo_status.router, prefix=API_PREFIX)
+app.include_router(demo_capabilities.router, prefix=API_PREFIX)
 app.include_router(competition.router, prefix=API_PREFIX)
 app.include_router(decision_center.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix="/api")

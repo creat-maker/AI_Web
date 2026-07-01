@@ -44,6 +44,7 @@ const defaultOverview: DecisionOverview = {
 
 const data = ref<DecisionOverview>(defaultOverview);
 const message = ref('');
+const arbitrationMessage = ref('');
 const loading = ref(false);
 
 async function load() {
@@ -61,17 +62,33 @@ async function load() {
 }
 
 onMounted(load);
+
+async function submitArbitration(decision: 'approve' | 'revise' | 'reject' = 'approve') {
+  arbitrationMessage.value = '';
+  try {
+    const result = await api.post<{ message?: string; status?: string }>('/api/v1/teacher-arbitration/demo-resource-pack/decision', {
+      decision,
+      comment: '教师端演示仲裁确认',
+      revised_content: decision === 'revise' ? '请补充 while 循环变量更新说明后发布。' : undefined
+    });
+    arbitrationMessage.value = result.message || `仲裁已提交：${result.status || decision}`;
+  } catch (err) {
+    arbitrationMessage.value = err instanceof Error ? err.message : '教师仲裁提交失败。';
+  }
+}
 </script>
 
 <template>
   <section class="page decision-center-page">
     <PageHeader :title="data.title" description="汇总资源生成、画像、风险、路径、审核、AI 学伴、小程序活跃和教师减负统计。">
       <template #actions>
+        <button class="secondary" :disabled="loading" @click="submitArbitration('approve')">提交仲裁</button>
         <button class="secondary" :disabled="loading" @click="load">{{ loading ? '刷新中...' : '刷新' }}</button>
       </template>
     </PageHeader>
 
     <p v-if="message" class="panel muted">{{ message }}</p>
+    <p v-if="arbitrationMessage" class="panel muted">{{ arbitrationMessage }}</p>
 
     <div class="stat-grid">
       <StatCard v-for="item in data.metrics" :key="item.label" :label="item.label" :value="item.value" :unit="item.unit" icon="数" />

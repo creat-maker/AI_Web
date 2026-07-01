@@ -144,7 +144,7 @@ async function load() {
     events.value = eventData;
     courses.value = courseData;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '学习路径接口暂不可用，当前显示演示数据。';
+    error.value = err instanceof Error ? err.message : '学习路径接口暂不可用，当前显示本地业务样例。';
     paths.value = [];
     events.value = [];
   } finally {

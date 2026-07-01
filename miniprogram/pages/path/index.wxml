@@ -6,6 +6,14 @@
   </view>
 
   <view class="section">
+    <view class="glass-card dkvmn-path-card">
+      <view class="section-title">DKVMN 路径依据</view>
+      <view class="section-subtitle">平均掌握度 {{dkvmn.masteryText}}，优先补强：{{dkvmn.weakText}}</view>
+      <text class="body-text">{{dkvmn.reason}}</text>
+    </view>
+  </view>
+
+  <view class="section">
     <view class="section-head">
       <view>
         <view class="section-title">学习路线图</view>

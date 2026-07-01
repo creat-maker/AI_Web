@@ -1,4 +1,4 @@
-const { student, report, quizResult } = require('../../utils/demoData');
+const { student, dkvmnSummary, report, quizResult } = require('../../utils/demoData');
 
 function reportFromStorage() {
   const latest = wx.getStorageSync('latestQuizResult');
@@ -28,6 +28,11 @@ Page({
   data: {
     student,
     report,
+    dkvmn: {
+      masteryText: `${Math.round(dkvmnSummary.averageMastery * 100)}%`,
+      weakText: dkvmnSummary.weakConcepts.join('、'),
+      reason: dkvmnSummary.latestReason
+    },
     evaluationItems: buildEvaluationItems(report),
     generatedAt: '今日更新'
   },

@@ -27,6 +27,11 @@ CONTEST_REQUIREMENT_FLAGS = {
     "xfyun_tts_spark_safety_configurable": True,
     "quiz_evaluation_path_adjustment": True,
     "anti_hallucination_citation_review": True,
+    "rbac_enabled": True,
+    "audit_logs_enabled": True,
+    "manual_review_enabled": True,
+    "failure_rollback_enabled": True,
+    "sensitive_data_protection_enabled": True,
 }
 
 
@@ -76,6 +81,11 @@ CAPABILITY_CHECKLIST = [
     {"name": "报告生成", "status": "PASS", "detail": "学习报告可生成、预览并下载。"},
     {"name": "Agent 工作流", "status": "PASS", "detail": "展示节点、产物、运行记录和失败边界。"},
     {"name": "日志与系统治理", "status": "PASS", "detail": "聚合业务事件、系统日志和设置状态。"},
+    {"name": "权限控制已启用", "status": "PASS", "detail": "学生、教师、管理员路由和关键接口按角色校验，越权返回 403 并写入审计日志。"},
+    {"name": "日志追踪已启用", "status": "PASS", "detail": "audit_logs 与 system_logs 聚合到操作审计页面。"},
+    {"name": "人工复核已启用", "status": "PASS", "detail": "AI 生成任务默认进入 pending_review，经教师或管理员通过后发布。"},
+    {"name": "失败回滚已启用", "status": "PASS", "detail": "生成失败写入 failed 与 error_message，学生端继续使用上一版 active 内容。"},
+    {"name": "敏感数据保护已启用", "status": "PASS", "detail": "日志与任务摘要使用脱敏工具，避免记录完整隐私和原始对话。"},
 ]
 
 REAL_CAPABILITIES = [
@@ -100,7 +110,7 @@ REAL_CAPABILITIES = [
 
 DEMO_FALLBACK_CAPABILITIES = [
     "AI 资源正文可由课程模板生成",
-    "Agent 节点输出可用演示数据回放",
+    "Agent 节点输出可用本地业务样例回放",
     "报告审核状态机为轻量演示",
     "无讯飞 Key 时返回文本讲解与 not_configured 状态",
     f"FFmpeg 状态：{ffmpeg_capability()['message']}",
@@ -282,6 +292,13 @@ def _base_response(status: str, message: str) -> dict:
             "agent_workflow": {"supported": True},
             "report_generation": {"supported": True},
             "production_upgrade_path": ["真实大模型", "向量数据库", "统一身份认证", "学校数据平台", "审计日志"],
+            "trusted_agent_governance": {
+                "rbac": "enabled",
+                "audit_logs": "enabled",
+                "manual_review": "enabled",
+                "failure_rollback": "enabled",
+                "sensitive_data_protection": "enabled",
+            },
         },
         "refresh_command": (
             r"python scripts\check-demo-ready.py && "

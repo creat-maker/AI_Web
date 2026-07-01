@@ -16,7 +16,8 @@ function normalizeResult(data) {
       added_tasks: adjustment.added_tasks || adjustment.addedTasks || quizResult.path_adjustment.added_tasks,
       recommended_resources: adjustment.recommended_resources || adjustment.recommendedResources || quizResult.path_adjustment.recommended_resources,
       next_step: adjustment.next_step || adjustment.nextStep || quizResult.path_adjustment.next_step
-    }
+    },
+    dkvmn: source.dkvmn || quizResult.dkvmn
   };
 }
 

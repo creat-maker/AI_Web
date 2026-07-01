@@ -35,6 +35,9 @@ def path_to_dict(item: LearningPath) -> dict:
         "student_profile_id": item.student_profile_id,
         "path_json": loads(item.path_json, {}),
         "adjustment_log": loads(item.adjustment_log, []),
+        "current_difficulty": item.current_difficulty or "巩固练习",
+        "inserted_tasks": loads(item.inserted_tasks, []),
+        "teacher_arbitration_required": bool(item.teacher_arbitration_required),
         "created_at": item.created_at,
     }
 
@@ -101,6 +104,28 @@ def adjust_path(payload: LearningPathAdjustPayload, db: Session = Depends(get_db
     )
     if not path:
         raise HTTPException(status_code=404, detail="学习路径不存在，请先生成路径")
+    adjusted = adjust_learning_path(
+        db,
+        path,
+        profile,
+        course,
+        trigger=payload.trigger,
+        detected_new=payload.detected_new_weak_points,
+        resolved=payload.resolved_weak_points,
+        reason=payload.reason,
+    )
+    return path_to_dict(adjusted)
+
+
+@router.post("/{path_id}/adjust")
+def adjust_path_by_id(path_id: int, payload: LearningPathAdjustPayload, db: Session = Depends(get_db)):
+    path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+    if not path:
+        raise HTTPException(status_code=404, detail="学习路径不存在")
+    profile = db.query(StudentProfile).filter(StudentProfile.id == path.student_profile_id).first()
+    course = db.query(Course).filter(Course.id == path.course_id).first()
+    if not profile or not course:
+        raise HTTPException(status_code=404, detail="学习路径关联数据不存在")
     adjusted = adjust_learning_path(
         db,
         path,

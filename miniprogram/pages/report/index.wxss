@@ -47,6 +47,11 @@
   margin-top: 10rpx;
 }
 
+.dkvmn-report-card {
+  display: grid;
+  gap: 12rpx;
+}
+
 .weak-card {
   display: flex;
   flex-wrap: wrap;

@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models import Course, LearningPath, LearningReport, QuizSubmission, StudentProfile
+from app.models import Course, GeneratedResource, LearningPath, LearningReport, QuizSubmission, StudentProfile
+from app.services.dkvmn_tracker import dkvmn_tracker
 from app.services.json_utils import loads
 from app.services.report_service import create_learning_report, report_exists
 
@@ -151,13 +152,28 @@ def generate_report(payload: ReportGeneratePayload, db: Session = Depends(get_db
         .first()
     )
     feedback = loads(submission.feedback_json, {}) if submission else {}
+    state = dkvmn_tracker.state_from_profile(profile)
+    resources = (
+        db.query(GeneratedResource)
+        .filter(GeneratedResource.student_profile_id == profile.id)
+        .order_by(GeneratedResource.id.desc())
+        .limit(8)
+        .all()
+    )
     summary = {
         "profile_summary": loads(profile.profile_json, {}).get("diagnosis", "已形成学生画像。"),
+        "dimension_scores": loads(profile.dimension_scores, {}) or dkvmn_tracker.map_to_profile_dimensions(state),
+        "cognitive_state": dkvmn_tracker.get_cognitive_state(profile.id, state),
         "stages": loads(path.path_json, {}).get("stages", []) if path else [],
+        "adjustment_log": loads(path.adjustment_log, []) if path else [],
         "evaluation_summary": feedback.get("mistake_analysis", "暂无测评反馈。"),
+        "error_analysis": feedback.get("mistake_analysis") or feedback.get("error_analysis"),
         "score": feedback.get("score"),
         "weak_points": feedback.get("weak_points") or loads(profile.weak_points, []) or ["循环结构"],
-        "references": ["学生画像", "学习路径", "测评反馈", "课程知识库"],
+        "references": ["学生画像", "DKVMN 知识追踪", "学习路径", "测评反馈", "课程知识库"],
+        "citations": (feedback.get("rag_citations") or ["Python 程序设计 / 循环结构章节", "测验错因记录"]),
+        "resources": [f"{item.resource_type}：{item.title}" for item in resources] or ["循环结构讲义", "HTML 动画", "代码案例"],
+        "teacher_arbitration": ["高风险或重大调整进入教师仲裁；当前报告记录本地 fallback 审核结论。"],
         "regenerate_reason": payload.regenerate_reason or "根据当前课程和学习记录生成。",
     }
     item = create_learning_report(db, profile, course, summary)

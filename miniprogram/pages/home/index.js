@@ -1,4 +1,4 @@
-const { student, homeStats, learningPath, resourcePack, report } = require('../../utils/demoData');
+const { student, homeStats, dkvmnSummary, learningPath, resourcePack, report } = require('../../utils/demoData');
 
 const tabPages = ['/pages/home/index', '/pages/path/index', '/pages/resources/index', '/pages/tutor/index', '/pages/report/index'];
 const entryMeta = [
@@ -20,6 +20,12 @@ Page({
     flowText: '画像诊断 -> 学习路径 -> 资源推荐 -> 智能答疑 -> 测验评价 -> 学习报告',
     flowSteps: ['画像诊断', '学习路径', '资源推荐', '智能答疑', '测验评价', '学习报告'],
     stats: homeStats,
+    dkvmn: {
+      masteryText: `${Math.round(dkvmnSummary.averageMastery * 100)}%`,
+      weakText: dkvmnSummary.weakConcepts.join('、'),
+      strongText: dkvmnSummary.strongConcepts.join('、'),
+      reason: dkvmnSummary.latestReason
+    },
     entries: [
       { name: '画像诊断', desc: '查看 6 维对话式学习画像', path: '/pages/profile-dialog/index' },
       { name: '学习路径', desc: '按章节推进补弱任务', path: '/pages/path/index' },

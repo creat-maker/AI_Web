@@ -10,6 +10,11 @@
   position: relative;
 }
 
+.dkvmn-path-card {
+  display: grid;
+  gap: 12rpx;
+}
+
 .timeline-item {
   position: relative;
   display: flex;

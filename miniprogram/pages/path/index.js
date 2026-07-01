@@ -1,4 +1,4 @@
-const { student, learningPath, quizResult } = require('../../utils/demoData');
+const { student, dkvmnSummary, learningPath, quizResult } = require('../../utils/demoData');
 
 function statusClass(status) {
   if (status === '已完成') return 'status-done';
@@ -36,6 +36,11 @@ Page({
     pathTitle: '个性化学习路径',
     topicTitle: 'Python 循环结构',
     learningPath: decoratePath(learningPath),
+    dkvmn: {
+      masteryText: `${Math.round(dkvmnSummary.averageMastery * 100)}%`,
+      weakText: dkvmnSummary.weakConcepts.join('、'),
+      reason: dkvmnSummary.latestReason
+    },
     adjustment: normalizeAdjustment(),
     updateMessage: '学习路径会根据测评表现持续调整。'
   },

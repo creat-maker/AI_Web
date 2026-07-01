@@ -223,7 +223,7 @@ onMounted(loadCourses);
         <select :value="demoUserId" @change="switchDemoUser(($event.target as HTMLSelectElement).value)">
           <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
         </select>
-        <RouterLink class="btn secondary" to="/profiles">返回画像列表</RouterLink>
+        <RouterLink class="btn secondary" to="/student/profile">返回画像列表</RouterLink>
       </template>
     </PageHeader>
 

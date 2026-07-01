@@ -146,6 +146,9 @@ const resources = ref<ResourceCard[]>(normalizeResources(defaultResources));
 const packageTitle = ref('Python 循环结构个性化补弱资源包');
 const message = ref('');
 const loading = ref(false);
+const failLoading = ref(false);
+const latestTaskStatus = ref('');
+const latestReviewItemId = ref<number | null>(null);
 const activeReviewTitle = ref<string | null>(null);
 const courseware = ref<CoursewareOutline | null>(null);
 const coursewareLoading = ref(false);
@@ -181,25 +184,29 @@ function statusTone(status?: string): 'success' | 'warning' | 'info' {
   return 'info';
 }
 
-async function generatePack() {
+async function generatePack(forceFail = false) {
   loading.value = true;
+  failLoading.value = forceFail;
   message.value = '';
   try {
-    const result = await api.post<{ packageTitle: string; resources: ResourceCard[] }>('/api/v1/resources/generate-pack', {
+    const result = await api.post<{ packageTitle: string; resources: ResourceCard[]; taskStatus?: string; taskId?: number; reviewItemId?: number; rollbackNotice?: string }>('/api/v1/resources/generate-pack', {
       studentId: 'student-li-ming',
       courseId: 'python-programming',
       courseName: form.value.course,
       knowledgePoints: form.value.knowledgePoints.split('、'),
-      learningGoal: form.value.goal
+      learningGoal: forceFail ? `${form.value.goal} fail` : form.value.goal
     });
     packageTitle.value = result.packageTitle || packageTitle.value;
     resources.value = normalizeResources(result.resources?.length ? result.resources : defaultResources);
-    message.value = '已生成资源包，并完成内容安全与防幻觉审核。';
+    latestTaskStatus.value = result.taskStatus || 'pending_review';
+    latestReviewItemId.value = result.reviewItemId || null;
+    message.value = result.rollbackNotice || '已生成资源包，当前状态为待审核；教师或管理员通过后才会发布到学生端。';
   } catch (err) {
     resources.value = normalizeResources(defaultResources);
     message.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
     loading.value = false;
+    failLoading.value = false;
   }
 }
 
@@ -275,11 +282,15 @@ function markAction(action: string, item: ResourceCard) {
     <PageHeader title="个性化多模态资源生成中心" description="围绕李明的 Python 循环结构薄弱点，展示多智能体协同生成、审核、入库与推送。">
       <template #actions>
         <button @click="generateCoursewareOutline" :disabled="coursewareLoading">{{ coursewareLoading ? '生成中...' : 'AI 课件生成' }}</button>
-        <button class="secondary" @click="generatePack" :disabled="loading">{{ loading ? '生成中...' : '生成资源包' }}</button>
+        <button class="secondary" @click="generatePack()" :disabled="loading">{{ loading && !failLoading ? '生成中...' : '生成资源包' }}</button>
+        <button class="secondary" @click="generatePack(true)" :disabled="loading">{{ failLoading ? '生成中...' : '制造失败任务' }}</button>
       </template>
     </PageHeader>
 
     <p v-if="message" class="panel muted">{{ message }}</p>
+    <p v-if="latestTaskStatus" class="panel muted">
+      智能生成记录状态：{{ latestTaskStatus }}<span v-if="latestReviewItemId">；审核项 #{{ latestReviewItemId }}</span>
+    </p>
 
     <DataCard title="AI 课件生成" subtitle="根据课程、章节、学生画像和薄弱知识点生成可入库课件大纲">
       <div class="courseware-toolbar">
@@ -335,7 +346,7 @@ function markAction(action: string, item: ResourceCard) {
           <label>学习目标<input v-model="form.goal" /></label>
           <label>资源偏好<input v-model="form.preference" /></label>
         </div>
-        <button class="full-button" @click="generatePack" :disabled="loading">{{ loading ? '生成中...' : '点击生成' }}</button>
+        <button class="full-button" @click="generatePack()" :disabled="loading">{{ loading ? '生成中...' : '点击生成' }}</button>
       </DataCard>
 
       <DataCard title="多智能体流程" subtitle="每个节点展示输入、工具、输出、状态、耗时和证据">

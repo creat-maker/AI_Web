@@ -1,11 +1,12 @@
 import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
-import { roleFromPath, roleHomePath, roleLabels, type UserRole } from '../config/roles';
+import { roleHomePath, roleLabels, type UserRole } from '../config/roles';
 
 const ROLE_KEY = 'edumind.demoRole';
 const LEGACY_ROLE_KEY = 'edumind.currentRole';
 const USER_ID_KEY = 'edumind.demoUserId';
 const TOKEN_KEY = 'edumind.accessToken';
+const USER_KEY = 'edumind.user';
+const STUDENT_ID_KEY = 'edumind.studentId';
 
 export const availableRoles: UserRole[] = ['student', 'teacher', 'admin'];
 
@@ -16,8 +17,20 @@ export const demoStudents = [
 ];
 
 export function readStoredRole(): UserRole | null {
+  const storedUserRole = readStoredUserRole();
+  if (storedUserRole) return storedUserRole;
   const stored = (localStorage.getItem(ROLE_KEY) || localStorage.getItem(LEGACY_ROLE_KEY)) as UserRole | null;
   return stored && availableRoles.includes(stored) ? stored : null;
+}
+
+function readStoredUserRole(): UserRole | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    const role = raw ? (JSON.parse(raw)?.role as UserRole | undefined) : undefined;
+    return role && availableRoles.includes(role) ? role : null;
+  } catch {
+    return null;
+  }
 }
 
 export function hasDemoSession() {
@@ -32,8 +45,7 @@ const storedRole = ref<UserRole>(readStoredRole() || 'student');
 const demoUserId = ref(localStorage.getItem(USER_ID_KEY) || '1');
 
 export function useRole() {
-  const route = useRoute();
-  const currentRole = computed<UserRole>(() => roleFromPath(route.path) || storedRole.value);
+  const currentRole = computed<UserRole>(() => storedRole.value);
   const currentRoleLabel = computed(() => roleLabels[currentRole.value]);
   const currentHomePath = computed(() => roleHomePath[currentRole.value]);
   const demoUserLabel = computed(() => demoStudentLabel(demoUserId.value));
@@ -43,6 +55,12 @@ export function useRole() {
     storedRole.value = role;
     localStorage.setItem(ROLE_KEY, role);
     localStorage.setItem(LEGACY_ROLE_KEY, role);
+    try {
+      const user = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+      localStorage.setItem(USER_KEY, JSON.stringify({ ...user, role }));
+    } catch {
+      localStorage.setItem(USER_KEY, JSON.stringify({ role }));
+    }
     return true;
   }
 
@@ -57,7 +75,9 @@ export function useRole() {
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(LEGACY_ROLE_KEY);
     localStorage.removeItem(USER_ID_KEY);
+    localStorage.removeItem(STUDENT_ID_KEY);
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
   }
 
   return {

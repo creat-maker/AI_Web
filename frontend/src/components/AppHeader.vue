@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { RuntimeInfo } from '../types';
-import { findMenuItem, roleDescriptions, roleFromPath, roleHomePath, roleLabels, type UserRole } from '../config/roles';
+import { findMenuItem, roleDescriptions, roleHomePath, roleLabels, type UserRole } from '../config/roles';
 import { useRole } from '../composables/useRole';
 
 defineProps<{
@@ -12,9 +12,8 @@ defineProps<{
 
 const route = useRoute();
 const router = useRouter();
-const { availableRoles, clearRole, setRole } = useRole();
+const { availableRoles, clearRole, currentRole, setRole } = useRole();
 
-const currentRole = computed<UserRole>(() => roleFromPath(route.path) || 'student');
 const currentRoleLabel = computed(() => roleLabels[currentRole.value]);
 const currentMenu = computed(() => findMenuItem(currentRole.value, route.path));
 const title = computed(() => currentMenu.value?.label || String(route.meta.title || 'EduMind Studio'));
@@ -34,11 +33,11 @@ const searchResults = computed(() => {
   const entries = [
     { title: '我的课程', path: '/student/courses', role: 'student', desc: '查看课程进度' },
     { title: '学习资源', path: '/student/resources', role: 'student', desc: '搜索循环结构资源' },
-    { title: '课程管理', path: '/courses', role: 'teacher', desc: '新建和管理课程' },
-    { title: '报告中心', path: '/reports', role: 'teacher', desc: '预览和导出报告' },
+    { title: '课程管理', path: '/teacher/courses', role: 'teacher', desc: '新建和管理课程' },
+    { title: '报告中心', path: '/teacher/reports', role: 'teacher', desc: '预览和导出报告' },
     { title: '资源生成中心', path: '/admin/resource-generate', role: 'admin', desc: '生成课程资源包' },
     { title: '用户与角色', path: '/admin/users', role: 'admin', desc: '管理用户和权限' },
-    { title: '系统运行状态', path: '/demo-status', role: 'admin', desc: '查看健康检查' }
+    { title: '系统运行状态', path: '/admin/demo-status', role: 'admin', desc: '查看健康检查' }
   ].filter((item) => item.role === currentRole.value);
   if (!word) return entries;
   return entries.filter((item) => `${item.title} ${item.desc}`.toLowerCase().includes(word));
@@ -87,9 +86,9 @@ function logout() {
         </div>
       </div>
 
-      <button v-if="currentRole === 'teacher'" class="quick-btn" type="button" @click="go('/courses')">新建课程</button>
+      <button v-if="currentRole === 'teacher'" class="quick-btn" type="button" @click="go('/teacher/courses')">新建课程</button>
       <button v-if="currentRole === 'student'" class="quick-btn" type="button" @click="go('/student/resources')">学习资源</button>
-      <button v-if="currentRole === 'admin'" class="quick-btn" type="button" @click="go('/demo-status')">系统状态</button>
+      <button v-if="currentRole === 'admin'" class="quick-btn" type="button" @click="go('/admin/demo-status')">系统状态</button>
 
       <button class="icon-btn" type="button" title="帮助中心" @click="go('/help-center')">?</button>
 

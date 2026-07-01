@@ -1,107 +1,49 @@
-# EduMind 比赛演示与验收清单
+# EduMind 15 分钟黄金演示路线
 
-## 演示前准备
+## 演示主线
 
-1. 确认当前分支为 `dev`，且不需要全局安装 npm 包。
-2. 后端启动：`cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`。
-3. 前端启动：`cd frontend && npm run dev`。
-4. 小程序：微信开发者工具导入 `miniprogram` 目录。
-5. 打开 `/demo-status` 查看演示状态。
+- 课程：Python 程序设计
+- 主题：循环结构
+- 学生：李明
+- 画像：基础薄弱、代码实操偏好、中风险
+- 闭环：画像 -> DKVMN -> 路径 -> RAG -> 资源 -> 测验 -> 错因 -> 路径调整 -> 教师仲裁 -> 报告 -> 治理日志
 
-## 竞品借鉴说明
+## 学生端点击顺序
 
-本轮功能参考智慧树/知到、超星学习通/泛雅、雨课堂、国家智慧教育公共服务平台，重点吸收以下设计：
+1. `/student/profile-dialog`：一键载入李明画像，展示 6 维度和证据。
+2. `/student/learning-path`：查看 while 循环补弱任务和路径调整时间线。
+3. `/student/assistant`：提问“为什么我的 while 循环会死循环？”，查看引用、置信度、课程对齐。
+4. `/student/resources`：预览讲义、HTML 动画、TTS/MP4 fallback、代码案例。
+5. `/student/smart-quiz`：提交循环结构测验，触发 DKVMN 与路径调整。
+6. `/student/reports`：查看学习报告和下一步建议。
 
-- 学生端任务、资源、测验和报告一体化。
-- 教师端班级学情、风险学生和智能备课。
-- 管理端内容审核、质量评价和平台治理。
-- 移动端轻量查看任务、资源和学习报告。
+## 教师端点击顺序
 
-## 核心闭环检查
+1. `/teacher`：查看班级学情。
+2. `/teacher-analysis`：查看知识点掌握矩阵和预警学生。
+3. `/resource-generation`：生成 9 类资源包。
+4. `/review-center` 或 `/admin/decision-center`：处理教师仲裁 approve / revise / reject。
+5. `/reports`：下载或预览学习报告。
 
-闭环：学生画像 -> 知识图谱 -> 资源推荐 -> 智能测评 -> 错因分析 -> 教师干预 -> 平台治理。
+## 管理端点击顺序
 
-必验页面：
+1. `/dashboard`：系统总览。
+2. `/knowledge-base`：上传 PDF/DOCX/TXT/Markdown，检查解析与切片。
+3. `/admin/content-review`：查看内容审核。
+4. `/agent-workflow`：查看 AgentLogViewer 时间线、回流和仲裁状态。
+5. `/logs` 与 `/demo-status`：查看治理日志和系统状态。
 
-- `/student/knowledge-graph`
-- `/student/learning-path`
-- `/student/smart-quiz`
-- `/student/assistant`
-- `/teacher`
-- `/teacher/ai-workbench`
-- `/profiles`
-- `/courses`
-- `/dashboard`
-- `/admin/content-review`
-- `/admin/platform-quality`
+## 关键讲解话术
 
-## 后端接口检查
+- DKVMN 是轻量工程化落地：不用训练深度模型，但保留 key/value 记忆、连续对错和未来模型替换接口。
+- RAG 不只返回答案，还返回引用证据、课程对齐度、超纲提示和检索分数。
+- FACET 治理把内容审核、回流重试、教师仲裁和日志追踪串成闭环。
+- 讯飞、FFmpeg、Chroma 未配置时不会影响演示，系统自动降级到本地轻量能力。
 
-```bash
-curl http://127.0.0.1:8000/api/v1/knowledge-graph
-curl http://127.0.0.1:8000/api/v1/student/learning-tasks
-curl http://127.0.0.1:8000/api/v1/quiz/chapter
-```
+## 异常兜底
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/quiz/submit ^
-  -H "Content-Type: application/json" ^
-  -d "{\"answers\":{\"q1\":\"open('a.txt').read()\",\"q2\":\"忘记更新循环变量\",\"q3\":\"返回计算结果给调用方\"}}"
-```
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/teacher/ai-workbench/generate ^
-  -H "Content-Type: application/json" ^
-  -d "{\"type\":\"lesson_plan\",\"course\":\"Python 程序设计\",\"chapter\":\"循环结构与函数\",\"student_foundation\":\"基础差异较大\",\"teaching_goal\":\"掌握循环结构和函数封装\"}"
-```
-
-```bash
-curl http://127.0.0.1:8000/api/v1/admin/content-review
-curl http://127.0.0.1:8000/api/v1/admin/platform-quality
-```
-
-## 推荐讲解顺序
-
-学生端：
-
-1. `/student`：今日任务和学习总览。
-2. `/student/knowledge-graph`：点击薄弱节点，展示掌握率、资源、练习和 AI 建议。
-3. `/student/learning-path`：切换基础薄弱型、考试冲刺型、项目实践型。
-4. `/student/smart-quiz`：提交测验，展示得分、错因和推荐资源。
-5. `/student/assistant`：展示课程知识点绑定答疑。
-6. `/student/reports`：查看学习报告。
-
-教师端：
-
-1. `/teacher`：班级完成率、正确率、活跃度、薄弱点排行、风险学生。
-2. `/teacher/ai-workbench`：生成教案、测验、学情分析。
-3. `/profiles`：查看学生画像和干预建议。
-4. `/courses`：展示知识点、资源、题目关联。
-
-管理员端：
-
-1. `/dashboard`：AI 问答、资源生成、测验完成、审核通过率。
-2. `/admin/content-review`：模拟通过、驳回、待审核。
-3. `/admin/platform-quality`：课程质量评价。
-4. `/demo-status`：展示验收状态。
-
-小程序端：
-
-1. 首页：今日任务、课程进度、薄弱知识点。
-2. 路径：任务式路径。
-3. 资源：AI 推荐资源包。
-4. 练习：得分与错因分析。
-5. 报告：知识点掌握情况和学习建议。
-
-## AI 能力边界
-
-演示时必须说明：AI 生成内容仅作为教学辅助，关键教学资源、测评结果、学生画像诊断和干预建议需教师或管理员审核后使用。
-
-## 验收命令
-
-```bash
-git status --short
-cd backend && python -m compileall app
-cd frontend && npm run build
-python scripts/check-demo-ready.py
-```
+- 后端不可用：前端和小程序展示本地示例数据。
+- Chroma 不可用：JSON/TF-IDF fallback 检索。
+- TTS 未配置：展示讲解文本和任务状态。
+- FFmpeg 未安装：展示 HTML 动画和视频脚本。
+- 上传解析依赖缺失：返回友好 warnings，不中断页面。

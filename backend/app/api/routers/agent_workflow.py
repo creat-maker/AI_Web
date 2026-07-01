@@ -454,6 +454,10 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
         workflow_name="full-learning-flow",
         input_json=payload.model_dump_json(),
         status="running",
+        current_node="ProfileAgent",
+        state=dumps({"status": "running", "payload": payload.model_dump()}),
+        messages=dumps(["Agent 工作流已启动"]),
+        started_at=datetime.utcnow(),
     )
     db.add(run)
     db.flush()
@@ -540,6 +544,7 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
         db.refresh(report)
 
         run.student_profile_id = profile.id
+        run.run_id = f"run-{run.id:06d}"
         output = {
             "student_profile": state.get("student_profile", {}),
             "knowledge_query": state.get("knowledge_query", ""),
@@ -569,10 +574,18 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
         )
         run.output_json = dumps(output)
         run.status = "success"
+        run.current_node = "ReporterAgent"
+        run.state = dumps(output)
+        run.messages = dumps(state.get("messages", []))
+        run.audit_result = dumps(state.get("audit_result", {}))
+        run.retry_count = int(state.get("retry_count") or 0)
+        run.teacher_arbitration_result = dumps(state.get("teacher_arbitration_result", {}))
+        run.finished_at = datetime.utcnow()
         db.commit()
         return output
     except Exception as exc:
         run.status = "failed"
+        run.current_node = "error"
         steps = _workflow_steps(payload, course, {}, status="failed", error=str(exc))
         artifacts = _artifacts({"error": str(exc)})
         run.output_json = dumps(
@@ -583,6 +596,7 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
                 "artifacts": artifacts,
             }
         )
+        run.finished_at = datetime.utcnow()
         db.commit()
         raise HTTPException(status_code=500, detail=f"Agent 工作流运行失败：{exc}") from exc
 

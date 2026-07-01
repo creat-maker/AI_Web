@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader.vue';
 import { useRole } from '../composables/useRole';
 
 const { currentHomePath, currentRoleLabel } = useRole();
-const message = computed(() => `当前会话为${currentRoleLabel.value}，请返回对应工作台继续操作。`);
+const message = computed(() => `当前角色无权限访问该页面。当前会话为${currentRoleLabel.value}，请返回对应工作台继续操作。`);
 </script>
 
 <template>

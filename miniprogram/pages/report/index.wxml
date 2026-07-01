@@ -37,6 +37,15 @@
   </view>
 
   <view class="section">
+    <view class="glass-card dkvmn-report-card">
+      <view class="section-title">DKVMN 掌握状态摘要</view>
+      <text class="body-text">平均掌握度：{{dkvmn.masteryText}}</text>
+      <text class="body-text">重点补强：{{dkvmn.weakText}}</text>
+      <text class="muted">{{dkvmn.reason}}</text>
+    </view>
+  </view>
+
+  <view class="section">
     <view class="report-block" wx:for="{{evaluationItems}}" wx:key="title">
       <view class="report-block-icon">{{index + 1}}</view>
       <view class="glass-card report-block-card">

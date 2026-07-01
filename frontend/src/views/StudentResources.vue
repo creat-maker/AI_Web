@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
+import ResourcePreview from '../components/ResourcePreview.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import type { Course } from '../types';
 
@@ -18,6 +19,8 @@ interface ResourceItem {
   format?: string;
   status?: string;
   file_path?: string;
+  resource_url?: string;
+  preview_type?: string;
   fallback_resources?: string[];
   tts_status?: { status?: string; message?: string };
   tts_result?: { status?: string; message?: string; audio_path?: string | null };
@@ -39,6 +42,32 @@ const keyword = ref('');
 const courseFilter = ref('全部课程');
 const typeFilter = ref('全部类型');
 const statusFilter = ref('全部状态');
+const governanceNotice = ref('');
+const activeVersionNo = ref<number | null>(null);
+const previewById = ref<Record<string, ResourceItem>>({});
+const resourceActionMessage = ref('');
+const stableResources: ResourceItem[] = [
+  {
+    id: 'stable-while-handout',
+    course_id: 'python-programming',
+    resource_type: '讲义',
+    title: 'while 循环条件更新讲义',
+    content: '围绕初始值、循环条件、变量更新三步检查 while 循环，避免死循环。',
+    difficulty: '基础',
+    reviewStatus: '已发布',
+    relatedKnowledgePoints: ['while 循环', '循环结构']
+  },
+  {
+    id: 'stable-nested-practice',
+    course_id: 'python-programming',
+    resource_type: '练习',
+    title: '循环嵌套变量变化练习',
+    content: '通过变量变化表理解内外层循环的执行顺序。',
+    difficulty: '中等',
+    reviewStatus: '已发布',
+    relatedKnowledgePoints: ['循环嵌套', '变量变化']
+  }
+];
 
 const courseNameMap = computed(() => new Map(courses.value.map((course) => [String(course.id), course.title])));
 
@@ -79,7 +108,7 @@ const filteredResources = computed(() => {
   });
 });
 
-function inferKnowledge(item: ResourceItem) {
+function inferKnowledge(item: Pick<ResourceItem, 'title' | 'content'>) {
   const text = `${item.title} ${item.content || ''}`;
   const result = ['Python'];
   if (text.includes('循环') || text.toLowerCase().includes('while') || text.toLowerCase().includes('for')) result.push('循环结构');
@@ -99,18 +128,80 @@ function isVideoMp4(item: ResourceItem) {
   return (item.resource_type || item.resourceType) === 'video_mp4';
 }
 
+function canUseResourceApi(item: ResourceItem) {
+  return typeof item.id === 'number' || /^\d+$/.test(String(item.id));
+}
+
+async function loadPreview(item: ResourceItem) {
+  const key = String(item.id);
+  resourceActionMessage.value = '';
+  if (!canUseResourceApi(item)) {
+    previewById.value[key] = item;
+    resourceActionMessage.value = '当前演示资源来自已发布内容快照，保留本地预览。';
+    return;
+  }
+  try {
+    const data = await api.get<any>(`/api/v1/resources/${item.id}/preview`);
+    previewById.value[key] = {
+      ...item,
+      content: data.preview?.content || item.content,
+      preview_type: data.preview?.type || item.preview_type,
+      resource_url: data.download_url || item.resource_url
+    };
+    resourceActionMessage.value = '资源预览接口已返回。';
+  } catch (err) {
+    previewById.value[key] = item;
+    resourceActionMessage.value = err instanceof Error ? err.message : '资源预览接口暂不可用，保留本地预览。';
+  }
+}
+
+async function rateResource(item: ResourceItem, rating = 5) {
+  resourceActionMessage.value = '';
+  if (!canUseResourceApi(item)) {
+    resourceActionMessage.value = '当前演示资源来自内容快照，不写入评分接口。';
+    return;
+  }
+  try {
+    await api.post(`/api/v1/resources/${item.id}/rate`, { rating, comment: 'student-demo-feedback' });
+    resourceActionMessage.value = '资源评分已提交。';
+  } catch (err) {
+    resourceActionMessage.value = err instanceof Error ? err.message : '资源评分提交失败。';
+  }
+}
+
 async function loadData() {
   loading.value = true;
   error.value = '';
   try {
-    const [courseRows, resourceRows] = await Promise.all([
+    const [courseRows, governance, dbResources] = await Promise.all([
       api.get<Course[]>('/api/v1/courses'),
-      api.get<ResourceItem[]>('/api/v1/resources')
+      api.get<any>('/api/v1/content-versions/active?item_type=resource_pack'),
+      api.get<ResourceItem[]>('/api/v1/resources').catch(() => [])
     ]);
     courses.value = courseRows;
-    resources.value = resourceRows;
+    const publishedResources = governance.active?.content?.resources;
+    resources.value = Array.isArray(dbResources) && dbResources.length
+      ? dbResources
+      : Array.isArray(publishedResources) && publishedResources.length
+      ? publishedResources.map((title: string, index: number) => ({
+          id: `published-${governance.active.version_no}-${index}`,
+          course_id: 'python-programming',
+          resource_type: '已发布资源',
+          title,
+          content: '该资源已通过教师复核并发布到学生端。',
+          difficulty: index > 1 ? '中等' : '基础',
+          reviewStatus: '已发布',
+          relatedKnowledgePoints: inferKnowledge({ title })
+        }))
+      : stableResources;
+    const firstApiResource = resources.value.find(canUseResourceApi);
+    if (firstApiResource) loadPreview(firstApiResource);
+    activeVersionNo.value = governance.active?.version_no || null;
+    governanceNotice.value = governance.rollback_notice || '学生端仅展示已审核通过或已发布资源，待审核内容不会提前暴露。';
   } catch (err) {
     error.value = err instanceof Error ? err.message : '学习资源加载失败。';
+    resources.value = stableResources;
+    governanceNotice.value = '学生端仅展示已审核通过或已发布资源，当前保留上一版内容。';
   } finally {
     loading.value = false;
   }
@@ -137,6 +228,11 @@ onMounted(loadData);
 
     <p v-if="error" class="panel error-text">{{ error }}</p>
     <p v-if="loading" class="panel muted">正在加载资源...</p>
+    <p v-if="resourceActionMessage" class="panel muted">{{ resourceActionMessage }}</p>
+    <p class="panel muted">
+      {{ governanceNotice || '学生端仅展示已审核通过或已发布资源。' }}
+      <span v-if="activeVersionNo">当前内容版本：v{{ activeVersionNo }}</span>
+    </p>
 
     <DataCard title="搜索资源" subtitle="按课程、章节、资源类型、标题、知识点和状态过滤">
       <div class="filter-grid">
@@ -168,8 +264,10 @@ onMounted(loadData);
             <StatusBadge :label="item.status" tone="success" />
           </div>
           <p class="content">{{ item.content || item.recommend_reason || '该资源已进入学习资源库。' }}</p>
-          <div v-if="isAnimation(item) && item.content" class="animation-preview">
-            <iframe :srcdoc="item.content" sandbox="" title="动画资源预览"></iframe>
+          <ResourcePreview v-if="item.content" :resource="previewById[String(item.id)] || item" />
+          <div class="resource-actions">
+            <button type="button" class="secondary" @click="loadPreview(item)">预览</button>
+            <button type="button" class="secondary" @click="rateResource(item, 5)">有帮助</button>
           </div>
           <p v-if="isTts(item)" class="tts-status">
             {{ item.tts_result?.message || item.tts_status?.message || '语音讲解文本已生成，科大讯飞 TTS 可按环境配置接入。' }}
@@ -232,6 +330,18 @@ onMounted(loadData);
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.resource-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.resource-actions button {
+  min-height: 34px;
+  padding: 6px 12px;
 }
 
 .animation-preview {

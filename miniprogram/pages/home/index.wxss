@@ -111,6 +111,26 @@
   font-weight: 800;
 }
 
+.dkvmn-card {
+  display: grid;
+  gap: 18rpx;
+}
+
+.dkvmn-head,
+.dkvmn-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18rpx;
+  align-items: flex-start;
+}
+
+.dkvmn-label {
+  flex: 0 0 88rpx;
+  color: #2563eb;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
 .entry-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -105,16 +105,37 @@ function defaultRedirect(role: UserRole) {
   return '/student';
 }
 
+function normalizeRedirectPath(redirect: string) {
+  const aliases: Record<string, string> = {
+    '/courses': '/teacher/courses',
+    '/knowledge-base': '/teacher/knowledge-base',
+    '/profiles': '/teacher/profiles',
+    '/learning-path': '/teacher/learning-path',
+    '/learning-paths': '/teacher/learning-path',
+    '/teacher-analysis': '/teacher/analysis',
+    '/reports': '/teacher/reports',
+    '/evaluation': '/teacher/evaluation',
+    '/quiz-evaluate': '/teacher/evaluation',
+    '/resource-generation': '/teacher/resource-generation',
+    '/review-center': '/teacher/arbitration',
+    '/tutor-chat': '/teacher/tutor-chat',
+    '/agent-workflow': '/admin/agent-workflow',
+    '/logs': '/admin/logs',
+    '/log-management': '/admin/logs',
+    '/settings': '/admin/settings',
+    '/system-settings': '/admin/settings',
+    '/demo-status': '/admin/demo-status'
+  };
+  const [pathname, suffix = ''] = redirect.split(/(?=[?#])/, 2);
+  return `${aliases[pathname] || pathname}${suffix}`;
+}
+
 function legalRedirect(role: UserRole, redirect: unknown) {
   if (typeof redirect !== 'string' || !redirect.startsWith('/')) return '';
-  if (role === 'student' && redirect.startsWith('/student')) return redirect;
-  if (
-    role === 'teacher' &&
-    (redirect === '/teacher' || redirect.startsWith('/teacher') || redirect === '/courses' || redirect === '/reports' || redirect === '/resource-generation')
-  ) {
-    return redirect;
-  }
-  if (role === 'admin' && (redirect === '/dashboard' || redirect.startsWith('/admin') || redirect === '/demo-status')) return redirect;
+  const normalizedRedirect = normalizeRedirectPath(redirect);
+  if (role === 'student' && normalizedRedirect.startsWith('/student')) return normalizedRedirect;
+  if (role === 'teacher' && (normalizedRedirect === '/teacher' || normalizedRedirect.startsWith('/teacher'))) return normalizedRedirect;
+  if (role === 'admin' && (normalizedRedirect === '/dashboard' || normalizedRedirect.startsWith('/admin'))) return normalizedRedirect;
   return '';
 }
 
@@ -156,7 +177,7 @@ async function submitLogin() {
     const role = normalized.role;
     const matched = roleCards.find((item) => item.role === role) || selected.value;
     localStorage.setItem('edumind.accessToken', String(normalized.token));
-    localStorage.setItem('edumind.user', JSON.stringify(normalized.user || {}));
+    localStorage.setItem('edumind.user', JSON.stringify({ ...(normalized.user || {}), role }));
     if (!setRole(role)) {
       error.value = '登录响应中的角色无效，请检查登录接口。';
       return;
@@ -259,7 +280,7 @@ async function quickLogin(role: UserRole) {
             </button>
           </div>
           <div class="quick-row subtle">
-            <RouterLink to="/demo-status">系统状态</RouterLink>
+            <RouterLink to="/admin/demo-status">系统状态</RouterLink>
             <RouterLink to="/capability-boundary">平台能力</RouterLink>
           </div>
         </div>

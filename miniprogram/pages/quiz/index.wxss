@@ -178,8 +178,14 @@
 }
 
 .detail-card,
-.adjustment-card {
+.adjustment-card,
+.dkvmn-result-card {
   margin-top: 20rpx;
+}
+
+.dkvmn-result-card {
+  display: grid;
+  gap: 12rpx;
 }
 
 .detail-item {
