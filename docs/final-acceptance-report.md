@@ -47,7 +47,57 @@
 - 讯飞 TTS/安全 API：未配置时仅返回本地 fallback 状态。
 - FFmpeg：未安装时不生成真实 MP4。
 - OCR：仅预留接口与提示。
-- 深度 DKVMN：当前为轻量规则模型，可替换真实模型。
+- DKVMN：当前为参考 DKVMN Key-Value Memory 的轻量实现，包含 key_matrix、value_memory、概念注册表、动态掌握度更新和 JSON/画像持久化，不是训练型神经网络。
+- EduLLM：当前为课程大纲约束 + 轻量语义/规则混合评分 + RAG 引用证据，不是完整教育大模型微调。
+- FACET：当前为教师中心治理流程工程化落地，不是论文完整复现。
+- Chroma、小程序后端连接、讯飞和 FFmpeg 均保留 fallback。
+
+## 审计问题补强修复记录
+
+| 优先级 | 项目 | 修复结果 |
+| --- | --- | --- |
+| P0 | DKVMN Key-Value Memory | 已补显式 key_matrix、value_memory、update_memory、predict_mastery、强弱点、画像映射和 JSON fallback。 |
+| P0 | 测试覆盖 | 已新增 DKVMN 与教师仲裁测试，并扩展 RAG/课程约束/graph 断言；记录用例数量和关键路径，不虚报覆盖率百分比。 |
+| P0 | Docker Compose | 已新增 `docker-compose.yml`、backend/frontend Dockerfile、Nginx SPA fallback 与 `.dockerignore`。 |
+| P0 | TeacherArbitration | 已新增 `/api/v1/teacher-arbitrations` 队列和 approve/revise/reject 决策闭环，教师端页面展示风险、证据、retry_count 和意见。 |
+| P1 | curriculum_constraint | 已升级为大纲词、学习目标、证据覆盖、超纲惩罚和层级匹配混合评分。 |
+| P1 | audit_retry | 已记录 regeneration_instruction、before/after summary、retry_count，并回流资源内容。 |
+| P1 | 小程序 API | 已补 `utils/api.js`、timeout 和 fallbackToDemoData 配置。 |
+| P1 | 服务审查 | chunk、embedding、RAG、retrieval eval、profile、quiz 保留稳定字段和 fallback；异常时不应直接 500。 |
+| P2 | 12 节点文档 | 已统一为 9 个核心教学节点 + 3 个治理增强节点。 |
+| P2 | CI/CD | 已新增 GitHub Actions 基础后端/前端检查。 |
+
+## 本轮命令验收结果
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd backend && python -m compileall app` | 通过 |
+| `cd backend && pytest` | 通过，58 个用例全部通过；覆盖 DKVMN、课程约束、RAG、graph、教师仲裁、报告、服务契约和 fallback |
+| `cd frontend && npm.cmd run build` | 通过；普通 `npm run build` 在 PowerShell 执行策略下被拦截，沙箱内 esbuild 读配置受限，提升权限后构建成功 |
+| `python scripts/check-demo-ready.py --skip-http` | 通过，状态 READY |
+| `python scripts/e2e_demo_flow_check.py --base-url http://127.0.0.1:8000` | 通过，16/16 |
+| `python scripts/eval_retrieval.py` | 通过，演示集 MRR/Recall@K/NDCG@K 均为 1.0；样本量小，仅证明链路可命中预期证据 |
+| `docker compose config` | 未运行成功；当前环境未安装 Docker CLI，已保留 Compose/Dockerfile/Nginx 配置供有 Docker 环境验证 |
+
+## 服务审查结果表
+
+| 服务 | 审查结果 |
+| --- | --- |
+| `chunk_strategy.py` | 保留 citation_id，可支撑引用溯源。 |
+| `embedding_interface.py` | TF-IDF provider 可选轻量语义相似度，无强制 sentence-transformers。 |
+| `lightweight_rag_service.py` | 返回 citations、confidence、retrieval_debug、alignment_breakdown 和 JSON fallback 标记。 |
+| `retrieval_eval_service.py` | 作为检索评估脚本支撑，不阻塞在线问答。 |
+| `profile_service.py` | 画像字段兼容 cognitive_state、dimension_scores、evidence_items。 |
+| `quiz_service.py` | 测验提交写入 DKVMN、画像和路径调整反馈。 |
+
+## 测试用例补强说明
+
+- `test_document_parser.py`：覆盖 TXT、Markdown、DOCX 缺失 fallback、PDF 读取失败 fallback、空文件和未知扩展名。
+- `test_curriculum_constraint.py`：覆盖课程范围 prompt、课程对齐评分、超纲检测、证据不足 warning 和 evidence coverage。
+- `test_retriever.py`：覆盖 citations、confidence、retrieval_debug、题库降权、JSON fallback、课程边界字段。
+- `test_graph.py` 与 `test_teacher_arbitration.py`：覆盖 audit_retry、pass/retry/arbitration 分支和 approve/revise/reject 决策。
+- `test_profile_agent.py`、`test_planner_agent.py`、`test_audit_agent.py`、`test_reports.py`：覆盖 6 维画像、DKVMN 映射、路径调整依据、7 维审核、Markdown 报告 fallback 和下载入口。
+- `test_service_contracts.py`：覆盖 chunk、TF-IDF embedding、retrieval eval、profile_to_dict、quiz helper 的稳定字段。
 
 ## 后续扩展方向
 

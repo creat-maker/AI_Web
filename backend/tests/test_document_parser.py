@@ -19,12 +19,44 @@ def test_parse_txt_and_markdown(tmp_path: Path):
     assert chunk_document(md_result)[0]["citation_id"]
 
 
-def test_parse_invalid_pdf_and_missing_docx_fallback(tmp_path: Path):
+def test_parse_markdown_sections(tmp_path: Path):
+    md = tmp_path / "sections.md"
+    md.write_text("# 循环结构\nfor 循环\n\n## while 循环\n条件更新", encoding="utf-8")
+    result = parse_document(str(md))
+    assert [section["title"] for section in result["sections"]] == ["循环结构", "while 循环"]
+    assert result["paragraphs"] == ["for 循环", "条件更新"]
+
+
+def test_parse_missing_docx_fallback(tmp_path: Path):
+    missing = parse_document(str(tmp_path / "missing.docx"))
+    assert missing["file_type"] == "docx"
+    assert missing["warnings"]
+    assert missing["sections"][0]["title"] == "正文"
+
+
+def test_parse_invalid_pdf_fallback(tmp_path: Path):
     pdf = tmp_path / "bad.pdf"
     pdf.write_text("not a real pdf", encoding="utf-8")
     result = parse_document(str(pdf))
     assert result["file_type"] == "pdf"
     assert result["warnings"]
+    assert result["ocr_reserved"]
 
-    missing = parse_document(str(tmp_path / "missing.docx"))
-    assert missing["warnings"]
+
+def test_parse_empty_file_returns_stable_shape(tmp_path: Path):
+    empty = tmp_path / "empty.txt"
+    empty.write_text("", encoding="utf-8")
+    result = parse_document(str(empty))
+    assert result["file_type"] == "txt"
+    assert result["paragraphs"] == []
+    assert result["tables"] == []
+    assert result["warnings"] == []
+
+
+def test_parse_unknown_extension_text_fallback(tmp_path: Path):
+    raw = tmp_path / "notes.xyz"
+    raw.write_text("循环变量更新", encoding="utf-8")
+    result = parse_document(str(raw))
+    assert result["file_type"] == "xyz"
+    assert "暂不支持 xyz 解析" in result["warnings"][0]
+    assert "循环变量更新" in result["paragraphs"]

@@ -21,7 +21,9 @@
 
 ## 智能体工作流
 
-ProfileAgent -> KnowledgeAgent -> PlannerAgent -> ResourcePlannerAgent -> ResourceAgent -> TutorAgent -> EvaluatorAgent -> AuditAgent -> ComplianceAgent -> ReporterAgent。
+核心教学链路为 9 个节点：ProfileAgent -> KnowledgeAgent -> PlannerAgent -> ResourcePlannerAgent -> ResourceAgent -> TutorAgent -> EvaluatorAgent -> AuditAgent -> ReporterAgent。
+
+治理增强节点为 3 个：ComplianceAgent、AuditRetry、TeacherArbitration。因此系统实际运行口径为 12 节点扩展工作流，用于对齐 FACET 教师中心治理和双层风控，不再描述为“只有 9 节点”。
 
 当 ComplianceAgent 判定中高风险：
 

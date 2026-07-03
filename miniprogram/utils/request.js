@@ -1,4 +1,4 @@
-const { BASE_URL, USE_BACKEND, API_PREFIX } = require('../config/api');
+const { BASE_URL, USE_BACKEND, API_PREFIX, requestTimeout } = require('../config/api');
 
 function buildUrl(url) {
   if (/^https?:\/\//.test(url)) return url;
@@ -26,6 +26,7 @@ function request(options) {
       url: buildUrl(options.url),
       method,
       data: options.data || {},
+      timeout: options.timeout || requestTimeout || 8000,
       header: Object.assign({ 'Content-Type': 'application/json' }, options.header || {}),
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {

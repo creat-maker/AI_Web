@@ -83,23 +83,46 @@ def should_retry_or_arbitrate(state: AgentState) -> str:
 
 def audit_retry(state: AgentState) -> AgentState:
     retry_count = int(state.get("retry_count") or 0) + 1
+    failure_reasons = state.get("audit_result", {}).get("failure_reasons") or state.get("audit_result", {}).get("suggestions") or [state.get("audit_result", {}).get("review_status", "needs_review")]
+    regeneration_instruction = (
+        f"第 {retry_count} 次重新生成：收敛到 Python 循环结构课程范围，补充 RAG 引用，修复问题："
+        + "；".join(str(item) for item in failure_reasons if item)
+    )
     retry_log = [
         *state.get("audit_retry_log", []),
         {
             "retry_count": retry_count,
             "reason": state.get("audit_result", {}).get("review_status", "needs_review"),
+            "failure_reasons": failure_reasons,
+            "regeneration_instruction": regeneration_instruction,
             "modified_fields": ["generated_resources", "tutor_answer"],
         },
     ]
     resources = []
     for item in state.get("generated_resources", []):
-        resources.append({**item, "audit_revision": f"第 {retry_count} 次根据审核意见收敛课程范围和引用说明。"})
+        before_summary = str(item.get("content") or item.get("title") or "")[:120]
+        revised_content = (
+            f"{item.get('content', item.get('title', '资源'))}\n\n"
+            f"审核回流修订：{regeneration_instruction}。引用依据限定为 Python 程序设计 / 循环结构。"
+        )
+        resources.append(
+            {
+                **item,
+                "content": revised_content,
+                "audit_status": "retry_generated",
+                "audit_revision": f"第 {retry_count} 次根据审核意见重新生成资源内容。",
+                "regeneration_reason": failure_reasons,
+                "before_content_summary": before_summary,
+                "after_content_summary": revised_content[:120],
+            }
+        )
     return {
         **state,
         "retry_count": retry_count,
         "audit_retry_log": retry_log,
         "generated_resources": resources,
-        "messages": [*state.get("messages", []), f"Audit retry 第 {retry_count} 次：回流 ResourceAgent 修订资源"],
+        "regeneration_instruction": regeneration_instruction,
+        "messages": [*state.get("messages", []), f"Audit retry 第 {retry_count} 次：回流 ResourceAgent 重新生成资源"],
     }
 
 

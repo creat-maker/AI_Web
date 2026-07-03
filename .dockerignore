@@ -1,0 +1,16 @@
+.git
+.pytest_cache
+.venv
+**/__pycache__
+**/*.pyc
+frontend/node_modules
+frontend/dist
+backend/storage/*.db
+backend/storage/chroma
+backend/storage/uploads/*
+backend/storage/reports/*
+storage
+*.log
+*.pid
+EduMind
+legacy

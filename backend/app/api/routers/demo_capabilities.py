@@ -27,6 +27,8 @@ class ArbitrationDecisionPayload(BaseModel):
     decision: str
     comment: str | None = None
     revised_content: str | None = None
+    teacher_comment: str | None = None
+    suggested_action: str | None = None
 
 
 def _agent_run_to_dict(item: AgentRun) -> dict[str, Any]:
@@ -160,10 +162,125 @@ def list_audit_logs(db: Session = Depends(get_db)):
     ]
 
 
+def _fallback_arbitration_tasks() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": "demo-arb-low",
+            "student_name": "李明",
+            "course": "Python 程序设计",
+            "topic": "while 循环条件更新",
+            "risk_level": "low",
+            "trigger_reason": "引用证据充分，但建议教师确认示例输出。",
+            "original_content": "while 循环补弱讲义与变量更新练习。",
+            "suggested_content": "发布到学生端，并保留引用来源。",
+            "review_result": "pending",
+            "retry_count": 0,
+            "rag_citations": ["python_programming.json-001"],
+            "profile_risk_evidence": ["while_loop 掌握度 0.48"],
+            "recommended_action": "approve",
+            "status": "pending",
+        },
+        {
+            "id": "demo-arb-medium",
+            "student_name": "李明",
+            "course": "Python 程序设计",
+            "topic": "break / continue 对比",
+            "risk_level": "medium",
+            "trigger_reason": "审核发现示例解释略少，需要教师补充说明。",
+            "original_content": "break 和 continue 的输出判断题。",
+            "suggested_content": "补充 continue 跳过本轮但不跳出循环的解释。",
+            "review_result": "needs_review",
+            "retry_count": 1,
+            "rag_citations": ["python_programming.json-002", "python_programming.json-003"],
+            "profile_risk_evidence": ["break_continue 错误 streak=2"],
+            "recommended_action": "revise",
+            "status": "pending",
+        },
+        {
+            "id": "demo-arb-high",
+            "student_name": "李明",
+            "course": "Python 程序设计",
+            "topic": "循环结构扩展资源",
+            "risk_level": "high",
+            "trigger_reason": "内容出现课程范围外示例，需拦截或重写。",
+            "original_content": "将循环结构扩展到股票预测与机器学习训练。",
+            "suggested_content": "拒绝该版本，重新回到 Python 循环基础。",
+            "review_result": "blocked",
+            "retry_count": 3,
+            "rag_citations": [],
+            "profile_risk_evidence": ["课程对齐度低", "超纲风险高"],
+            "recommended_action": "reject",
+            "status": "pending",
+        },
+    ]
+
+
+@router.get("/teacher-arbitrations")
+def list_teacher_arbitrations(db: Session = Depends(get_db)):
+    rows = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(30).all()
+    tasks: list[dict[str, Any]] = []
+    for item in rows:
+        arbitration = loads(item.teacher_arbitration_result, {})
+        if not arbitration:
+            continue
+        output = loads(item.output_json, {})
+        audit = loads(item.audit_result, output.get("audit_result", {}))
+        input_data = loads(item.input_json, {})
+        tasks.append(
+            {
+                "id": item.run_id or str(item.id),
+                "agent_run_id": item.id,
+                "student_name": input_data.get("student_name", "李明"),
+                "course": input_data.get("course_title", "Python 程序设计"),
+                "topic": input_data.get("learning_goal", "循环结构补弱"),
+                "risk_level": audit.get("risk_level", "medium"),
+                "trigger_reason": arbitration.get("reason", "高风险或多次审核未通过，等待教师仲裁。"),
+                "original_content": str(output.get("generated_resources", [])[:1] or "暂无资源摘要"),
+                "suggested_content": "教师可通过、修改或拒绝后写回治理日志。",
+                "review_result": audit.get("review_status", "needs_review"),
+                "retry_count": item.retry_count or int(output.get("retry_count") or 0),
+                "rag_citations": [ref.get("citation_id") for ref in output.get("knowledge_evidence", {}).get("items", []) if isinstance(ref, dict)],
+                "profile_risk_evidence": [check.get("dimension") for check in audit.get("checks", []) if check.get("status") != "pass"],
+                "recommended_action": "reject" if audit.get("risk_level") == "high" else "revise" if audit.get("risk_level") == "medium" else "approve",
+                "teacher_comment": arbitration.get("teacher_comment", ""),
+                "status": arbitration.get("status", "pending"),
+            }
+        )
+    return tasks or _fallback_arbitration_tasks()
+
+
 @router.post("/teacher-arbitration/{item_id}/decision")
 def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPayload, db: Session = Depends(get_db)):
     if payload.decision not in {"approve", "revise", "reject"}:
         raise HTTPException(status_code=400, detail="decision 必须是 approve / revise / reject")
+    item = None
+    if item_id.isdigit():
+        item = db.query(AgentRun).filter(AgentRun.id == int(item_id)).first()
+    if not item:
+        item = db.query(AgentRun).filter(AgentRun.run_id == item_id).first()
+    if not item and item_id.startswith("run-"):
+        try:
+            item = db.query(AgentRun).filter(AgentRun.id == int(item_id.split("-")[-1])).first()
+        except ValueError:
+            item = None
+    teacher_comment = payload.teacher_comment or payload.comment or "教师完成仲裁决策。"
+    result = {
+        "status": {"approve": "approved", "revise": "revised", "reject": "rejected"}[payload.decision],
+        "decision": payload.decision,
+        "teacher_comment": teacher_comment,
+        "revised_content": payload.revised_content,
+        "suggested_action": payload.suggested_action,
+        "decided_at": datetime.utcnow().isoformat(),
+    }
+    if item:
+        state = loads(item.state, {})
+        state["teacher_arbitration_result"] = result
+        item.teacher_arbitration_result = dumps(result)
+        item.state = dumps(state)
+        item.messages = dumps([*loads(item.messages, []), f"教师仲裁：{payload.decision}"])
+        item.current_node = "ReporterAgent" if payload.decision == "approve" else "ResourceAgent" if payload.decision == "revise" else "END"
+        item.status = "success" if payload.decision in {"approve", "revise"} else "rejected"
+        item.finished_at = datetime.utcnow()
     log = AuditLog(
         actor_id="teacher_001",
         actor_name="王老师",
@@ -172,9 +289,9 @@ def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPaylo
         target_type="teacher_arbitration",
         target_id=item_id,
         status=payload.decision,
-        detail=payload.comment or "教师完成仲裁决策。",
+        detail=teacher_comment,
         retry_count=0,
-        rule_engine_result=dumps({"decision": payload.decision, "revised_content": payload.revised_content}),
+        rule_engine_result=dumps({"decision": payload.decision, "revised_content": payload.revised_content, "suggested_action": payload.suggested_action}),
         xfyun_result=dumps({"status": "not_configured", "message": "使用本地 fallback 记录教师仲裁。"}),
         risk_level="medium",
         arbitration_status="completed",
@@ -186,8 +303,11 @@ def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPaylo
         "id": log.id,
         "item_id": item_id,
         "decision": payload.decision,
-        "comment": payload.comment,
+        "comment": teacher_comment,
         "revised_content": payload.revised_content,
-        "status": "completed",
+        "suggested_action": payload.suggested_action,
+        "status": result["status"],
+        "teacher_arbitration_result": result,
+        "next_node": item.current_node if item else ("ReporterAgent" if payload.decision == "approve" else "ResourceAgent" if payload.decision == "revise" else "END"),
         "message": "教师仲裁结果已写入治理日志。",
     }

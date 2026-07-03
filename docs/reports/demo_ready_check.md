@@ -1,6 +1,6 @@
 # EduMind 演示状态检查报告
 
-- 检查时间：2026-06-30T15:33:02
+- 检查时间：2026-07-03T09:37:33
 - 总体状态：READY
 - 通过 / 警告 / 失败：27 / 0 / 0
 - 后端地址：http://127.0.0.1:8000
@@ -19,19 +19,19 @@
 | --- | --- | --- | --- | --- | --- |
 | data | courses | PASS | 6 | 5 | 满足演示要求 |
 | data | core_courses | PASS | 5 | 5 | 满足演示要求 |
-| data | student_profiles | PASS | 28 | 4 | 满足演示要求 |
-| data | core_students | PASS | 16 | 4 | 满足演示要求 |
+| data | student_profiles | PASS | 32 | 4 | 满足演示要求 |
+| data | core_students | PASS | 20 | 4 | 满足演示要求 |
 | data | core_teachers | PASS | 3 | 3 | 满足演示要求 |
 | data | course_documents | PASS | 16 | 3 | 满足演示要求 |
-| data | tutor_question_logs | PASS | 34 | 5 | 满足演示要求 |
+| data | tutor_question_logs | PASS | 38 | 5 | 满足演示要求 |
 | data | quizzes | PASS | 13 | 1 | 满足演示要求 |
-| data | quiz_submissions | PASS | 28 | 1 | 满足演示要求 |
+| data | quiz_submissions | PASS | 32 | 1 | 满足演示要求 |
 | data | learning_reports | PASS | 16 | 3 | 满足演示要求 |
 | data | agent_runs | PASS | 14 | 3 | 满足演示要求 |
-| data | learning_paths | PASS | 28 | 3 | 满足演示要求 |
-| data | generated_resources | PASS | 186 | 3 | 满足演示要求 |
-| data | audit_logs | PASS | 23 | 3 | 满足演示要求 |
-| data | business_events | PASS | 206 | 9 | 满足演示要求 |
+| data | learning_paths | PASS | 32 | 3 | 满足演示要求 |
+| data | generated_resources | PASS | 218 | 3 | 满足演示要求 |
+| data | audit_logs | PASS | 45 | 3 | 满足演示要求 |
+| data | business_events | PASS | 254 | 9 | 满足演示要求 |
 | file | backend/storage/uploads | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/reports | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/chroma | PASS | exists | exists | 文件或目录已存在 |

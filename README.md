@@ -283,4 +283,49 @@ python scripts/eval_retrieval.py
 - 讯飞 TTS/安全 API 未配置时返回文本讲解、任务状态和本地规则审核结果。
 - FFmpeg 未安装时降级为 HTML 动画与视频脚本。
 - Chroma 不可用时自动使用 JSON/TF-IDF 检索。
+- DKVMN 当前是参考 DKVMN Key-Value Memory 结构实现的轻量知识追踪，包含 `key_matrix`、按学生持久化的 `value_memory`、概念注册表、强弱点识别和画像映射；不是训练型深度神经网络复现。
+- EduLLM 当前是课程大纲约束 + 轻量语义/规则混合评分 + RAG 引用证据，不是完整教育大模型微调。
 - OCR、SentenceTransformer、真实深度 DKVMN 均预留接口，当前为轻量工程化实现。
+
+## Docker 启动
+
+演示级容器配置已补齐，保留本地启动方式：
+
+```bash
+docker compose up --build
+```
+
+访问地址：
+
+- Web 前端：http://localhost:3000
+- 后端 API：http://localhost:8000/docs
+- Chroma 可选 profile：`docker compose --profile chroma up --build`
+
+常见问题：
+
+- 如果 8000 或 3000 端口被占用，先停止本地 dev server 或修改 `docker-compose.yml` 端口映射。
+- SQLite 数据通过 `backend/storage` volume 保留。
+- Docker 不可用时仍按上方本地方式启动后端、前端和小程序。
+
+## 小程序后端配置
+
+小程序默认优先访问 `http://127.0.0.1:8000/api/v1`，配置在 `miniprogram/config/api.js`：
+
+- 开发者工具可使用 `127.0.0.1`。
+- 真机调试需改成电脑局域网 IP，例如 `http://192.168.1.8:8000/api/v1`，并确认手机与电脑在同一网络。
+- `fallbackToDemoData: true` 时，后端不可达会展示“当前为本地示例数据”，页面不白屏。
+
+## CI
+
+`.github/workflows/ci.yml` 已加入基础检查：
+
+- 后端：安装 `backend/requirements.txt`、`python -m compileall backend/app`、`pytest backend/tests`。
+- 前端：`npm ci`、`npm run build`。
+
+## Agent 节点口径
+
+文档统一为 9 个核心教学链路节点 + 3 个治理增强节点：
+
+- 核心教学链路 9 节点：ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ReporterAgent。
+- 治理增强节点 3 个：ComplianceAgent、AuditRetry、TeacherArbitration。
+- 因此系统实际为 12 节点扩展工作流，用于对齐 FACET 教师中心治理与双层风控。

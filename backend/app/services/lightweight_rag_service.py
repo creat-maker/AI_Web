@@ -214,7 +214,11 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
         else INSUFFICIENT_EVIDENCE_MESSAGE
     )
 
-    curriculum_check = check_curriculum_alignment(f"{question} {answer}")
+    curriculum_check = check_curriculum_alignment(
+        f"{question} {answer}",
+        evidence_items=citations,
+        target_level=student.get("current_level") or "基础补弱",
+    )
     suggested_actions = [
         _next_step(related_points, confidence),
         "查看引用片段并完成 2 道循环结构巩固题。",
@@ -232,9 +236,14 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
         "matchedChunks": matched,
         "confidence": confidence,
         "curriculum_alignment_score": curriculum_check["curriculum_alignment_score"],
+        "alignment_breakdown": curriculum_check["alignment_breakdown"],
+        "matched_objectives": curriculum_check["matched_objectives"],
+        "out_of_scope_terms": curriculum_check["out_of_scope_terms"],
+        "evidence_coverage_score": curriculum_check["evidence_coverage_score"],
+        "retrieved_evidence_coverage": curriculum_check["retrieved_evidence_coverage"],
         "is_out_of_curriculum": curriculum_check["is_out_of_curriculum"],
         "boundary_warning": curriculum_check["boundary_warning"],
-        "suggested_actions": suggested_actions,
+        "suggested_actions": list(dict.fromkeys([*suggested_actions, *curriculum_check.get("suggested_actions", [])])),
         "retrieval_debug": {
             "top_k": 5,
             "retrieval_mode": "hybrid-tfidf-json-fallback",
@@ -249,6 +258,7 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
                 for item in matched
             ],
             "curriculum_check": curriculum_check,
+            "json_fallback": True,
         },
         "lowEvidenceRisk": low_evidence_risk,
         "evidenceSummary": evidence_summary,
