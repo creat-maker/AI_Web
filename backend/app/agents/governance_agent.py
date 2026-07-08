@@ -4,6 +4,7 @@ from typing import Any
 
 from app.agents.state import AgentState
 from app.services.curriculum_constraint import check_curriculum_alignment
+from app.services.governance_service import build_retry_context, create_teacher_arbitration_state
 from app.services.xfyun_safety_service import xfyun_safety_service
 
 
@@ -84,6 +85,7 @@ def should_retry_or_arbitrate(state: AgentState) -> str:
 def audit_retry(state: AgentState) -> AgentState:
     retry_count = int(state.get("retry_count") or 0) + 1
     failure_reasons = state.get("audit_result", {}).get("failure_reasons") or state.get("audit_result", {}).get("suggestions") or [state.get("audit_result", {}).get("review_status", "needs_review")]
+    retry_context = build_retry_context(state.get("audit_result", {}), state.get("teacher_comment"))
     regeneration_instruction = (
         f"第 {retry_count} 次重新生成：收敛到 Python 循环结构课程范围，补充 RAG 引用，修复问题："
         + "；".join(str(item) for item in failure_reasons if item)
@@ -95,6 +97,7 @@ def audit_retry(state: AgentState) -> AgentState:
             "reason": state.get("audit_result", {}).get("review_status", "needs_review"),
             "failure_reasons": failure_reasons,
             "regeneration_instruction": regeneration_instruction,
+            "retry_context": retry_context,
             "modified_fields": ["generated_resources", "tutor_answer"],
         },
     ]
@@ -112,6 +115,9 @@ def audit_retry(state: AgentState) -> AgentState:
                 "audit_status": "retry_generated",
                 "audit_revision": f"第 {retry_count} 次根据审核意见重新生成资源内容。",
                 "regeneration_reason": failure_reasons,
+                "retry_context": retry_context,
+                "content_version": retry_count + 1,
+                "version_history": state.get("resource_version_history", []),
                 "before_content_summary": before_summary,
                 "after_content_summary": revised_content[:120],
             }
@@ -119,6 +125,7 @@ def audit_retry(state: AgentState) -> AgentState:
     return {
         **state,
         "retry_count": retry_count,
+        "retry_context": retry_context,
         "audit_retry_log": retry_log,
         "generated_resources": resources,
         "regeneration_instruction": regeneration_instruction,
@@ -127,14 +134,11 @@ def audit_retry(state: AgentState) -> AgentState:
 
 
 def teacher_arbitration_agent(state: AgentState) -> AgentState:
-    result = {
-        "status": "pending",
-        "decision": None,
-        "reason": "高风险或多次审核未通过，等待教师 approve / revise / reject。",
-        "allowed_actions": ["approve", "revise", "reject"],
-    }
+    result = create_teacher_arbitration_state(state)
     return {
         **state,
         "teacher_arbitration_result": result,
+        "current_node": "TeacherArbitration",
+        "status": "pending_review",
         "messages": [*state.get("messages", []), "TeacherArbitration 节点已创建待仲裁事项"],
     }

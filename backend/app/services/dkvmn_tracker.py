@@ -111,6 +111,33 @@ class DKVMNTracker:
         self.key_memory = CONCEPT_REGISTRY
         self.memory_dim = len(next(iter(CONCEPT_REGISTRY.values()))["vector"])
         self.key_matrix = [meta["vector"] for meta in CONCEPT_REGISTRY.values()]
+        self.concept_transition_matrix = self._build_transition_matrix()
+        self.exercise_concept_matrix = self._build_exercise_concept_matrix()
+
+    def _build_transition_matrix(self) -> dict[str, dict[str, float]]:
+        matrix: dict[str, dict[str, float]] = {}
+        ordered = list(CONCEPT_REGISTRY)
+        for source in ordered:
+            matrix[source] = {}
+            for target in ordered:
+                if source == target:
+                    matrix[source][target] = 1.0
+                elif abs(ordered.index(source) - ordered.index(target)) == 1:
+                    matrix[source][target] = 0.42
+                else:
+                    matrix[source][target] = 0.12
+        matrix["while_loop"]["break_continue"] = 0.68
+        matrix["for_loop"]["list_iteration"] = 0.72
+        matrix["nested_loop"]["algorithmic_thinking"] = 0.64
+        return matrix
+
+    def _build_exercise_concept_matrix(self) -> dict[str, dict[str, float]]:
+        return {
+            "loop-basic-001-q1": {"while_loop": 0.9, "conditionals": 0.35},
+            "loop-basic-001-q2": {"break_continue": 0.92, "while_loop": 0.25},
+            "loop-basic-001-q3": {"for_loop": 0.88, "python_basics": 0.3},
+            "loop-nested-001": {"nested_loop": 0.85, "algorithmic_thinking": 0.5},
+        }
 
     def normalize_concept(self, concept_id: str | None) -> str:
         if not concept_id:
@@ -125,6 +152,8 @@ class DKVMNTracker:
             "concept_registry": self.concept_registry,
             "key_matrix": self.key_matrix,
             "key_memory": self.key_memory,
+            "concept_transition_matrix": self.concept_transition_matrix,
+            "exercise_concept_matrix": self.exercise_concept_matrix,
             "value_memory": {
                 concept_id: {
                     "mastery": 0.58 if concept_id in {"for_loop", "list_iteration"} else 0.48 if concept_id in {"while_loop", "break_continue", "nested_loop"} else 0.55,
@@ -153,6 +182,8 @@ class DKVMNTracker:
         state.setdefault("concept_registry", self.concept_registry)
         state.setdefault("key_matrix", self.key_matrix)
         state.setdefault("key_memory", self.key_memory)
+        state.setdefault("concept_transition_matrix", self.concept_transition_matrix)
+        state.setdefault("exercise_concept_matrix", self.exercise_concept_matrix)
         state.setdefault("value_memory", {})
         for concept_id in self.key_memory:
             row = state["value_memory"].setdefault(
@@ -310,7 +341,29 @@ class DKVMNTracker:
 
     def predict_mastery(self, student_id: int | str, concept_id: str, state: dict[str, Any] | None = None) -> float:
         active_state = state or self.state_from_fallback(student_id)
-        return self.predict(student_id, concept_id, active_state)
+        concept = self.normalize_concept(concept_id)
+        base = self.predict(student_id, concept, active_state)
+        related = active_state.get("concept_transition_matrix", {}).get(concept, {})
+        value_memory = active_state.get("value_memory", {})
+        related_values = [
+            float(value_memory.get(target, {}).get("mastery", base)) * weight
+            for target, weight in related.items()
+            if target != concept and weight >= 0.4
+        ]
+        related_weights = [weight for target, weight in related.items() if target != concept and weight >= 0.4]
+        related_score = sum(related_values) / max(sum(related_weights), 1e-9) if related_values else base
+        recent = active_state.get("update_log", [])[-5:]
+        recent_hits = [1 if item.get("is_correct") else -1 for item in recent if item.get("concept_id") == concept]
+        recent_factor = (sum(recent_hits) / max(len(recent_hits), 1)) * 0.04 if recent_hits else 0.0
+        row = value_memory.get(concept, {})
+        forget_penalty = 0.0
+        if row.get("last_updated"):
+            try:
+                elapsed_days = max(0, (datetime.utcnow() - datetime.fromisoformat(row["last_updated"])).days)
+                forget_penalty = min(0.08, elapsed_days * 0.01)
+            except ValueError:
+                forget_penalty = 0.0
+        return round(max(0.05, min(0.99, base * 0.72 + related_score * 0.24 + recent_factor - forget_penalty)), 3)
 
     def get_cognitive_state(self, student_id: int | str, state: dict[str, Any] | None = None) -> dict[str, Any]:
         active_state = self._ensure_state(state) if state else self.state_from_fallback(student_id)
@@ -335,12 +388,60 @@ class DKVMNTracker:
     def get_mastery_distribution(self, student_id: int | str, state: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.get_mastery_distribution_from_state(self._ensure_state(state) if state else self.state_from_fallback(student_id))
 
-    def get_mastery_vector(self, student_id: int | str, state: dict[str, Any] | None = None) -> dict[str, float]:
+    def get_mastery_vector(self, student_id: int | str, state: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
         active_state = self._ensure_state(state) if state else self.state_from_fallback(student_id)
         return {
-            concept_id: self.model.predict(active_state, concept_id)
+            concept_id: {
+                "mastery": self.predict_mastery(student_id, concept_id, active_state),
+                "confidence": round(0.62 + min(0.3, int(active_state.get("value_memory", {}).get(concept_id, {}).get("attempts", 0)) * 0.04), 3),
+                "evidence_count": int(active_state.get("value_memory", {}).get(concept_id, {}).get("attempts", 0)),
+                "recent_trend": self._recent_trend(active_state, concept_id),
+            }
             for concept_id in self.key_memory
         }
+
+    def _recent_trend(self, state: dict[str, Any], concept_id: str) -> str:
+        rows = [item for item in state.get("update_log", [])[-8:] if item.get("concept_id") == concept_id]
+        if not rows:
+            return "insufficient_evidence"
+        delta = float(rows[-1].get("after", 0)) - float(rows[0].get("before", 0))
+        if delta > 0.03:
+            return "up"
+        if delta < -0.03:
+            return "down"
+        return "stable"
+
+    def explain_prediction(self, concept_id: str, student_id: int | str = "demo", state: dict[str, Any] | None = None) -> dict[str, Any]:
+        active_state = self._ensure_state(state) if state else self.state_from_fallback(student_id)
+        concept = self.normalize_concept(concept_id)
+        row = active_state.get("value_memory", {}).get(concept, {})
+        related = active_state.get("concept_transition_matrix", {}).get(concept, {})
+        return {
+            "concept_id": concept,
+            "concept_name": self.key_memory[concept]["name"],
+            "predicted_mastery": self.predict_mastery(student_id, concept, active_state),
+            "base_mastery": self.model.predict(active_state, concept),
+            "evidence_count": int(row.get("attempts", 0)),
+            "recent_trend": self._recent_trend(active_state, concept),
+            "related_concepts": [
+                {"concept_id": target, "weight": weight, "mastery": active_state.get("value_memory", {}).get(target, {}).get("mastery")}
+                for target, weight in sorted(related.items(), key=lambda item: item[1], reverse=True)
+                if target != concept
+            ][:5],
+            "explanation": "轻量 DKVMN-inspired 实现综合 value memory、概念相关性、近期表现和遗忘因子形成预测。",
+        }
+
+    def save_json(self, path: str | Path, state: dict[str, Any]) -> Path:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(dumps(self._ensure_state(state)), encoding="utf-8")
+        return target
+
+    def load_json(self, path: str | Path) -> dict[str, Any]:
+        target = Path(path)
+        if not target.exists():
+            return self.initial_state()
+        return self._ensure_state(loads(target.read_text(encoding="utf-8"), {}))
 
     def get_mastery_distribution_from_state(self, state: dict[str, Any]) -> dict[str, Any]:
         rows = state.get("value_memory", {})

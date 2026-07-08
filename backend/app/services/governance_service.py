@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import AITaskRun, AuditLog, ContentVersion, ReviewItem
+from app.models import AITaskRun, AgentRun, AuditLog, ContentVersion, ReviewItem
 from app.services.json_utils import dumps, loads
 from app.services.privacy_service import mask_name, redact_payload, summarize_text
 
@@ -403,3 +403,154 @@ def reject_review_item(db: Session, item: ReviewItem, user: dict[str, Any], comm
     db.commit()
     db.refresh(item)
     return item
+
+
+def build_retry_context(audit_result: dict[str, Any], teacher_comment: str | None = None) -> dict[str, Any]:
+    checks = audit_result.get("checks") or []
+    failed_rules = [
+        item.get("dimension") or item.get("rule")
+        for item in checks
+        if isinstance(item, dict) and item.get("status") not in {None, "pass", "PASS"}
+    ]
+    curriculum = audit_result.get("rule_engine_result", {}).get("curriculum") or audit_result.get("curriculum") or {}
+    unsafe_phrases = []
+    for item in checks:
+        if isinstance(item, dict) and item.get("status") == "error":
+            unsafe_phrases.append(item.get("message") or item.get("dimension"))
+    return {
+        "risk_type": audit_result.get("risk_level") or "medium",
+        "failed_rules": [item for item in failed_rules if item],
+        "unsafe_phrases": [item for item in unsafe_phrases if item],
+        "curriculum_boundary_warning": curriculum.get("boundary_warning") or audit_result.get("boundary_warning") or "",
+        "teacher_comment": teacher_comment or "",
+    }
+
+
+def create_teacher_arbitration_state(state: dict[str, Any]) -> dict[str, Any]:
+    run_id = str(state.get("run_id") or f"run-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
+    retry_count = int(state.get("retry_count") or 0)
+    audit = state.get("audit_result") or {}
+    item_id = str(state.get("arbitration_item_id") or f"arb-{run_id}-{retry_count}")
+    review_item = {
+        "item_id": item_id,
+        "item_type": "resource_pack",
+        "status": "pending_review",
+        "risk_level": audit.get("risk_level", "medium"),
+        "retry_count": retry_count,
+        "content_summary": summarize_text(state.get("generated_resources", []), 240),
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    audit_log = {
+        "run_id": run_id,
+        "item_id": item_id,
+        "decision": "pending",
+        "teacher_comment": "",
+        "previous_status": audit.get("review_status", "needs_review"),
+        "next_status": "pending_review",
+        "retry_count": retry_count,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    ai_task_run = {
+        "run_id": run_id,
+        "task_type": "teacher_arbitration",
+        "status": "pending_review",
+        "current_node": "TeacherArbitration",
+    }
+    return {
+        "status": "pending",
+        "decision": None,
+        "reason": "高风险或多次审核未通过，等待教师 approve / revise / reject。",
+        "allowed_actions": ["approve", "revise", "reject"],
+        "review_item": review_item,
+        "audit_log": audit_log,
+        "ai_task_run": ai_task_run,
+    }
+
+
+def resume_after_teacher_decision(
+    state: dict[str, Any],
+    decision: str,
+    teacher_comment: str = "",
+    revised_content: str | None = None,
+) -> dict[str, Any]:
+    if decision not in {"approve", "revise", "reject"}:
+        raise ValueError("decision 必须是 approve / revise / reject")
+    previous = state.get("current_node") or "TeacherArbitration"
+    retry_count = int(state.get("retry_count") or 0)
+    result = {
+        **(state.get("teacher_arbitration_result") or create_teacher_arbitration_state(state)),
+        "status": {"approve": "approved", "revise": "revised", "reject": "rejected"}[decision],
+        "decision": decision,
+        "teacher_comment": teacher_comment,
+        "revised_content": revised_content,
+        "decided_at": datetime.utcnow().isoformat(),
+    }
+    next_node = "ReporterAgent" if decision == "approve" else "ResourceAgent" if decision == "revise" else "END"
+    next_status = "success" if decision == "approve" else "generating" if decision == "revise" else "rejected"
+    log = {
+        "run_id": str(state.get("run_id") or ""),
+        "item_id": result.get("review_item", {}).get("item_id") or state.get("arbitration_item_id") or "",
+        "decision": decision,
+        "teacher_comment": teacher_comment,
+        "previous_status": previous,
+        "next_status": next_status,
+        "retry_count": retry_count,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    next_state = {
+        **state,
+        "teacher_arbitration_result": result,
+        "teacher_decision_log": [*state.get("teacher_decision_log", []), log],
+        "current_node": next_node,
+        "status": next_status,
+        "messages": [*state.get("messages", []), f"教师仲裁 {decision}，下一节点：{next_node}"],
+    }
+    if decision == "revise":
+        next_state["retry_context"] = build_retry_context(state.get("audit_result") or {}, teacher_comment)
+        next_state["teacher_revised_content"] = revised_content
+    if decision == "reject":
+        next_state["publication_blocked"] = True
+        next_state["rejection_reason"] = teacher_comment or "教师拒绝该版本，终止资源发布。"
+    return next_state
+
+
+def apply_teacher_arbitration_decision(
+    db: Session,
+    *,
+    item: AgentRun | None,
+    item_id: str,
+    decision: str,
+    teacher_comment: str,
+    revised_content: str | None = None,
+    suggested_action: str | None = None,
+) -> dict[str, Any]:
+    state = loads(item.state, {}) if item else {"run_id": item_id, "retry_count": 0, "messages": []}
+    next_state = resume_after_teacher_decision(state, decision, teacher_comment, revised_content)
+    if item:
+        item.teacher_arbitration_result = dumps(next_state["teacher_arbitration_result"])
+        item.state = dumps(next_state)
+        item.messages = dumps(next_state.get("messages", []))
+        item.current_node = next_state["current_node"]
+        item.status = next_state["status"]
+        if decision in {"approve", "reject"}:
+            item.finished_at = datetime.utcnow()
+    log_detail = next_state["teacher_decision_log"][-1]
+    row = AuditLog(
+        actor_id="teacher_001",
+        actor_name="王老师",
+        actor_role="teacher",
+        action="teacher_arbitration_decision",
+        target_type="teacher_arbitration",
+        target_id=item_id,
+        status=decision,
+        detail=teacher_comment,
+        retry_count=log_detail["retry_count"],
+        rule_engine_result=dumps({**log_detail, "revised_content": revised_content, "suggested_action": suggested_action}),
+        xfyun_result=dumps({"status": "not_configured", "message": "使用本地 fallback 记录教师仲裁。"}),
+        risk_level=(loads(item.audit_result, {}) if item else {}).get("risk_level", "medium"),
+        arbitration_status="completed",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"state": next_state, "audit_log": row, "next_node": next_state["current_node"], "status": next_state["teacher_arbitration_result"]["status"]}

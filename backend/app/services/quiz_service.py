@@ -12,6 +12,21 @@ from app.services.llm_service import llm_service
 logger = logging.getLogger(__name__)
 
 
+DEMO_QUIZZES = [
+    {
+        "id": "loop-basic-001",
+        "course_id": "python-programming",
+        "topic": "循环结构",
+        "title": "循环结构基础测验",
+        "questions": [
+            {"id": "q1", "stem": "while 循环避免死循环的关键是什么？", "correctAnswer": "更新条件变量", "concept_id": "while_loop"},
+            {"id": "q2", "stem": "break 的作用是什么？", "correctAnswer": "跳出循环", "concept_id": "break_continue"},
+            {"id": "q3", "stem": "for range(3) 会执行几次？", "correctAnswer": "3", "concept_id": "for_loop"},
+        ],
+    }
+]
+
+
 def create_quiz(db: Session, course: Course, profile: StudentProfile | None = None) -> Quiz:
     quiz_json = llm_service.generate_json("quiz", {"course_title": course.title})
     quiz = Quiz(
@@ -23,6 +38,114 @@ def create_quiz(db: Session, course: Course, profile: StudentProfile | None = No
     db.commit()
     db.refresh(quiz)
     return quiz
+
+
+def get_quiz_list(course_id: int | str | None = None, topic: str | None = None) -> list[dict]:
+    rows = DEMO_QUIZZES
+    if course_id:
+        rows = [item for item in rows if str(item.get("course_id")) == str(course_id) or str(course_id) in {"1", "python-programming"}]
+    if topic:
+        rows = [item for item in rows if topic in item.get("topic", "") or topic in item.get("title", "")]
+    return rows
+
+
+def map_question_to_concept(question: dict, index: int = 0) -> str:
+    return _question_concept(question, index)
+
+
+def grade_answers(questions: list[dict], answers: dict) -> dict:
+    total = len(questions)
+    rows = []
+    correct_count = 0
+    for index, question in enumerate(questions):
+        is_correct = _answer_correctness(question, answers, index, 0)
+        correct_count += 1 if is_correct else 0
+        qid = str(question.get("id") or f"q{index + 1}")
+        rows.append(
+            {
+                "question_id": qid,
+                "concept_id": map_question_to_concept(question, index),
+                "answer": answers.get(qid) or answers.get(f"q{index + 1}"),
+                "correct_answer": question.get("answer") or question.get("correct_answer") or question.get("correctAnswer"),
+                "is_correct": is_correct,
+            }
+        )
+    score = round(correct_count / max(total, 1) * 100, 1)
+    return {"score": score, "correct_count": correct_count, "total_count": total, "items": rows}
+
+
+def build_wrong_reason_analysis(graded_items: list[dict]) -> list[dict]:
+    reasons = []
+    for item in graded_items:
+        if item.get("is_correct"):
+            continue
+        concept = item.get("concept_id")
+        reason = "概念理解不稳或关键条件遗漏。"
+        if concept == "while_loop":
+            reason = "可能遗漏循环条件更新，容易形成死循环。"
+        elif concept == "break_continue":
+            reason = "可能混淆 break 跳出循环与 continue 跳过本轮。"
+        reasons.append({"question_id": item.get("question_id"), "concept_id": concept, "reason": reason})
+    return reasons
+
+
+def update_dkvmn_after_submit(student_id: int | str, graded_items: list[dict]) -> dict:
+    state = dkvmn_tracker.state_from_fallback(student_id)
+    deltas: dict[str, float] = {}
+    for item in graded_items:
+        concept = dkvmn_tracker.normalize_concept(item.get("concept_id"))
+        before = dkvmn_tracker.predict_mastery(student_id, concept, state)
+        state = dkvmn_tracker.update(student_id, concept, bool(item.get("is_correct")), 0.12 if item.get("is_correct") else -0.14, state)
+        after = dkvmn_tracker.predict_mastery(student_id, concept, state)
+        deltas[concept] = round(after - before, 3)
+    dkvmn_tracker.persist_fallback_state(student_id, state)
+    cognitive_state = dkvmn_tracker.get_cognitive_state(student_id, state)
+    return {
+        "dkvmn_updated": True,
+        "concept_mastery_delta": deltas,
+        "cognitive_state": cognitive_state,
+        "weak_concepts": cognitive_state["weak_concepts"],
+        "mastery_vector": dkvmn_tracker.get_mastery_vector(student_id, state),
+    }
+
+
+def recommend_path_adjustment(score: float, weak_concepts: list[dict]) -> list[dict]:
+    if score >= 85 and not weak_concepts:
+        return [{"type": "advance", "title": "进入循环嵌套拓展练习", "reason": "当前测验达标。"}]
+    tasks = []
+    for item in weak_concepts[:3] or [{"name": "while 循环条件更新", "concept_id": "while_loop"}]:
+        tasks.append({"type": "remedial", "title": f"{item.get('name')}专项练习", "concept_id": item.get("concept_id"), "reason": "测验或 DKVMN 显示掌握度偏低。"})
+    return tasks
+
+
+class QuizService:
+    get_quiz_list = staticmethod(get_quiz_list)
+    grade_answers = staticmethod(grade_answers)
+    map_question_to_concept = staticmethod(map_question_to_concept)
+    build_wrong_reason_analysis = staticmethod(build_wrong_reason_analysis)
+    update_dkvmn_after_submit = staticmethod(update_dkvmn_after_submit)
+    recommend_path_adjustment = staticmethod(recommend_path_adjustment)
+
+    def submit_quiz(self, student_id: int | str, quiz_id: int | str, answers: dict) -> dict:
+        quiz = next((item for item in DEMO_QUIZZES if str(item["id"]) == str(quiz_id)), DEMO_QUIZZES[0])
+        graded = grade_answers(quiz["questions"], answers)
+        dkvmn = update_dkvmn_after_submit(student_id, graded["items"])
+        weak = dkvmn["weak_concepts"]
+        wrong = build_wrong_reason_analysis(graded["items"])
+        tasks = recommend_path_adjustment(graded["score"], weak)
+        return {
+            "student_id": student_id,
+            "quiz_id": quiz_id,
+            "score": graded["score"],
+            "correct_count": graded["correct_count"],
+            "total_count": graded["total_count"],
+            "concept_mastery_delta": dkvmn["concept_mastery_delta"],
+            "weak_concepts": weak,
+            "wrong_reason_analysis": wrong,
+            "recommended_tasks": tasks,
+            "dkvmn_updated": dkvmn["dkvmn_updated"],
+            "dkvmn": dkvmn,
+        }
 
 
 def submit_quiz(db: Session, quiz: Quiz, profile: StudentProfile, answers: dict) -> QuizSubmission:

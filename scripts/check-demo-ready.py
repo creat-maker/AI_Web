@@ -99,6 +99,22 @@ def _exists_check(name: str, path: Path, fail_if_missing: bool, suggestion: str,
     return CheckResult("FAIL" if fail_if_missing else "WARN", name, "missing", "exists", suggestion, category)
 
 
+def _source_check(name: str, relative_path: str, patterns: list[str], suggestion: str, category: str = "source") -> CheckResult:
+    path = ROOT_DIR / relative_path
+    if not path.exists():
+        return CheckResult("FAIL", name, "missing", "exists", suggestion, category)
+    content = path.read_text(encoding="utf-8", errors="replace")
+    missing = [pattern for pattern in patterns if pattern not in content]
+    return CheckResult(
+        "PASS" if not missing else "FAIL",
+        name,
+        "ok" if not missing else "missing: " + ",".join(missing[:4]),
+        "all patterns present",
+        "满足演示要求" if not missing else suggestion,
+        category,
+    )
+
+
 def _http_check(name: str, url: str, expected_status: int = 200) -> CheckResult:
     try:
         request = Request(url, headers={"User-Agent": "EduMind-demo-ready-check/1.0"})
@@ -188,7 +204,63 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
     ]:
         results.append(_exists_check(name, path, fail_if_missing=False, suggestion=suggestion))
 
-    for relative in ["start-dev.bat", "stop-dev.bat", "seed-demo-data.bat", "check-demo-ready.bat", "scripts/seed_demo_data.py", "scripts/e2e_demo_flow_check.py", "scripts/eval_retrieval.py"]:
+    results.extend(
+        [
+            _source_check(
+                "report_service_methods",
+                "backend/app/services/report_service.py",
+                ["class ReportService", "generate_student_report", "export_docx", "fallback_reason"],
+                "ReportService 缺少报告生成/导出/fallback 方法。",
+            ),
+            _source_check(
+                "profile_service_methods",
+                "backend/app/services/profile_service.py",
+                ["class ProfileService", "build_profile_visualization", "calculate_risk_level", "merge_profile_evidence"],
+                "ProfileService 缺少画像可视化、风险或证据合并方法。",
+            ),
+            _source_check(
+                "quiz_service_methods",
+                "backend/app/services/quiz_service.py",
+                ["class QuizService", "grade_answers", "wrong_reason_analysis", "dkvmn_updated"],
+                "QuizService 缺少评分、错因分析或 DKVMN 更新字段。",
+            ),
+            _source_check(
+                "rag_citations_contract",
+                "backend/app/services/lightweight_rag_service.py",
+                ["citations", "retrieved_chunks", "parser_warnings", "curriculum_alignment"],
+                "RAG 返回结构缺少 citations/retrieved_chunks/parser_warnings/curriculum_alignment。",
+            ),
+            _source_check(
+                "teacher_arbitration_decisions",
+                "backend/app/services/governance_service.py",
+                ["resume_after_teacher_decision", "approve", "revise", "reject", "teacher_decision_log"],
+                "教师仲裁缺少 approve/revise/reject 状态推进逻辑。",
+            ),
+            _source_check(
+                "miniprogram_request_or_fallback",
+                "miniprogram/utils/api.js",
+                ["requestOrFallback", "fallback", "demoData"],
+                "小程序 api.js 缺少 requestOrFallback 或 demoData fallback。",
+                "miniprogram",
+            ),
+        ]
+    )
+
+    for relative in [
+        "start-dev.bat",
+        "stop-dev.bat",
+        "seed-demo-data.bat",
+        "check-demo-ready.bat",
+        "scripts/seed_demo_data.py",
+        "scripts/e2e_demo_flow_check.py",
+        "scripts/eval_retrieval.py",
+        "docker-compose.yml",
+        "backend/Dockerfile",
+        "frontend/Dockerfile",
+        "frontend/nginx.conf",
+        ".env.example",
+        ".github/workflows/ci.yml",
+    ]:
         results.append(_exists_check(relative, ROOT_DIR / relative, fail_if_missing=True, suggestion=f"关键脚本缺失：{relative}", category="script"))
 
     if include_http:

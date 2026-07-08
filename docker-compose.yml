@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: edumind-backend
+    env_file:
+      - .env
     environment:
       DATABASE_URL: sqlite:///./storage/edumind.db
       SQLITE_FALLBACK_PATH: backend/storage/edumind.db
@@ -20,6 +22,8 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     container_name: edumind-frontend
+    env_file:
+      - .env
     depends_on:
       - backend
     ports:

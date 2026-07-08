@@ -3,6 +3,7 @@
     <text class="eyebrow">测验评价</text>
     <text class="title">{{title}}</text>
     <text class="subtitle">检查 while / for / break / continue 掌握情况</text>
+    <text class="muted">数据来源：{{sourceLabel}}</text>
     <view class="quiz-progress">
       <view>
         <text class="progress-label">当前题数</text>
@@ -30,6 +31,12 @@
   </view>
 
   <view class="section" wx:if="{{submitted}}">
+    <view wx:if="{{errorMessage}}" class="result-banner">
+      <text>{{errorMessage}}</text>
+    </view>
+    <view wx:if="{{emptyMessage}}" class="glass-card detail-card">
+      <text class="body-text">{{emptyMessage}}</text>
+    </view>
     <view class="result-banner">
       <text>{{syncMessage}}</text>
     </view>

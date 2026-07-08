@@ -3,6 +3,17 @@
     <text class="eyebrow">学习诊断报告</text>
     <text class="title">{{report.title}}</text>
     <text class="subtitle">{{student.name}} · {{student.course}} · {{student.chapter}} · {{generatedAt}}</text>
+    <text class="muted">数据来源：{{sourceLabel}}</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="section export-card">
+    <text>正在同步后端报告...</text>
+  </view>
+  <view wx:if="{{errorMessage}}" class="section export-card">
+    <text>{{errorMessage}}</text>
+  </view>
+  <view wx:if="{{emptyMessage}}" class="section export-card">
+    <text>{{emptyMessage}}</text>
   </view>
 
   <view class="section stat-grid report-stats">
@@ -86,6 +97,10 @@
 
   <view class="section export-card">
     <text>{{report.exportNote}}</text>
+    <view class="action-grid">
+      <button class="secondary-btn" bindtap="previewReport">预览报告</button>
+      <button class="secondary-btn" bindtap="downloadReport">下载报告</button>
+    </view>
   </view>
 
   <view class="section action-grid">

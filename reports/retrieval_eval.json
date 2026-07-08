@@ -5,6 +5,13 @@
   "MRR": 1.0,
   "Recall@K": 1.0,
   "NDCG@K": 1.0,
+  "Precision@K": 0.9,
+  "CoverageRate": 0.4,
+  "mrr": 1.0,
+  "recall_at_k": 1.0,
+  "ndcg_at_k": 1.0,
+  "precision_at_k": 0.9,
+  "coverage_rate": 0.4,
   "details": [
     {
       "question": "for 循环适合什么场景？",
@@ -12,7 +19,8 @@
         1,
         2
       ],
-      "top_k": 2
+      "top_k": 2,
+      "precision": 1.0
     },
     {
       "question": "while 循环为什么会死循环？",
@@ -20,7 +28,8 @@
         1,
         2
       ],
-      "top_k": 2
+      "top_k": 2,
+      "precision": 1.0
     },
     {
       "question": "break 和 continue 有什么区别？",
@@ -28,14 +37,16 @@
         1,
         2
       ],
-      "top_k": 2
+      "top_k": 2,
+      "precision": 1.0
     },
     {
       "question": "循环嵌套怎么跟踪变量？",
       "hit_ranks": [
         1
       ],
-      "top_k": 2
+      "top_k": 2,
+      "precision": 0.5
     },
     {
       "question": "列表遍历常见错误是什么？",
@@ -43,7 +54,8 @@
         1,
         2
       ],
-      "top_k": 2
+      "top_k": 2,
+      "precision": 1.0
     }
   ],
   "mode": "tfidf-or-json-fallback-eval"

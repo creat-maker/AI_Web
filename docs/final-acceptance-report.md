@@ -4,7 +4,7 @@
 
 - DKVMN 轻量知识追踪：概念注册表、掌握度更新、强弱点、6 维画像映射。
 - EduLLM 课程约束 RAG：文档解析、章节分块、TF-IDF embedding、引用、置信度、超纲检测、检索评估。
-- FACET 多智能体治理：9 节点保留，新增 ComplianceAgent、审核回流、教师仲裁和运行日志。
+- FACET 多智能体治理：系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent，并保留运行日志。
 - 多模态资源：讲义、思维导图、练习、HTML 动画、视频脚本、TTS fallback、MP4 fallback、代码案例、小项目。
 - 测评闭环：`/api/v1/quiz/submit` 与 `/api/v1/quizzes/submit` 更新 DKVMN、画像和路径。
 - 报告中心：Markdown/Word fallback，下载接口保留。
@@ -16,7 +16,7 @@
 | --- | --- | --- | --- |
 | DKVMN | 可运行更新与预测 | 联动画像/路径/测验 | `DKVMNModelInterface` 预留 |
 | RAG | 引用问答结构 | 课程约束与检索 debug | SentenceTransformer/OCR 预留 |
-| FACET | 9 节点工作流 | 审核回流与教师仲裁 | 并行扩展点保留 |
+| FACET | 12 节点教学智能体治理增强流程 | 审核回流与教师仲裁 | 并行扩展点保留 |
 | 资源 | 9 类资源 | 预览与评分 | TTS/FFmpeg 可选接入 |
 | 报告 | 生成与下载 | 证据链章节 | PDF 导出预留 |
 
@@ -64,7 +64,7 @@
 | P1 | audit_retry | 已记录 regeneration_instruction、before/after summary、retry_count，并回流资源内容。 |
 | P1 | 小程序 API | 已补 `utils/api.js`、timeout 和 fallbackToDemoData 配置。 |
 | P1 | 服务审查 | chunk、embedding、RAG、retrieval eval、profile、quiz 保留稳定字段和 fallback；异常时不应直接 500。 |
-| P2 | 12 节点文档 | 已统一为 9 个核心教学节点 + 3 个治理增强节点。 |
+| P2 | 12 节点文档 | 已统一为 12 节点教学智能体治理增强版，并解释原始 9+1 核心闭环与当前治理节点扩展关系。 |
 | P2 | CI/CD | 已新增 GitHub Actions 基础后端/前端检查。 |
 
 ## 本轮命令验收结果
@@ -72,11 +72,12 @@
 | 命令 | 结果 |
 | --- | --- |
 | `cd backend && python -m compileall app` | 通过 |
-| `cd backend && pytest` | 通过，58 个用例全部通过；覆盖 DKVMN、课程约束、RAG、graph、教师仲裁、报告、服务契约和 fallback |
-| `cd frontend && npm.cmd run build` | 通过；普通 `npm run build` 在 PowerShell 执行策略下被拦截，沙箱内 esbuild 读配置受限，提升权限后构建成功 |
-| `python scripts/check-demo-ready.py --skip-http` | 通过，状态 READY |
+| `cd backend && python -m pytest -q` | 通过，75 个用例全部通过；覆盖 DKVMN、课程约束、RAG、graph、教师仲裁、报告、画像、测验、服务契约和 fallback |
+| `cd frontend && npm.cmd install` | 通过；普通 `npm install` 在 PowerShell 执行策略下被拦截，使用等价 `npm.cmd install` 成功 |
+| `cd frontend && npm.cmd run build` | 通过；普通沙箱内构建被 esbuild 目录权限拦截，提升权限后构建成功 |
+| `python scripts/check-demo-ready.py` | 通过，状态 READY；需先启动本地后端 8000 和前端 5173 |
 | `python scripts/e2e_demo_flow_check.py --base-url http://127.0.0.1:8000` | 通过，16/16 |
-| `python scripts/eval_retrieval.py` | 通过，演示集 MRR/Recall@K/NDCG@K 均为 1.0；样本量小，仅证明链路可命中预期证据 |
+| `python scripts/eval_retrieval.py` | 通过，MRR/Recall@K/NDCG@K=1.0，Precision@K=0.9，CoverageRate=0.4；已输出 `reports/retrieval_eval_report.md` |
 | `docker compose config` | 未运行成功；当前环境未安装 Docker CLI，已保留 Compose/Dockerfile/Nginx 配置供有 Docker 环境验证 |
 
 ## 服务审查结果表

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models import AgentRun, AuditLog, Course, Quiz, StudentProfile
+from app.services.governance_service import apply_teacher_arbitration_decision
 from app.services.json_utils import dumps, loads
 from app.services.quiz_service import create_quiz, submit_quiz
 
@@ -264,41 +265,17 @@ def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPaylo
         except ValueError:
             item = None
     teacher_comment = payload.teacher_comment or payload.comment or "教师完成仲裁决策。"
-    result = {
-        "status": {"approve": "approved", "revise": "revised", "reject": "rejected"}[payload.decision],
-        "decision": payload.decision,
-        "teacher_comment": teacher_comment,
-        "revised_content": payload.revised_content,
-        "suggested_action": payload.suggested_action,
-        "decided_at": datetime.utcnow().isoformat(),
-    }
-    if item:
-        state = loads(item.state, {})
-        state["teacher_arbitration_result"] = result
-        item.teacher_arbitration_result = dumps(result)
-        item.state = dumps(state)
-        item.messages = dumps([*loads(item.messages, []), f"教师仲裁：{payload.decision}"])
-        item.current_node = "ReporterAgent" if payload.decision == "approve" else "ResourceAgent" if payload.decision == "revise" else "END"
-        item.status = "success" if payload.decision in {"approve", "revise"} else "rejected"
-        item.finished_at = datetime.utcnow()
-    log = AuditLog(
-        actor_id="teacher_001",
-        actor_name="王老师",
-        actor_role="teacher",
-        action="teacher_arbitration_decision",
-        target_type="teacher_arbitration",
-        target_id=item_id,
-        status=payload.decision,
-        detail=teacher_comment,
-        retry_count=0,
-        rule_engine_result=dumps({"decision": payload.decision, "revised_content": payload.revised_content, "suggested_action": payload.suggested_action}),
-        xfyun_result=dumps({"status": "not_configured", "message": "使用本地 fallback 记录教师仲裁。"}),
-        risk_level="medium",
-        arbitration_status="completed",
+    applied = apply_teacher_arbitration_decision(
+        db,
+        item=item,
+        item_id=item_id,
+        decision=payload.decision,
+        teacher_comment=teacher_comment,
+        revised_content=payload.revised_content,
+        suggested_action=payload.suggested_action,
     )
-    db.add(log)
-    db.commit()
-    db.refresh(log)
+    log = applied["audit_log"]
+    result = applied["state"]["teacher_arbitration_result"]
     return {
         "id": log.id,
         "item_id": item_id,
@@ -308,6 +285,6 @@ def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPaylo
         "suggested_action": payload.suggested_action,
         "status": result["status"],
         "teacher_arbitration_result": result,
-        "next_node": item.current_node if item else ("ReporterAgent" if payload.decision == "approve" else "ResourceAgent" if payload.decision == "revise" else "END"),
+        "next_node": applied["next_node"],
         "message": "教师仲裁结果已写入治理日志。",
     }

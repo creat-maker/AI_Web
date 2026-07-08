@@ -11,7 +11,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from app.services.lightweight_rag_service import ask_rag  # noqa: E402
-from app.services.retrieval_eval_service import evaluate_retrieval  # noqa: E402
+from app.services.retrieval_eval_service import evaluate_retrieval, retrieval_eval_service  # noqa: E402
 
 
 def search(question: str, top_k: int) -> list[dict]:
@@ -26,6 +26,9 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"written: {output}")
+    md_output = ROOT_DIR / "reports" / "retrieval_eval_report.md"
+    retrieval_eval_service.export_eval_summary(result, md_output)
+    print(f"written: {md_output}")
     return 0
 
 

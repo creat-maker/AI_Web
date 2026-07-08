@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services.embedding_interface import TfidfEmbeddingProvider
+
 
 DEFAULT_CURRICULUM_TERMS = {
     "python", "循环", "for", "while", "range", "break", "continue", "变量", "列表", "条件", "嵌套", "调试", "代码", "输出", "算法"
@@ -38,9 +40,15 @@ def check_curriculum_alignment(
     learning_objectives: list[str] | None = None,
     evidence_items: list[dict[str, Any]] | None = None,
     target_level: str | None = None,
+    course: str | None = None,
+    chapter: str | None = None,
+    section: str | None = None,
+    learning_objective: str | None = None,
+    prerequisite: str | None = None,
 ) -> dict[str, Any]:
     terms = set(item.lower() for item in (curriculum or DEFAULT_CURRICULUM_TERMS))
-    objective_texts = learning_objectives or DEFAULT_LEARNING_OBJECTIVES
+    hierarchy_terms = [item for item in [course, chapter, section, learning_objective, prerequisite] if item]
+    objective_texts = learning_objectives or ([learning_objective] if learning_objective else DEFAULT_LEARNING_OBJECTIVES)
     objective_terms = set()
     for objective in objective_texts:
         objective_terms.update(_tokens(objective))
@@ -57,22 +65,49 @@ def check_curriculum_alignment(
             "out_of_scope_penalty": 0,
             "level_match_score": 0.5,
             "matched_objectives": [],
-            "alignment_breakdown": {},
+            "alignment_breakdown": {
+                "keyword_overlap_score": 0,
+                "semantic_similarity_score": 0,
+                "objective_match_score": 0,
+                "prerequisite_match_score": 0,
+                "out_of_scope_penalty": 0,
+                "final_alignment_score": 0.5,
+            },
             "evidence_coverage_score": 0,
             "boundary_warning": "",
+            "suggested_rewrite": "",
             "suggested_actions": ["补充课程资料后再生成回答。"],
         }
     out_terms = [token for token in tokens if token in OUT_OF_SCOPE_HINTS or (len(token) >= 4 and token not in terms and not any(term in token for term in terms))]
     ratio = round(len(out_terms) / max(len(tokens), 1), 3)
     syllabus_terms_overlap = _overlap_score(tokens, terms)
     learning_objective_overlap = _overlap_score(tokens, objective_terms)
+    semantic_reference = " ".join([*sorted(terms), *objective_texts, *hierarchy_terms])
+    semantic_similarity_score = TfidfEmbeddingProvider().similarity(text, semantic_reference)
+    prerequisite_match_score = _overlap_score(tokens, set(_tokens(prerequisite or ""))) if prerequisite else 0.8
     evidence_items = evidence_items or []
     evidence_coverage_score = round(min(1.0, len(evidence_items) / 3), 3)
     level_match_score = 0.86
     if target_level and any(token in text for token in ["高等数学", "研究生", "深度学习训练"]):
         level_match_score = 0.45
     out_of_scope_penalty = round(min(0.8, ratio * 1.8 + (0.35 if any(term in OUT_OF_SCOPE_HINTS for term in out_terms) else 0)), 3)
-    score = round(max(0.0, min(1.0, syllabus_terms_overlap * 0.36 + learning_objective_overlap * 0.24 + evidence_coverage_score * 0.22 + level_match_score * 0.18 - out_of_scope_penalty)), 3)
+    objective_match_score = max(learning_objective_overlap, _overlap_score(tokens, set(_tokens(learning_objective or ""))) if learning_objective else 0)
+    score = round(
+        max(
+            0.0,
+            min(
+                1.0,
+                syllabus_terms_overlap * 0.3
+                + semantic_similarity_score * 0.22
+                + objective_match_score * 0.18
+                + prerequisite_match_score * 0.1
+                + evidence_coverage_score * 0.12
+                + level_match_score * 0.08
+                - out_of_scope_penalty,
+            ),
+        ),
+        3,
+    )
     matched_objectives = [
         objective
         for objective in objective_texts
@@ -84,6 +119,9 @@ def check_curriculum_alignment(
     ]
     if score < 0.65:
         suggested_actions.insert(0, "触发边界提示或教师复核。")
+    suggested_rewrite = ""
+    if score < 0.65:
+        suggested_rewrite = "请将内容改写为 Python 循环结构、变量更新、终止条件、break/continue 或列表遍历范围内的示例。"
     return {
         "is_out_of_curriculum": ratio > 0.25 or any(term in OUT_OF_SCOPE_HINTS for term in out_terms),
         "out_of_scope_terms": list(dict.fromkeys(out_terms))[:8],
@@ -97,6 +135,11 @@ def check_curriculum_alignment(
         "level_match_score": level_match_score,
         "matched_objectives": matched_objectives,
         "alignment_breakdown": {
+            "keyword_overlap_score": syllabus_terms_overlap,
+            "semantic_similarity_score": semantic_similarity_score,
+            "objective_match_score": objective_match_score,
+            "prerequisite_match_score": prerequisite_match_score,
+            "final_alignment_score": score,
             "syllabus_terms_overlap": syllabus_terms_overlap,
             "learning_objective_overlap": learning_objective_overlap,
             "retrieved_evidence_coverage": evidence_coverage_score,
@@ -104,5 +147,6 @@ def check_curriculum_alignment(
             "level_match_score": level_match_score,
         },
         "boundary_warning": "该问题包含课程范围外内容，建议回到 Python 循环结构、变量变化和代码调试。" if score < 0.65 else "",
+        "suggested_rewrite": suggested_rewrite,
         "suggested_actions": suggested_actions,
     }

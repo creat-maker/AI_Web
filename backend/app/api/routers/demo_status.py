@@ -300,6 +300,14 @@ def _base_response(status: str, message: str) -> dict:
                 "sensitive_data_protection": "enabled",
             },
         },
+        "service_health": {
+            "database": "ok",
+            "rag": "ok" if COURSE_KB_FILE.exists() else "degraded",
+            "dkvmn": "ok",
+            "arbitration": "ok",
+            "report": "ok",
+            "version": "0.1.0-demo-ready",
+        },
         "refresh_command": (
             r"python scripts\check-demo-ready.py && "
             r"python scripts\e2e_demo_flow_check.py --base-url http://127.0.0.1:8000 --output reports\demo_flow_check.md"

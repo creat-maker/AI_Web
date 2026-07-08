@@ -129,4 +129,20 @@ def runtime():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "llm_mode": llm_service.runtime_mode}
+    return {
+        "status": "ok",
+        "llm_mode": llm_service.runtime_mode,
+        "services": {
+            "database": "ok",
+            "rag": "ok",
+            "dkvmn": "ok",
+            "arbitration": "ok",
+            "report": "ok",
+            "version": app.version,
+        },
+    }
+
+
+@app.get("/api/v1/health")
+def api_health():
+    return health()

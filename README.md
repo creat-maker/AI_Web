@@ -249,7 +249,7 @@ EduMind 面向软件杯 A3「个性化学习多智能体系统」赛题，提供
 
 - DKVMN：`backend/app/services/dkvmn_tracker.py` 提供 Key-Value 记忆、掌握度更新、强弱点识别和 6 维画像映射。
 - EduLLM：`document_parser.py`、`chunk_strategy.py`、`curriculum_constraint.py`、`embedding_interface.py` 形成课程约束 RAG，`/api/v1/rag/ask` 返回引用、置信度、课程对齐和检索 debug。
-- FACET：Agent 图保留 9 节点，并补充 ComplianceAgent、audit retry、TeacherArbitration 和 `/api/v1/agent-runs`、`/api/v1/audit-logs`。
+- FACET：系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent，并通过 `/api/v1/agent-runs`、`/api/v1/audit-logs` 追踪运行状态。
 - 多模态资源：支持讲义、思维导图、练习、HTML 动画、视频脚本、TTS 任务、MP4 可选合成、代码案例、小项目任务。
 
 ## 启动方式
@@ -292,6 +292,7 @@ python scripts/eval_retrieval.py
 演示级容器配置已补齐，保留本地启动方式：
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
@@ -324,8 +325,6 @@ docker compose up --build
 
 ## Agent 节点口径
 
-文档统一为 9 个核心教学链路节点 + 3 个治理增强节点：
+系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent。
 
-- 核心教学链路 9 节点：ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ReporterAgent。
-- 治理增强节点 3 个：ComplianceAgent、AuditRetry、TeacherArbitration。
-- 因此系统实际为 12 节点扩展工作流，用于对齐 FACET 教师中心治理与双层风控。
+原始开发方案中的 9+1 是核心教学闭环，当前工程版在其基础上扩展了 ComplianceAgent、AuditRetry、TeacherArbitration 等治理节点，用于满足可信、安全、可追溯要求。当前表述保持比赛工程实现口径，不夸大为真实商业生产系统。

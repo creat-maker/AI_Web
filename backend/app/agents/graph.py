@@ -13,6 +13,17 @@ from app.agents.state import AgentState
 from app.agents.tutor_agent import tutor_agent
 
 
+def route_after_teacher_arbitration(state: AgentState) -> str:
+    result = state.get("teacher_arbitration_result") or {}
+    decision = result.get("decision")
+    status = result.get("status")
+    if decision == "approve" or status == "approved":
+        return "reporter"
+    if decision == "revise" or status == "revised":
+        return "resource"
+    return "end"
+
+
 def build_learning_graph():
     from langgraph.graph import END, StateGraph
 
@@ -44,7 +55,11 @@ def build_learning_graph():
         {"retry": "AuditRetry", "teacher_arbitration": "TeacherArbitration", "pass": "ReporterAgent"},
     )
     workflow.add_edge("AuditRetry", "ResourceAgent")
-    workflow.add_edge("TeacherArbitration", "ReporterAgent")
+    workflow.add_conditional_edges(
+        "TeacherArbitration",
+        route_after_teacher_arbitration,
+        {"reporter": "ReporterAgent", "resource": "ResourceAgent", "end": END},
+    )
     workflow.add_edge("ReporterAgent", END)
     return workflow.compile()
 
@@ -82,6 +97,13 @@ def run_full_learning_graph(initial_state: AgentState) -> AgentState:
                     branch = should_retry_or_arbitrate(state)
                 if branch == "teacher_arbitration":
                     state = teacher_arbitration_agent(state)
+                    route = route_after_teacher_arbitration(state)
+                    if route == "reporter":
+                        state = reporter_agent(state)
+                    elif route == "resource":
+                        state = resource_agent(state)
+                    else:
+                        break
         state["messages"] = [
             *state.get("messages", []),
             "当前环境未安装 langgraph，已使用顺序兜底；安装 requirements 后自动启用 LangGraph。",

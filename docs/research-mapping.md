@@ -14,7 +14,7 @@ EduMind 将课程大纲约束、文档解析、章节分块、TF-IDF embedding�
 
 ## FACET -> 多智能体教师仲裁治理
 
-EduMind 保留 9 个核心学习智能体节点，并新增 ComplianceAgent、AuditRetry 和 TeacherArbitration 3 个治理增强节点，因此实际为 12 节点扩展工作流。审核维度包括事实准确性、课程对齐度、超纲风险、隐私风险、不当内容、幻觉风险、学段适配。中高风险内容进入回流或教师仲裁，结果写入日志。
+EduMind 采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent。审核维度包括事实准确性、课程对齐度、超纲风险、隐私风险、不当内容、幻觉风险、学段适配。中高风险内容进入回流或教师仲裁，结果写入日志。
 
 边界：讯飞安全 API 未配置时使用本地规则；并行 Agent 仅保留扩展结构，当前以顺序兜底保证演示稳定。
 

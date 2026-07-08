@@ -93,6 +93,138 @@ def profile_to_dict(profile: StudentProfile) -> dict:
     }
 
 
+def merge_profile_evidence(old_evidence: list[dict] | None, new_evidence: list[dict] | None) -> list[dict]:
+    merged: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for item in [*(old_evidence or []), *(new_evidence or [])]:
+        if not isinstance(item, dict):
+            continue
+        key = (str(item.get("source_type", "")), str(item.get("description", "")))
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append({**item, "confidence": float(item.get("confidence", 0.7))})
+    return merged[-50:]
+
+
+def calculate_risk_level(dimension_scores: dict, quiz_results: list[dict] | dict | None = None) -> str:
+    scores = []
+    for value in (dimension_scores or {}).values():
+        if isinstance(value, dict):
+            scores.append(float(value.get("score", 0)))
+        else:
+            scores.append(float(value or 0))
+    quiz_rows = quiz_results if isinstance(quiz_results, list) else [quiz_results] if quiz_results else []
+    quiz_scores = [float(item.get("score", 0)) for item in quiz_rows if isinstance(item, dict)]
+    average = sum(scores) / max(len(scores), 1) if scores else 65
+    latest_quiz = quiz_scores[-1] if quiz_scores else average
+    if average < 55 or latest_quiz < 60:
+        return "high"
+    if average < 75 or latest_quiz < 75:
+        return "medium"
+    return "low"
+
+
+def build_profile_visualization(profile: StudentProfile | dict) -> dict:
+    data = profile if isinstance(profile, dict) else profile_to_dict(profile)
+    dimensions = data.get("dimension_scores") or {}
+    history = data.get("profile_history") or []
+    evidence = data.get("evidence_items") or []
+    radar = [
+        {"dimension": name, "score": value.get("score", value), "label": value.get("label", "") if isinstance(value, dict) else ""}
+        for name, value in dimensions.items()
+    ]
+    if not radar:
+        radar = [
+            {"dimension": "知识基础", "score": 62, "label": "需补强"},
+            {"dimension": "学习节奏", "score": 70, "label": "稳定"},
+            {"dimension": "代码实操能力", "score": 58, "label": "需补强"},
+        ]
+    trend = [
+        {
+            "time": item.get("time") or item.get("created_at") or "",
+            "mastery_average": item.get("mastery_average") or item.get("score") or 0,
+            "trigger": item.get("trigger") or item.get("event_type") or "profile_update",
+        }
+        for item in history[-12:]
+        if isinstance(item, dict)
+    ]
+    return {
+        "radar_chart": radar,
+        "trend_chart": trend,
+        "evidence_chain": evidence[-20:],
+        "cognitive_state_description": _cognitive_state_description(data.get("cognitive_state") or {}, data.get("risk_level", "medium")),
+        "risk_level": data.get("risk_level", "medium"),
+    }
+
+
+def _cognitive_state_description(cognitive_state: dict, risk_level: str) -> str:
+    weak = cognitive_state.get("weak_concepts") or []
+    if weak:
+        first = weak[0].get("name", weak[0]) if isinstance(weak[0], dict) else weak[0]
+        return f"认知追踪显示 {first} 掌握度偏低，当前风险等级为 {risk_level}。"
+    return f"认知追踪暂无明显薄弱聚类，当前风险等级为 {risk_level}。"
+
+
+def append_profile_history(profile: StudentProfile | dict, event: dict) -> list[dict]:
+    data = profile if isinstance(profile, dict) else profile_to_dict(profile)
+    history = list(data.get("profile_history") or [])
+    row = {"time": datetime.utcnow().isoformat(), **(event or {})}
+    history.append(row)
+    if not isinstance(profile, dict):
+        profile.profile_history = dumps(history[-50:])
+        raw = loads(profile.profile_json, {})
+        raw["profile_history"] = history[-50:]
+        profile.profile_json = dumps(raw)
+    return history[-50:]
+
+
+def update_profile_dimensions(
+    profile: StudentProfile | dict,
+    new_scores: dict,
+    evidence_items: list[dict] | None = None,
+) -> dict:
+    data = profile if isinstance(profile, dict) else profile_to_dict(profile)
+    dimensions = deepcopy(data.get("dimension_scores") or {})
+    for name, value in (new_scores or {}).items():
+        score = float(value.get("score", value)) if isinstance(value, dict) else float(value)
+        dimensions[name] = {
+            **(dimensions.get(name, {}) if isinstance(dimensions.get(name), dict) else {}),
+            "score": round(max(0, min(100, score))),
+            "label": "优势" if score >= 82 else "稳定" if score >= 62 else "需补强",
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+    evidence = merge_profile_evidence(data.get("evidence_items") or [], evidence_items or [])
+    risk = calculate_risk_level(dimensions)
+    history = append_profile_history(
+        profile,
+        {"trigger": "dimension_update", "changed_dimensions": list((new_scores or {}).keys()), "risk_level": risk},
+    )
+    if not isinstance(profile, dict):
+        profile.dimension_scores = dumps(dimensions)
+        profile.evidence_items = dumps(evidence)
+        profile.risk_level = risk
+        raw = loads(profile.profile_json, {})
+        raw.update({"dimension_scores": dimensions, "evidence_items": evidence, "risk_level": risk, "profile_history": history})
+        profile.profile_json = dumps(raw)
+    return {
+        "dimension_scores": dimensions,
+        "evidence_items": evidence,
+        "risk_level": risk,
+        "profile_history": history,
+        "visualization": build_profile_visualization({**data, "dimension_scores": dimensions, "evidence_items": evidence, "risk_level": risk, "profile_history": history}),
+    }
+
+
+class ProfileService:
+    profile_to_dict = staticmethod(profile_to_dict)
+    build_profile_visualization = staticmethod(build_profile_visualization)
+    update_profile_dimensions = staticmethod(update_profile_dimensions)
+    append_profile_history = staticmethod(append_profile_history)
+    calculate_risk_level = staticmethod(calculate_risk_level)
+    merge_profile_evidence = staticmethod(merge_profile_evidence)
+
+
 def update_profile_by_learning(
     db: Session,
     profile: StudentProfile,
