@@ -2,8 +2,8 @@
 
 ## 已完成能力
 
-- DKVMN 轻量知识追踪：概念注册表、掌握度更新、强弱点、6 维画像映射。
-- EduLLM 课程约束 RAG：文档解析、章节分块、TF-IDF embedding、引用、置信度、超纲检测、检索评估。
+- DKVMN 在线门控知识追踪：softmax key 寻址、动态 value memory、erase/add 写入、强弱点和 6 维画像映射。
+- EduLLM 课程约束 RAG：学生问答优先检索已导入的课程向量库，支持文档解析、章节分块、中文 n-gram/概念语义、引用、置信度、超纲检测、检索评估和 JSON 离线降级。
 - FACET 多智能体治理：系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent，并保留运行日志。
 - 多模态资源：讲义、思维导图、练习、HTML 动画、视频脚本、TTS fallback、MP4 fallback、代码案例、小项目。
 - 测评闭环：`/api/v1/quiz/submit` 与 `/api/v1/quizzes/submit` 更新 DKVMN、画像和路径。
@@ -47,7 +47,7 @@
 - 讯飞 TTS/安全 API：未配置时仅返回本地 fallback 状态。
 - FFmpeg：未安装时不生成真实 MP4。
 - OCR：仅预留接口与提示。
-- DKVMN：当前为参考 DKVMN Key-Value Memory 的轻量实现，包含 key_matrix、value_memory、概念注册表、动态掌握度更新和 JSON/画像持久化，不是训练型神经网络。
+- DKVMN：当前为在线门控 Key-Value Memory 实现，包含 key_matrix、softmax attention、value_memory、erase/add 门控、动态掌握度更新和 JSON/画像持久化；没有论文规模训练数据或预训练 checkpoint。
 - EduLLM：当前为课程大纲约束 + 轻量语义/规则混合评分 + RAG 引用证据，不是完整教育大模型微调。
 - FACET：当前为教师中心治理流程工程化落地，不是论文完整复现。
 - Chroma、小程序后端连接、讯飞和 FFmpeg 均保留 fallback。
@@ -56,11 +56,12 @@
 
 | 优先级 | 项目 | 修复结果 |
 | --- | --- | --- |
-| P0 | DKVMN Key-Value Memory | 已补显式 key_matrix、value_memory、update_memory、predict_mastery、强弱点、画像映射和 JSON fallback。 |
+| P0 | DKVMN Key-Value Memory | 已补显式 key_matrix、softmax attention、动态 value_memory、erase/add 门控、update_memory、predict_mastery、强弱点、画像映射和 JSON fallback。 |
+| P0 | 学生端真实 RAG | `/api/v1/rag/ask` 已优先进入课程 Chroma/持久化向量检索，返回真实文档 citation_id；无命中或后端不可用时才使用课程 JSON fallback。 |
 | P0 | 测试覆盖 | 已新增 DKVMN 与教师仲裁测试，并扩展 RAG/课程约束/graph 断言；记录用例数量和关键路径，不虚报覆盖率百分比。 |
 | P0 | Docker Compose | 已新增 `docker-compose.yml`、backend/frontend Dockerfile、Nginx SPA fallback 与 `.dockerignore`。 |
-| P0 | TeacherArbitration | 已新增 `/api/v1/teacher-arbitrations` 队列和 approve/revise/reject 决策闭环，教师端页面展示风险、证据、retry_count 和意见。 |
-| P1 | curriculum_constraint | 已升级为大纲词、学习目标、证据覆盖、超纲惩罚和层级匹配混合评分。 |
+| P0 | TeacherArbitration | 已实现 AgentRun `pending_review` 暂停与恢复：approve 进入 ReporterAgent，revise 重新生成并二次审核，reject 阻断发布；教师端展示风险、证据、retry_count 和意见。 |
+| P1 | curriculum_constraint | 已升级为中文 n-gram、课程概念同义映射、大纲词、学习目标、证据覆盖、显式超纲惩罚和课程层级混合评分。 |
 | P1 | audit_retry | 已记录 regeneration_instruction、before/after summary、retry_count，并回流资源内容。 |
 | P1 | 小程序 API | 已补 `utils/api.js`、timeout 和 fallbackToDemoData 配置。 |
 | P1 | 服务审查 | chunk、embedding、RAG、retrieval eval、profile、quiz 保留稳定字段和 fallback；异常时不应直接 500。 |
@@ -72,12 +73,13 @@
 | 命令 | 结果 |
 | --- | --- |
 | `cd backend && python -m compileall app` | 通过 |
-| `cd backend && python -m pytest -q` | 通过，75 个用例全部通过；覆盖 DKVMN、课程约束、RAG、graph、教师仲裁、报告、画像、测验、服务契约和 fallback |
+| `cd backend && python -m pytest -q` | 通过，81 个用例全部通过；覆盖 DKVMN、课程约束、真实/降级 RAG、graph 暂停恢复、教师仲裁、报告、画像、测验、服务契约和 fallback |
 | `cd frontend && npm.cmd install` | 通过；普通 `npm install` 在 PowerShell 执行策略下被拦截，使用等价 `npm.cmd install` 成功 |
 | `cd frontend && npm.cmd run build` | 通过；普通沙箱内构建被 esbuild 目录权限拦截，提升权限后构建成功 |
-| `python scripts/check-demo-ready.py` | 通过，状态 READY；需先启动本地后端 8000 和前端 5173 |
+| `python scripts/check-demo-ready.py --skip-http` | 通过，状态 READY，39/39 项通过；本地演示数据已幂等补齐 |
+| `python scripts/check-a3-program.py` | 通过，33 PASS / 1 WARN / 0 FAIL；WARN 仅为项目未创建 `.venv`，当前指定 Python 环境可正常运行 |
 | `python scripts/e2e_demo_flow_check.py --base-url http://127.0.0.1:8000` | 通过，16/16 |
-| `python scripts/eval_retrieval.py` | 通过，MRR/Recall@K/NDCG@K=1.0，Precision@K=0.9，CoverageRate=0.4；已输出 `reports/retrieval_eval_report.md` |
+| `python scripts/eval_retrieval.py` | 通过，MRR=1.0、Recall@K=1.0、NDCG@K=0.9751、Precision@K=0.8267、CoverageRate=0.68；已输出 `reports/retrieval_eval_report.md` |
 | `docker compose config` | 未运行成功；当前环境未安装 Docker CLI，已保留 Compose/Dockerfile/Nginx 配置供有 Docker 环境验证 |
 
 ## 服务审查结果表
@@ -85,8 +87,8 @@
 | 服务 | 审查结果 |
 | --- | --- |
 | `chunk_strategy.py` | 保留 citation_id，可支撑引用溯源。 |
-| `embedding_interface.py` | TF-IDF provider 可选轻量语义相似度，无强制 sentence-transformers。 |
-| `lightweight_rag_service.py` | 返回 citations、confidence、retrieval_debug、alignment_breakdown 和 JSON fallback 标记。 |
+| `embedding_interface.py` | TF-IDF provider 支持中英文词元与中文二/三元切分，无强制 sentence-transformers。 |
+| `lightweight_rag_service.py` | 优先统一到课程向量库检索，返回 citations、confidence、retrieval_debug、alignment_breakdown，并明确 JSON fallback 标记。 |
 | `retrieval_eval_service.py` | 作为检索评估脚本支撑，不阻塞在线问答。 |
 | `profile_service.py` | 画像字段兼容 cognitive_state、dimension_scores、evidence_items。 |
 | `quiz_service.py` | 测验提交写入 DKVMN、画像和路径调整反馈。 |

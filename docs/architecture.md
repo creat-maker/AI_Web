@@ -7,7 +7,7 @@
 ## 后端模块
 
 - `api/routers`：课程、画像、路径、资源、RAG、测验、报告、Agent、治理、日志。
-- `services/dkvmn_tracker.py`：轻量知识追踪。
+- `services/dkvmn_tracker.py`：在线门控 DKVMN 知识追踪与画像映射。
 - `services/document_parser.py`、`chunk_strategy.py`、`curriculum_constraint.py`、`embedding_interface.py`：课程约束 RAG。
 - `agents/graph.py`、`agents/governance_agent.py`：多智能体流转、审核回流、教师仲裁。
 - `services/multimodal_resource_service.py`：多模态资源与 TTS/FFmpeg fallback。
@@ -29,7 +29,8 @@
 
 - 中风险且 retry_count < 3：AuditRetry 回流 ResourceAgent。
 - 高风险或 3 次仍不通过：TeacherArbitration。
-- 教师 approve/revise/reject 后写入 audit_logs。
+- 进入 TeacherArbitration 后 AgentRun 持久化为 `pending_review`，资源保留为待审草稿且不生成报告。
+- 教师 approve 进入 ReporterAgent；revise 重新执行 ResourceAgent -> TutorAgent -> EvaluatorAgent -> AuditAgent -> ComplianceAgent；reject 阻断发布。决策、恢复结果与产物状态共同写回 AgentRun、资源表和 audit_logs。
 
 ## 数据流
 

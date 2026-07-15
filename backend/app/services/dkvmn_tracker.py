@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -104,9 +105,111 @@ class LightweightDKVMNModel:
         return round(float(row.get("mastery", 0.55)), 3)
 
 
+@dataclass
+class GatedDKVMNModel:
+    """Small online DKVMN inference core with softmax addressing and erase/add writes.
+
+    The model keeps the paper's key/value memory mechanics but updates student value
+    memory online. It does not claim to be a benchmark-trained paper reproduction.
+    """
+
+    temperature: float = 0.35
+    exact_key_boost: float = 2.0
+    correct_write_strength: float = 0.5
+    wrong_write_strength: float = 0.42
+
+    @staticmethod
+    def _cosine(left: list[float], right: list[float]) -> float:
+        dot = sum(float(a) * float(b) for a, b in zip(left, right))
+        left_norm = math.sqrt(sum(float(value) ** 2 for value in left)) or 1.0
+        right_norm = math.sqrt(sum(float(value) ** 2 for value in right)) or 1.0
+        return dot / (left_norm * right_norm)
+
+    def attention(self, state: dict[str, Any], concept_id: str) -> dict[str, float]:
+        registry = state.get("concept_registry") or CONCEPT_REGISTRY
+        query = list((registry.get(concept_id) or CONCEPT_REGISTRY[concept_id])["vector"])
+        logits: dict[str, float] = {}
+        for key, meta in registry.items():
+            similarity = self._cosine(query, list(meta.get("vector") or query))
+            logits[key] = similarity / max(self.temperature, 1e-6) + (self.exact_key_boost if key == concept_id else 0.0)
+        maximum = max(logits.values(), default=0.0)
+        weights = {key: math.exp(value - maximum) for key, value in logits.items()}
+        total = sum(weights.values()) or 1.0
+        return {key: value / total for key, value in weights.items()}
+
+    def _read(self, state: dict[str, Any], attention: dict[str, float]) -> list[float]:
+        memory_dim = int(state.get("memory_dim") or 4)
+        read_vector = [0.0] * memory_dim
+        for concept, weight in attention.items():
+            row = state.get("value_memory", {}).get(concept, {})
+            values = row.get("value_vector") or [float(row.get("mastery", 0.55))] * memory_dim
+            for index in range(memory_dim):
+                read_vector[index] += weight * float(values[index])
+        return read_vector
+
+    def predict(self, state: dict[str, Any], concept_id: str) -> float:
+        attention = self.attention(state, concept_id)
+        read_vector = self._read(state, attention)
+        read_mastery = sum(read_vector) / max(len(read_vector), 1)
+        direct_mastery = float(state.get("value_memory", {}).get(concept_id, {}).get("mastery", 0.55))
+        gated_probability = 1 / (1 + math.exp(-((read_mastery - 0.5) * 3.2 + (direct_mastery - 0.5) * 1.6)))
+        return round(max(0.05, min(0.99, direct_mastery * 0.55 + gated_probability * 0.45)), 3)
+
+    def update(self, state: dict[str, Any], concept_id: str, is_correct: bool, score_delta: float) -> dict[str, Any]:
+        value_memory = state.setdefault("value_memory", {})
+        memory_dim = int(state.get("memory_dim") or 4)
+        attention = self.attention(state, concept_id)
+        prediction_before = self.predict(state, concept_id)
+        target = 0.98 if is_correct else 0.02
+        base_strength = self.correct_write_strength if is_correct else self.wrong_write_strength
+        write_strength = min(0.68, base_strength + abs(float(score_delta or 0)) * 0.7)
+
+        for key, weight in attention.items():
+            row = value_memory.setdefault(
+                key,
+                {
+                    "mastery": 0.55,
+                    "value_vector": [0.55] * memory_dim,
+                    "attempts": 0,
+                    "correct_streak": 0,
+                    "wrong_streak": 0,
+                    "last_updated": None,
+                },
+            )
+            values = row.get("value_vector")
+            if not isinstance(values, list) or len(values) != memory_dim:
+                values = [float(row.get("mastery", 0.55))] * memory_dim
+            gate = min(0.75, write_strength * weight)
+            row["value_vector"] = [
+                round(max(0.02, min(0.98, float(value) + (target - float(value)) * gate)), 4)
+                for value in values
+            ]
+            current_mastery = float(row.get("mastery", 0.55))
+            row["mastery"] = round(max(0.05, min(0.99, current_mastery + (target - current_mastery) * gate * 0.82)), 3)
+
+        target_row = value_memory[concept_id]
+        target_row["attempts"] = int(target_row.get("attempts", 0)) + 1
+        if is_correct:
+            target_row["correct_streak"] = int(target_row.get("correct_streak", 0)) + 1
+            target_row["wrong_streak"] = 0
+        else:
+            target_row["wrong_streak"] = int(target_row.get("wrong_streak", 0)) + 1
+            target_row["correct_streak"] = 0
+        target_row["last_updated"] = datetime.utcnow().isoformat()
+        state["last_memory_operation"] = {
+            "concept_id": concept_id,
+            "prediction_before": prediction_before,
+            "target": target,
+            "write_strength": round(write_strength, 4),
+            "attention": {key: round(value, 4) for key, value in attention.items()},
+            "read_vector": [round(value, 4) for value in self._read(state, attention)],
+        }
+        return state
+
+
 class DKVMNTracker:
     def __init__(self, model: DKVMNModelInterface | None = None):
-        self.model = model or LightweightDKVMNModel()
+        self.model = model or GatedDKVMNModel()
         self.concept_registry = CONCEPT_REGISTRY
         self.key_memory = CONCEPT_REGISTRY
         self.memory_dim = len(next(iter(CONCEPT_REGISTRY.values()))["vector"])
@@ -147,7 +250,13 @@ class DKVMNTracker:
 
     def initial_state(self) -> dict[str, Any]:
         return {
-            "model": "lightweight-key-value-memory-dkvmn",
+            "model": "online-gated-key-value-memory-dkvmn",
+            "model_metadata": {
+                "architecture": "softmax key addressing + dynamic value memory + erase/add gated writes",
+                "update_mode": "online",
+                "checkpoint_loaded": False,
+                "claim_boundary": "DKVMN architecture implementation; no paper-scale pretrained checkpoint",
+            },
             "memory_dim": self.memory_dim,
             "concept_registry": self.concept_registry,
             "key_matrix": self.key_matrix,
@@ -177,7 +286,19 @@ class DKVMNTracker:
             state = raw_profile.get("cognitive_state") if isinstance(raw_profile, dict) else None
         if not isinstance(state, dict):
             state = self.initial_state()
-        state.setdefault("model", "lightweight-key-value-memory-dkvmn")
+        if state.get("model") == "lightweight-key-value-memory-dkvmn":
+            state["migrated_from_model"] = state["model"]
+            state["model"] = "online-gated-key-value-memory-dkvmn"
+        state.setdefault("model", "online-gated-key-value-memory-dkvmn")
+        state.setdefault(
+            "model_metadata",
+            {
+                "architecture": "softmax key addressing + dynamic value memory + erase/add gated writes",
+                "update_mode": "online",
+                "checkpoint_loaded": False,
+                "claim_boundary": "DKVMN architecture implementation; no paper-scale pretrained checkpoint",
+            },
+        )
         state.setdefault("memory_dim", self.memory_dim)
         state.setdefault("concept_registry", self.concept_registry)
         state.setdefault("key_matrix", self.key_matrix)
@@ -370,6 +491,7 @@ class DKVMNTracker:
         return {
             "student_id": student_id,
             "model": active_state.get("model"),
+            "model_metadata": active_state.get("model_metadata", {}),
             "memory_dim": active_state.get("memory_dim", self.memory_dim),
             "concepts": [
                 {
@@ -383,6 +505,7 @@ class DKVMNTracker:
             "weak_concepts": self.get_weak_concepts_from_state(active_state),
             "strong_concepts": self.get_strong_concepts_from_state(active_state),
             "update_log": active_state.get("update_log", [])[-20:],
+            "last_memory_operation": active_state.get("last_memory_operation", {}),
         }
 
     def get_mastery_distribution(self, student_id: int | str, state: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -416,6 +539,7 @@ class DKVMNTracker:
         concept = self.normalize_concept(concept_id)
         row = active_state.get("value_memory", {}).get(concept, {})
         related = active_state.get("concept_transition_matrix", {}).get(concept, {})
+        attention = self.model.attention(active_state, concept) if isinstance(self.model, GatedDKVMNModel) else {concept: 1.0}
         return {
             "concept_id": concept,
             "concept_name": self.key_memory[concept]["name"],
@@ -428,7 +552,12 @@ class DKVMNTracker:
                 for target, weight in sorted(related.items(), key=lambda item: item[1], reverse=True)
                 if target != concept
             ][:5],
-            "explanation": "轻量 DKVMN-inspired 实现综合 value memory、概念相关性、近期表现和遗忘因子形成预测。",
+            "attention_weights": [
+                {"concept_id": key, "weight": round(value, 4)}
+                for key, value in sorted(attention.items(), key=lambda item: item[1], reverse=True)[:5]
+            ],
+            "model_metadata": active_state.get("model_metadata", {}),
+            "explanation": "在线门控 DKVMN 通过 key softmax 寻址读取 value memory，并结合近期表现和遗忘因子形成预测。",
         }
 
     def save_json(self, path: str | Path, state: dict[str, Any]) -> Path:

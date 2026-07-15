@@ -4,7 +4,7 @@ EduMind 当前是比赛工程演示版，目标是可运行、可解释、可演
 
 ## DKVMN
 
-DKVMN 是轻量 DKVMN-inspired 可解释实现，包含 key memory、value memory、概念转移矩阵、练习-概念矩阵、JSON 持久化和画像映射。它不是大规模训练神经网络，也不声称复现论文级训练效果。
+DKVMN 已实现 softmax key 寻址、动态 value memory 读取和 erase/add 门控写入，并包含概念转移矩阵、练习-概念矩阵、JSON 持久化和画像映射。当前采用在线更新，没有论文规模训练数据或预训练 checkpoint，因此不声称复现论文级指标。
 
 ## 多模态资源
 

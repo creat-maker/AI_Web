@@ -12,7 +12,10 @@ BACKEND_DIR = ROOT_DIR / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from docx import Document  # noqa: E402
+try:
+    from docx import Document  # noqa: E402
+except ModuleNotFoundError:  # pragma: no cover - optional export dependency
+    Document = None  # type: ignore[assignment]
 
 from app.core.config import settings  # noqa: E402
 from app.db.session import Base, SessionLocal, engine  # noqa: E402
@@ -63,15 +66,21 @@ def _ensure_demo_file(relative_path: str, content: str) -> Path:
     return target
 
 
-def _ensure_docx(path: Path, title: str, paragraphs: list[str]) -> None:
+def _ensure_docx(path: Path, title: str, paragraphs: list[str]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if Document is None:
+        fallback = path.with_suffix(".md")
+        if not fallback.exists():
+            fallback.write_text("\n\n".join([f"# {title}", *paragraphs]) + "\n", encoding="utf-8")
+        return fallback
     if path.exists():
-        return
+        return path
     doc = Document()
     doc.add_heading(title, level=1)
     for paragraph in paragraphs:
         doc.add_paragraph(paragraph)
     doc.save(path)
+    return path
 
 
 def ensure_course(db, stats, *, title: str, description: str, subject: str, teacher_name: str) -> Course:
@@ -261,9 +270,8 @@ def ensure_quiz_and_submission(db, stats, course: Course, profile: StudentProfil
 def ensure_report(db, stats, course: Course, profile: StudentProfile, title: str, weak_points: list[str], score: float) -> LearningReport:
     item = db.query(LearningReport).filter(LearningReport.course_id == course.id, LearningReport.student_profile_id == profile.id, LearningReport.report_title == title).first()
     created = False
-    report_path = settings.path_from_root(settings.report_dir) / f"demo_report_{course.id}_{profile.id}.docx"
-    _ensure_docx(
-        report_path,
+    report_path = _ensure_docx(
+        settings.path_from_root(settings.report_dir) / f"demo_report_{course.id}_{profile.id}.docx",
         title,
         [
             f"学生：{profile.student_name}",

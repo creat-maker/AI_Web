@@ -6,6 +6,7 @@ from app.services.llm_service import llm_service
 
 def resource_agent(state: AgentState) -> AgentState:
     retry_context = state.get("retry_context") or {}
+    teacher_revised_content = str(state.get("teacher_revised_content") or retry_context.get("teacher_revised_content") or "").strip()
     resources = llm_service.generate_json(
         "resources",
         {
@@ -15,6 +16,7 @@ def resource_agent(state: AgentState) -> AgentState:
             "contexts": state.get("retrieved_context", []),
             "knowledge_evidence": state.get("knowledge_evidence", {}),
             "retry_context": retry_context,
+            "teacher_revised_content": teacher_revised_content,
         },
     )
     resource_items = resources if isinstance(resources, list) else resources.get("items", [])
@@ -29,6 +31,12 @@ def resource_agent(state: AgentState) -> AgentState:
                 "retry_context": retry_context,
                 "version_history": previous_versions,
                 "revision_note": "根据审核失败原因重新生成，限定课程范围并补充引用。",
+                "teacher_revision_reference": teacher_revised_content,
+                "content": (
+                    f"教师修订依据：{teacher_revised_content}\n\n{item.get('content', '')}"
+                    if teacher_revised_content
+                    else item.get("content", "")
+                ),
             }
             for item in resource_items
         ]

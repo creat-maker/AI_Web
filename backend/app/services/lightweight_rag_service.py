@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import json
-import math
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from app.services.curriculum_constraint import check_curriculum_alignment
 from app.services.demo_learning_service import get_demo_student
@@ -14,12 +13,6 @@ from app.services.embedding_interface import TfidfEmbeddingProvider
 ROOT_DIR = Path(__file__).resolve().parents[3]
 COURSE_KB_PATH = ROOT_DIR / "docs" / "course_kb" / "python_programming.json"
 INSUFFICIENT_EVIDENCE_MESSAGE = "当前课程知识库依据不足，建议先查看循环结构章节或请教师复核。"
-
-
-def _load_kb() -> dict[str, Any]:
-    if not COURSE_KB_PATH.exists():
-        return {"courseId": "python-programming", "courseName": "Python 程序设计", "chapters": []}
-    return json.loads(COURSE_KB_PATH.read_text(encoding="utf-8"))
 
 
 def _tokenize(text: str) -> list[str]:
@@ -43,38 +36,6 @@ def _tokenize(text: str) -> list[str]:
         if term.lower() in lowered:
             tokens.append(term.lower())
     return list(dict.fromkeys(tokens))
-
-
-def _chunks() -> list[dict[str, Any]]:
-    kb = _load_kb()
-    rows: list[dict[str, Any]] = []
-    for chapter in kb.get("chapters", []):
-        for section in chapter.get("sections", []):
-            knowledge_points = section.get("knowledgePoints", [])
-            exercises = section.get("exercises", [])
-            content = "\n".join(
-                [
-                    section.get("lecture", ""),
-                    " ".join(knowledge_points),
-                    " ".join(exercises),
-                    section.get("labTask", ""),
-                ]
-            )
-            rows.append(
-                {
-                    "courseId": kb.get("courseId", "python-programming"),
-                    "courseName": kb.get("courseName", "Python 程序设计"),
-                    "sourceFile": section.get("sourceFile", "python_programming.json"),
-                    "chapter": chapter.get("chapter", "循环结构"),
-                    "section": section.get("section", "循环结构"),
-                    "knowledgePoints": knowledge_points,
-                    "lecture": section.get("lecture", ""),
-                    "exercises": exercises,
-                    "labTask": section.get("labTask", ""),
-                    "content": content,
-                }
-            )
-    return rows
 
 
 def _score_chunk(question_tokens: list[str], chunk: dict[str, Any]) -> float:
@@ -130,11 +91,78 @@ def _next_step(related_points: list[str], confidence: float) -> str:
 
 
 class LightweightRAGService:
-    def __init__(self, kb_path: Path | None = None):
+    def __init__(
+        self,
+        kb_path: Path | None = None,
+        course_retriever: Callable[[int, str, int], list[dict[str, Any]]] | None = None,
+    ):
         self.kb_path = kb_path or COURSE_KB_PATH
         self.embedding_provider = TfidfEmbeddingProvider()
+        self.course_retriever = course_retriever
         self._index: list[dict[str, Any]] = []
         self.parser_warnings: list[str] = []
+
+    @staticmethod
+    def _numeric_course_id(course_id: str | int | None) -> int | None:
+        try:
+            value = int(str(course_id))
+        except (TypeError, ValueError):
+            return None
+        return value if value > 0 else None
+
+    def _retrieve_course_vectors(
+        self,
+        query: str,
+        top_k: int,
+        course_id: str | int | None,
+    ) -> list[dict[str, Any]]:
+        numeric_course_id = self._numeric_course_id(course_id)
+        if numeric_course_id is None:
+            return []
+        retriever = self.course_retriever
+        if retriever is None:
+            from app.rag.retriever import retrieve_course_context
+
+            retriever = retrieve_course_context
+        try:
+            raw_items = retriever(numeric_course_id, query, top_k)
+        except Exception as exc:  # pragma: no cover - external vector backend varies by environment
+            self.parser_warnings.append(f"course vector retrieval failed: {exc}")
+            return []
+
+        normalized: list[dict[str, Any]] = []
+        for rank, item in enumerate(raw_items, start=1):
+            content = str(item.get("content") or item.get("snippet") or "")
+            if not content.strip():
+                continue
+            score = max(0.0, min(1.0, float(item.get("confidence", item.get("score", 0)) or 0)))
+            source_file = str(item.get("source_file") or item.get("sourceFile") or "课程知识库")
+            section = str(item.get("section_title") or item.get("section") or source_file)
+            knowledge_point = str(item.get("knowledge_point") or section)
+            normalized.append(
+                {
+                    **item,
+                    "rank": rank,
+                    "score": score,
+                    "confidence": score,
+                    "fusion_score": score,
+                    "vector_score": float(item.get("vector_score", score) or score),
+                    "lexical_score": float(item.get("lexical_score", 0) or 0),
+                    "sourceFile": source_file,
+                    "source_file": source_file,
+                    "chapter": str(item.get("chapter") or section),
+                    "section": section,
+                    "section_title": section,
+                    "page_number": item.get("page_number"),
+                    "citation_id": item.get("citation_id") or f"course-{numeric_course_id}-chunk-{rank}",
+                    "snippet": str(item.get("snippet") or content[:260]),
+                    "content": content,
+                    "knowledgePoints": item.get("knowledgePoints") or [knowledge_point],
+                    "exercises": item.get("exercises") or [],
+                    "retrieval_source": "course_vector_store",
+                }
+            )
+        return normalized
 
     def load_course_kb(self, course_id: str | int | None = None) -> dict[str, Any]:
         if not self.kb_path.exists():
@@ -185,8 +213,21 @@ class LightweightRAGService:
         course_id: str | int | None = None,
         topic: str | None = None,
     ) -> dict[str, Any]:
-        rows = self._index or self.build_index(course_id)
         search_text = f"{query} {topic or ''}"
+        vector_items = self._retrieve_course_vectors(search_text, top_k, course_id)
+        if vector_items:
+            aligned = self.rerank_by_curriculum_constraint(search_text, vector_items)
+            return {
+                "query": query,
+                "retrieved_chunks": aligned,
+                "matchedChunks": aligned,
+                "citations": self._citations(aligned),
+                "parser_warnings": self.parser_warnings,
+                "retrieval_mode": "course-vector-hybrid",
+                "fallback_used": False,
+            }
+
+        rows = self._index or self.build_index(course_id)
         tokens = _tokenize(search_text)
         scored = []
         for chunk in rows:
@@ -227,6 +268,8 @@ class LightweightRAGService:
             "matchedChunks": aligned,
             "citations": self._citations(aligned),
             "parser_warnings": self.parser_warnings,
+            "retrieval_mode": "hybrid-tfidf-json-fallback",
+            "fallback_used": True,
         }
 
     def rerank_by_curriculum_constraint(self, query: str, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -235,6 +278,11 @@ class LightweightRAGService:
             alignment = check_curriculum_alignment(
                 f"{query} {chunk.get('content', '')}",
                 evidence_items=[{"citation_id": chunk.get("citation_id")}],
+                course=str(chunk.get("courseName") or "Python 程序设计"),
+                chapter=str(chunk.get("chapter") or ""),
+                section=str(chunk.get("section") or chunk.get("section_title") or ""),
+                learning_objective=str(chunk.get("learning_objective") or ""),
+                prerequisite=str(chunk.get("prerequisite") or ""),
             )
             checked.append({**chunk, "curriculum_alignment": alignment})
         return sorted(
@@ -257,8 +305,10 @@ class LightweightRAGService:
         chunks = retrieval["retrieved_chunks"]
         if not chunks:
             return self.fallback_answer(query, "no_retrieved_chunks")
-        total_score = sum(float(item.get("fusion_score", item.get("score", 0))) for item in chunks)
-        confidence = round(min(0.95, 0.35 + math.log1p(total_score) / 3), 2)
+        confidence_values = [max(0.0, min(1.0, float(item.get("confidence", item.get("score", 0)) or 0))) for item in chunks]
+        top_confidence = max(confidence_values, default=0.0)
+        mean_confidence = sum(confidence_values[:3]) / max(len(confidence_values[:3]), 1)
+        confidence = round(min(0.95, 0.15 + top_confidence * 0.55 + mean_confidence * 0.2 + min(len(chunks), 5) * 0.02), 2)
         primary = chunks[0]
         points = []
         exercises = []
@@ -274,8 +324,19 @@ class LightweightRAGService:
             f"建议先理解 {points[0] if points else '循环结构'}。{primary.get('snippet') or primary.get('content', '')[:160]}"
         )
         alignment = check_curriculum_alignment(f"{query} {answer}", evidence_items=retrieval["citations"])
+        if alignment["is_out_of_curriculum"]:
+            answer = (
+                f"{alignment['boundary_warning']} 当前知识库仅支持 Python 程序设计课程答疑，"
+                "你可以改问循环、条件、列表遍历或代码调试相关问题。"
+            )
+            fallback_reason = "out_of_curriculum"
+        elif confidence < 0.5:
+            answer = INSUFFICIENT_EVIDENCE_MESSAGE
+            fallback_reason = "low_retrieval_confidence"
+        else:
+            fallback_reason = None
         return {
-            "answer": answer if confidence >= 0.5 else INSUFFICIENT_EVIDENCE_MESSAGE,
+            "answer": answer,
             "citations": retrieval["citations"],
             "retrieved_chunks": chunks,
             "matchedChunks": chunks,
@@ -284,9 +345,11 @@ class LightweightRAGService:
             "curriculum_alignment": alignment,
             "curriculum_alignment_score": alignment["curriculum_alignment_score"],
             "alignment_breakdown": alignment["alignment_breakdown"],
-            "fallback_reason": None if confidence >= 0.5 else "low_retrieval_confidence",
+            "fallback_reason": fallback_reason,
             "recommendedExercises": exercises[:5],
             "relatedKnowledgePoints": points[:8],
+            "retrieval_mode": retrieval["retrieval_mode"],
+            "fallback_used": retrieval["fallback_used"],
         }
 
     def fallback_answer(self, query: str, fallback_reason: str = "insufficient_evidence") -> dict[str, Any]:
@@ -302,114 +365,64 @@ class LightweightRAGService:
             "curriculum_alignment_score": alignment["curriculum_alignment_score"],
             "alignment_breakdown": alignment["alignment_breakdown"],
             "fallback_reason": fallback_reason,
+            "retrieval_mode": "hybrid-tfidf-json-fallback",
+            "fallback_used": True,
         }
 
     def _citations(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [
             {
-                "citation_id": item["citation_id"],
-                "sourceFile": item["sourceFile"],
-                "source_file": item["sourceFile"],
-                "chapter": item["chapter"],
-                "section": item["section"],
-                "section_title": item["section"],
-                "page_number": item["page_number"],
-                "confidence": item["confidence"],
-                "snippet": item["snippet"],
+                "citation_id": item.get("citation_id"),
+                "sourceFile": item.get("sourceFile") or item.get("source_file"),
+                "source_file": item.get("source_file") or item.get("sourceFile"),
+                "chapter": item.get("chapter"),
+                "section": item.get("section") or item.get("section_title"),
+                "section_title": item.get("section_title") or item.get("section"),
+                "page_number": item.get("page_number"),
+                "confidence": item.get("confidence", item.get("score", 0)),
+                "snippet": item.get("snippet") or str(item.get("content", ""))[:260],
+                "document_id": item.get("document_id"),
+                "chunk_index": item.get("chunk_index"),
             }
             for item in chunks
         ]
 
 
-def ask_rag(question: str, course_id: str | int | None = None, student_id: str | int | None = None) -> dict[str, Any]:
+def ask_rag(
+    question: str,
+    course_id: str | int | None = None,
+    student_id: str | int | None = None,
+    *,
+    course_retriever: Callable[[int, str, int], list[dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
     student = get_demo_student(student_id)
     profile_hint = " ".join(student.get("weak_points", [])[:3])
-    tokens = _tokenize(f"{question} {profile_hint}")
-    all_chunks = _chunks()
-    provider = TfidfEmbeddingProvider()
-    scored: list[tuple[float, dict[str, Any], dict[str, float]]] = []
-    for chunk in all_chunks:
-        scores = _hybrid_score(question, tokens, chunk, provider)
-        if scores["fusion_score"] > 0:
-            scored.append((scores["fusion_score"], chunk, scores))
-
-    scored.sort(key=lambda item: item[0], reverse=True)
-    top = scored[:5]
-    total_score = sum(score for score, _, _ in top)
-    confidence = round(min(0.95, 0.35 + math.log1p(total_score) / 3), 2) if top else 0.32
+    service = LightweightRAGService(course_retriever=course_retriever)
+    result = service.answer_with_citations(question, top_k=5, course_id=course_id, topic=profile_hint)
+    confidence = float(result.get("confidence", 0))
     low_evidence_risk = _risk_from_confidence(confidence)
-
-    if not top and all_chunks:
-        top = [(0.1, item, {"lexical_score": 0.1, "vector_score": 0.0, "fusion_score": 0.1}) for item in all_chunks[:2]]
-
-    max_score = max((score for score, _, _ in top), default=1)
-    matched = [
-        {
-            "score": round(score / max(max_score, 1), 3),
-            "confidence": round(score / max(max_score, 1), 3),
-            **scores,
-            "sourceFile": chunk["sourceFile"],
-            "source_file": chunk["sourceFile"],
-            "chapter": chunk["chapter"],
-            "section": chunk["section"],
-            "section_title": chunk["section"],
-            "page_number": None,
-            "citation_id": f"{chunk['sourceFile']}-{index + 1:03d}",
-            "snippet": chunk["lecture"][:180],
-            "content": chunk["content"][:500],
-            "knowledgePoints": chunk["knowledgePoints"],
-        }
-        for index, (score, chunk, scores) in enumerate(top)
-    ]
-
-    related_points: list[str] = []
-    exercises: list[str] = []
-    for _, chunk, _ in top:
-        for point in chunk.get("knowledgePoints", []):
-            if point not in related_points:
-                related_points.append(point)
-        for exercise in chunk.get("exercises", []):
-            if exercise not in exercises:
-                exercises.append(exercise)
-        if chunk.get("labTask") and chunk["labTask"] not in exercises:
-            exercises.append(chunk["labTask"])
-
-    primary = top[0][1] if top else {
-        "chapter": "循环结构",
-        "section": "循环结构",
-        "lecture": INSUFFICIENT_EVIDENCE_MESSAGE,
-    }
-    citations = [
-        {
-            "citation_id": item["citation_id"],
-            "sourceFile": item["sourceFile"],
-            "source_file": item["sourceFile"],
-            "chapter": item["chapter"],
-            "section": item["section"],
-            "section_title": item["section"],
-            "page_number": item["page_number"],
-            "confidence": item["confidence"],
-            "snippet": item["snippet"],
-        }
-        for item in matched
-    ]
-    evidence_summary = (
-        f"已匹配 {len(citations)} 条课程资料，主要来自《Python 程序设计》{primary['chapter']} / {primary['section']}。"
-        if confidence >= 0.5 and citations
-        else INSUFFICIENT_EVIDENCE_MESSAGE
-    )
-    answer = (
-        f"根据《Python 程序设计》{primary['chapter']}「{primary['section']}」的资料，"
-        f"建议先理解 {related_points[0] if related_points else '循环结构'}。{primary['lecture']} "
-        f"结合{student['student_name']}当前学习情况，下一步可以围绕{'、'.join(student['weak_points'][:2])}进行专项巩固。"
-        if confidence >= 0.5
-        else INSUFFICIENT_EVIDENCE_MESSAGE
-    )
-
-    curriculum_check = check_curriculum_alignment(
-        f"{question} {answer}",
+    citations = result.get("citations", [])
+    matched = result.get("retrieved_chunks", [])
+    related_points = result.get("relatedKnowledgePoints", [])
+    exercises = result.get("recommendedExercises", [])
+    curriculum_check = result.get("curriculum_alignment") or check_curriculum_alignment(
+        f"{question} {result.get('answer', '')}",
         evidence_items=citations,
         target_level=student.get("current_level") or "基础补弱",
+    )
+    answer = result.get("answer", INSUFFICIENT_EVIDENCE_MESSAGE)
+    if curriculum_check.get("is_out_of_curriculum"):
+        low_evidence_risk = "高"
+    if confidence >= 0.5 and not curriculum_check.get("is_out_of_curriculum"):
+        answer = (
+            f"{answer} 结合{student['student_name']}当前学习情况，"
+            f"下一步可以围绕{'、'.join(student['weak_points'][:2])}进行专项巩固。"
+        )
+    primary = matched[0] if matched else {"chapter": "循环结构", "section": "循环结构"}
+    evidence_summary = (
+        f"已匹配 {len(citations)} 条课程资料，主要来自《Python 程序设计》{primary.get('chapter')} / {primary.get('section')}。"
+        if confidence >= 0.5 and citations and not curriculum_check.get("is_out_of_curriculum")
+        else INSUFFICIENT_EVIDENCE_MESSAGE
     )
     suggested_actions = [
         _next_step(related_points, confidence),
@@ -428,9 +441,9 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
         "matchedChunks": matched,
         "retrieved_chunks": matched,
         "confidence": confidence,
-        "parser_warnings": [],
+        "parser_warnings": result.get("parser_warnings", []),
         "curriculum_alignment": curriculum_check,
-        "fallback_reason": None if confidence >= 0.5 else "low_retrieval_confidence",
+        "fallback_reason": result.get("fallback_reason"),
         "curriculum_alignment_score": curriculum_check["curriculum_alignment_score"],
         "alignment_breakdown": curriculum_check["alignment_breakdown"],
         "matched_objectives": curriculum_check["matched_objectives"],
@@ -442,8 +455,8 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
         "suggested_actions": list(dict.fromkeys([*suggested_actions, *curriculum_check.get("suggested_actions", [])])),
         "retrieval_debug": {
             "top_k": 5,
-            "retrieval_mode": "hybrid-tfidf-json-fallback",
-            "chroma_status": "fallback_json_keyword",
+            "retrieval_mode": result.get("retrieval_mode", "hybrid-tfidf-json-fallback"),
+            "chroma_status": "course_vector_store" if result.get("retrieval_mode") == "course-vector-hybrid" else "fallback_json_keyword",
             "scores": [
                 {
                     "citation_id": item["citation_id"],
@@ -454,7 +467,7 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
                 for item in matched
             ],
             "curriculum_check": curriculum_check,
-            "json_fallback": True,
+            "json_fallback": bool(result.get("fallback_used", True)),
         },
         "lowEvidenceRisk": low_evidence_risk,
         "evidenceSummary": evidence_summary,
@@ -462,6 +475,7 @@ def ask_rag(question: str, course_id: str | int | None = None, student_id: str |
         "recommendedExercises": exercises[:5],
         "relatedKnowledgePoints": related_points[:8] or ["while 循环条件更新", "循环嵌套变量变化", "break / continue 区分"],
         "nextStep": _next_step(related_points, confidence),
-        "retrievalMode": "hybrid-tfidf-json-fallback",
+        "retrievalMode": result.get("retrieval_mode", "hybrid-tfidf-json-fallback"),
+        "fallbackUsed": bool(result.get("fallback_used", True)),
         "dataset": str(COURSE_KB_PATH.relative_to(ROOT_DIR)),
     }

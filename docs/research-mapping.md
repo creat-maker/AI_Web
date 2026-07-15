@@ -2,9 +2,9 @@
 
 ## DKVMN -> 个性化画像与知识追踪
 
-EduMind 使用参考 DKVMN 的轻量 Key-Value Memory 结构做知识追踪：Key 是 Python 知识点注册表和 `key_matrix`，Value 是按学生持久化的 `value_memory`。测验题目携带 concept_id 后，系统根据对错、难度、响应时长和得分更新 value 向量，再从 value 向量估计 mastery、连续对错、强弱点，并映射到知识基础、学习节奏、学习偏好、代码实操能力、易错知识点、学习风险 6 维画像。
+EduMind 使用在线门控 DKVMN 做知识追踪：Key 是 Python 知识点注册表和 `key_matrix`，查询概念通过 softmax attention 寻址；Value 是按学生持久化的 `value_memory`，通过 erase/add 式门控在线写入。测验题目携带 concept_id 后，系统综合对错、难度、响应时长和得分更新 value 向量，再估计 mastery、连续对错、强弱点，并映射到知识基础、学习节奏、学习偏好、代码实操能力、易错知识点、学习风险 6 维画像。
 
-边界：当前不是完整深度学习复现，不训练神经网络；`DKVMNModelInterface` 用于未来替换真实模型。
+边界：当前没有论文规模训练集和预训练 checkpoint，不宣称复现论文指标；`DKVMNModelInterface` 保留离线训练模型与 checkpoint 推理替换能力。
 
 ## EduLLM -> 课程约束 RAG
 

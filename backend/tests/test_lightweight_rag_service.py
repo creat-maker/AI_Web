@@ -21,3 +21,29 @@ def test_ask_rag_compat_has_new_fields():
     assert result["citations"]
     assert result["retrieved_chunks"]
     assert result["parser_warnings"] == []
+
+
+def test_lightweight_rag_prefers_imported_course_vector_store():
+    def retrieve(course_id: int, query: str, top_k: int):
+        assert course_id == 7
+        assert "while" in query
+        return [
+            {
+                "content": "while 循环每轮都应更新条件变量，否则可能形成死循环。",
+                "source_file": "chapter_03_control_flow.md",
+                "section_title": "while 循环",
+                "knowledge_point": "while 循环条件更新",
+                "citation_id": "course-7-doc-3-chunk-2",
+                "score": 0.91,
+            }
+        ][:top_k]
+
+    result = LightweightRAGService(course_retriever=retrieve).answer_with_citations(
+        "while 循环为什么会死循环？",
+        course_id=7,
+    )
+
+    assert result["retrieval_mode"] == "course-vector-hybrid"
+    assert result["fallback_used"] is False
+    assert result["citations"][0]["citation_id"] == "course-7-doc-3-chunk-2"
+    assert result["retrieved_chunks"][0]["retrieval_source"] == "course_vector_store"

@@ -229,7 +229,7 @@ python scripts/check-demo-ready.py
 - 内容安全采用“知识库引用 + 本地规则审核 + 可配置 AI 安全扩展”机制，AI 生成内容需经教师或管理员审核后进入正式教学资源。
 # EduMind 个性化学习多智能体系统（A3 完整演示版）
 
-EduMind 面向软件杯 A3「个性化学习多智能体系统」赛题，提供学生端、教师端、管理端和微信小程序端的可信个性化学习闭环。当前主线演示为「Python 程序设计 / 循环结构 / 李明」，覆盖画像对话、DKVMN 轻量知识追踪、课程约束 RAG、多模态资源生成、测验提交、路径动态调整、教师仲裁、学习报告和治理日志。
+EduMind 面向软件杯 A3「个性化学习多智能体系统」赛题，提供学生端、教师端、管理端和微信小程序端的可信个性化学习闭环。当前主线演示为「Python 程序设计 / 循环结构 / 李明」，覆盖画像对话、在线门控 DKVMN 知识追踪、课程约束 RAG、多模态资源生成、测验提交、路径动态调整、教师仲裁、学习报告和治理日志。
 
 ## 三端角色
 
@@ -247,9 +247,9 @@ EduMind 面向软件杯 A3「个性化学习多智能体系统」赛题，提供
 
 ## 核心创新落地
 
-- DKVMN：`backend/app/services/dkvmn_tracker.py` 提供 Key-Value 记忆、掌握度更新、强弱点识别和 6 维画像映射。
-- EduLLM：`document_parser.py`、`chunk_strategy.py`、`curriculum_constraint.py`、`embedding_interface.py` 形成课程约束 RAG，`/api/v1/rag/ask` 返回引用、置信度、课程对齐和检索 debug。
-- FACET：系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent，并通过 `/api/v1/agent-runs`、`/api/v1/audit-logs` 追踪运行状态。
+- DKVMN：`backend/app/services/dkvmn_tracker.py` 提供 softmax key 寻址、动态 value memory、erase/add 门控写入、掌握度更新、强弱点识别和 6 维画像映射。
+- EduLLM：`document_parser.py`、`chunk_strategy.py`、`curriculum_constraint.py`、`embedding_interface.py` 形成课程约束 RAG，`/api/v1/rag/ask` 优先检索已导入课程向量库并返回真实引用、置信度、课程对齐和检索 debug，无命中时降级到课程 JSON。
+- FACET：系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent。高风险运行会持久化暂停；教师 approve/revise/reject 后分别进入报告、重生成复审或阻断发布，并通过 `/api/v1/agent-runs`、`/api/v1/audit-logs` 追踪状态。
 - 多模态资源：支持讲义、思维导图、练习、HTML 动画、视频脚本、TTS 任务、MP4 可选合成、代码案例、小项目任务。
 
 ## 启动方式
@@ -283,9 +283,9 @@ python scripts/eval_retrieval.py
 - 讯飞 TTS/安全 API 未配置时返回文本讲解、任务状态和本地规则审核结果。
 - FFmpeg 未安装时降级为 HTML 动画与视频脚本。
 - Chroma 不可用时自动使用 JSON/TF-IDF 检索。
-- DKVMN 当前是参考 DKVMN Key-Value Memory 结构实现的轻量知识追踪，包含 `key_matrix`、按学生持久化的 `value_memory`、概念注册表、强弱点识别和画像映射；不是训练型深度神经网络复现。
+- DKVMN 当前实现了在线门控 Key-Value Memory 推理核心，包含 `key_matrix`、softmax attention、按学生持久化的 `value_memory`、erase/add 写门、强弱点识别和画像映射；当前没有论文规模训练数据和预训练 checkpoint，不宣称复现论文指标。
 - EduLLM 当前是课程大纲约束 + 轻量语义/规则混合评分 + RAG 引用证据，不是完整教育大模型微调。
-- OCR、SentenceTransformer、真实深度 DKVMN 均预留接口，当前为轻量工程化实现。
+- OCR、SentenceTransformer、DKVMN 离线训练与 checkpoint 加载均保留扩展边界，比赛工程默认使用可解释的在线更新模式。
 
 ## Docker 启动
 

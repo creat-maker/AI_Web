@@ -23,9 +23,12 @@ def test_rag_confidence_and_next_step_present():
 
 def test_rag_out_of_scope_boundary_fields():
     result = ask_rag("股票机器学习训练怎么做？", "python-programming", "demo-basic")
-    assert "is_out_of_curriculum" in result
-    assert "out_of_scope_terms" in result
-    assert "boundary_warning" in result
+    assert result["is_out_of_curriculum"] is True
+    assert result["out_of_scope_terms"]
+    assert result["boundary_warning"]
+    assert result["fallback_reason"] == "out_of_curriculum"
+    assert "当前知识库仅支持 Python 程序设计课程答疑" in result["answer"]
+    assert result["lowEvidenceRisk"] == "高"
 
 
 def test_non_practice_query_keeps_citation_shape():

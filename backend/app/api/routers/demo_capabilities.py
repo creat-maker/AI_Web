@@ -286,5 +286,7 @@ def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPaylo
         "status": result["status"],
         "teacher_arbitration_result": result,
         "next_node": applied["next_node"],
-        "message": "教师仲裁结果已写入治理日志。",
+        "run_status": applied["run_status"],
+        "artifacts": applied["artifacts"],
+        "message": "教师仲裁结果已写入治理日志，工作流已按决策继续执行。" if item else "教师仲裁结果已写入治理日志。",
     }

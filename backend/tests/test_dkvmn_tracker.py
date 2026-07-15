@@ -6,6 +6,8 @@ from app.services.dkvmn_tracker import dkvmn_tracker
 
 def test_dkvmn_initial_state():
     state = dkvmn_tracker.initial_state()
+    assert state["model"] == "online-gated-key-value-memory-dkvmn"
+    assert state["model_metadata"]["update_mode"] == "online"
     assert state["key_matrix"]
     assert state["concept_registry"]
     assert len(state["value_memory"]) >= 9
@@ -18,6 +20,9 @@ def test_dkvmn_correct_answer_increases_mastery():
     result = dkvmn_tracker.update_memory("student-1", "while_loop", True, difficulty=0.6, response_time=30, score=90, state=state)
     assert result["mastery_after"] > before
     assert result["confidence"] > 0
+    attention = result["state"]["last_memory_operation"]["attention"]
+    assert abs(sum(attention.values()) - 1) < 0.01
+    assert max(attention, key=attention.get) == "while_loop"
 
 
 def test_dkvmn_wrong_answer_decreases_mastery():
@@ -41,6 +46,9 @@ def test_dkvmn_profile_mapping():
     dimensions = dkvmn_tracker.map_to_profile_dimensions(state)
     assert set(dimensions) == {"知识基础", "学习节奏", "学习偏好", "代码实操能力", "易错知识点", "学习风险"}
     assert dkvmn_tracker.get_mastery_vector("student-1", state)
+    explanation = dkvmn_tracker.explain_prediction("while_loop", "student-1", state)
+    assert explanation["attention_weights"][0]["concept_id"] == "while_loop"
+    assert explanation["model_metadata"]["checkpoint_loaded"] is False
 
 
 def test_dkvmn_persistence_fallback(tmp_path: Path, monkeypatch):

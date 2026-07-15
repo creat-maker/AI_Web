@@ -15,7 +15,14 @@ class BaseEmbeddingProvider(Protocol):
 
 
 def _tokens(text: str) -> list[str]:
-    return re.findall(r"[A-Za-z_]+|\d+|[\u4e00-\u9fff]{2,}", text.lower())
+    lowered = text.lower()
+    tokens = re.findall(r"[a-z_]+|\d+", lowered)
+    for segment in re.findall(r"[\u4e00-\u9fff]+", lowered):
+        if len(segment) <= 4:
+            tokens.append(segment)
+        tokens.extend(segment[index : index + 2] for index in range(len(segment) - 1))
+        tokens.extend(segment[index : index + 3] for index in range(len(segment) - 2))
+    return tokens
 
 
 class TfidfEmbeddingProvider:

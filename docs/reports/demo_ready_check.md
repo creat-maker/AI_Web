@@ -1,8 +1,8 @@
 # EduMind 演示状态检查报告
 
-- 检查时间：2026-07-03T15:55:35
+- 检查时间：2026-07-14T17:30:25
 - 总体状态：READY
-- 通过 / 警告 / 失败：72 / 0 / 0
+- 通过 / 警告 / 失败：39 / 0 / 0
 - 后端地址：http://127.0.0.1:8000
 - 前端地址：http://127.0.0.1:5173
 
@@ -19,19 +19,19 @@
 | --- | --- | --- | --- | --- | --- |
 | data | courses | PASS | 6 | 5 | 满足演示要求 |
 | data | core_courses | PASS | 5 | 5 | 满足演示要求 |
-| data | student_profiles | PASS | 33 | 4 | 满足演示要求 |
-| data | core_students | PASS | 21 | 4 | 满足演示要求 |
+| data | student_profiles | PASS | 5 | 4 | 满足演示要求 |
+| data | core_students | PASS | 5 | 4 | 满足演示要求 |
 | data | core_teachers | PASS | 3 | 3 | 满足演示要求 |
-| data | course_documents | PASS | 16 | 3 | 满足演示要求 |
-| data | tutor_question_logs | PASS | 39 | 5 | 满足演示要求 |
-| data | quizzes | PASS | 13 | 1 | 满足演示要求 |
-| data | quiz_submissions | PASS | 33 | 1 | 满足演示要求 |
-| data | learning_reports | PASS | 16 | 3 | 满足演示要求 |
-| data | agent_runs | PASS | 14 | 3 | 满足演示要求 |
-| data | learning_paths | PASS | 33 | 3 | 满足演示要求 |
-| data | generated_resources | PASS | 226 | 3 | 满足演示要求 |
-| data | audit_logs | PASS | 49 | 3 | 满足演示要求 |
-| data | business_events | PASS | 266 | 9 | 满足演示要求 |
+| data | course_documents | PASS | 46 | 3 | 满足演示要求 |
+| data | tutor_question_logs | PASS | 6 | 5 | 满足演示要求 |
+| data | quizzes | PASS | 5 | 1 | 满足演示要求 |
+| data | quiz_submissions | PASS | 4 | 1 | 满足演示要求 |
+| data | learning_reports | PASS | 5 | 3 | 满足演示要求 |
+| data | agent_runs | PASS | 5 | 3 | 满足演示要求 |
+| data | learning_paths | PASS | 5 | 3 | 满足演示要求 |
+| data | generated_resources | PASS | 23 | 3 | 满足演示要求 |
+| data | audit_logs | PASS | 19 | 3 | 满足演示要求 |
+| data | business_events | PASS | 11 | 9 | 满足演示要求 |
 | file | backend/storage/uploads | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/reports | PASS | exists | exists | 文件或目录已存在 |
 | file | backend/storage/chroma | PASS | exists | exists | 文件或目录已存在 |
@@ -56,39 +56,6 @@
 | script | frontend/nginx.conf | PASS | exists | exists | 文件或目录已存在 |
 | script | .env.example | PASS | exists | exists | 文件或目录已存在 |
 | script | .github/workflows/ci.yml | PASS | exists | exists | 文件或目录已存在 |
-| http | backend_health | PASS | 200 | 200 | HTTP 访问正常 |
-| http | backend_demo_status | PASS | 200 | 200 | HTTP 访问正常 |
-| http | backend_courses_api | PASS | 200 | 200 | HTTP 访问正常 |
-| http | backend_rag_ask | PASS | 200 | 200 | HTTP 访问正常 |
-| http | backend_content_review | PASS | 200 | 200 | HTTP 访问正常 |
-| http | backend_content_review_records | PASS | 200 | 200 | HTTP 访问正常 |
-| http | backend_agent_runs | PASS | 200 | 200 | HTTP 访问正常 |
-| http | backend_audit_logs | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/ | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/login | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/student | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/student/courses | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/student/learning-path | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/student/assistant | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/student/knowledge | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/student/exams | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/student/reports | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/teacher | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/courses | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/profiles | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/learning-path | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/teacher-analysis | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/reports | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/dashboard | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/admin/users | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/admin/courses | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/admin/reports | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/admin/knowledge | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/resource-generation | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/agent-workflow | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/logs | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/settings | PASS | 200 | 200 | HTTP 访问正常 |
-| http | frontend/demo-status | PASS | 200 | 200 | HTTP 访问正常 |
 
 ## 三端推荐演示路线
 

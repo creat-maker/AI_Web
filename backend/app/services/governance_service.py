@@ -5,7 +5,16 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import AITaskRun, AgentRun, AuditLog, ContentVersion, ReviewItem
+from app.models import (
+    AITaskRun,
+    AgentRun,
+    AuditLog,
+    ContentVersion,
+    GeneratedResource,
+    LearningReport,
+    Quiz,
+    ReviewItem,
+)
 from app.services.json_utils import dumps, loads
 from app.services.privacy_service import mask_name, redact_payload, summarize_text
 
@@ -430,7 +439,8 @@ def create_teacher_arbitration_state(state: dict[str, Any]) -> dict[str, Any]:
     run_id = str(state.get("run_id") or f"run-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
     retry_count = int(state.get("retry_count") or 0)
     audit = state.get("audit_result") or {}
-    item_id = str(state.get("arbitration_item_id") or f"arb-{run_id}-{retry_count}")
+    revision_count = int(state.get("teacher_revision_count") or 0)
+    item_id = str(state.get("arbitration_item_id") or f"arb-{run_id}-{retry_count}-{revision_count}")
     review_item = {
         "item_id": item_id,
         "item_type": "resource_pack",
@@ -506,12 +516,155 @@ def resume_after_teacher_decision(
         "messages": [*state.get("messages", []), f"教师仲裁 {decision}，下一节点：{next_node}"],
     }
     if decision == "revise":
+        next_state["teacher_revision_count"] = int(state.get("teacher_revision_count") or 0) + 1
         next_state["retry_context"] = build_retry_context(state.get("audit_result") or {}, teacher_comment)
+        next_state["retry_context"]["teacher_revised_content"] = revised_content or ""
         next_state["teacher_revised_content"] = revised_content
+    if decision == "approve":
+        next_state["audit_result"] = {
+            **(state.get("audit_result") or {}),
+            "review_status": "teacher_approved",
+            "teacher_override": True,
+            "teacher_comment": teacher_comment,
+        }
     if decision == "reject":
+        next_state["audit_result"] = {
+            **(state.get("audit_result") or {}),
+            "review_status": "rejected",
+            "teacher_override": False,
+            "teacher_comment": teacher_comment,
+        }
         next_state["publication_blocked"] = True
         next_state["rejection_reason"] = teacher_comment or "教师拒绝该版本，终止资源发布。"
     return next_state
+
+
+def _sync_agent_run_artifacts(db: Session, item: AgentRun, state: dict[str, Any]) -> dict[str, Any]:
+    if not item.student_profile_id:
+        return {}
+
+    generated = state.get("generated_resources") or []
+    existing_resources = (
+        db.query(GeneratedResource)
+        .filter(GeneratedResource.student_profile_id == item.student_profile_id)
+        .order_by(GeneratedResource.id.asc())
+        .all()
+    )
+    decision = (state.get("teacher_arbitration_result") or {}).get("decision")
+    if state.get("status") == "success":
+        audit_status = "teacher_approved" if decision == "approve" else "passed"
+        generation_status = "generated"
+    elif state.get("status") == "rejected":
+        audit_status = "rejected"
+        generation_status = "blocked"
+    else:
+        audit_status = "pending_review"
+        generation_status = "draft"
+
+    resource_ids: list[int] = []
+    for index, payload in enumerate(generated):
+        row = existing_resources[index] if index < len(existing_resources) else GeneratedResource(
+            course_id=item.course_id,
+            student_profile_id=item.student_profile_id,
+            resource_type=str(payload.get("resource_type") or "resource"),
+            title=str(payload.get("title") or "学习资源"),
+            content=str(payload.get("content") or ""),
+            source_agent=str(payload.get("source_agent") or "ResourceAgent"),
+        )
+        row.resource_type = str(payload.get("resource_type") or row.resource_type or "resource")
+        row.title = str(payload.get("title") or row.title or "学习资源")
+        row.content = str(payload.get("content") or "")
+        row.difficulty = payload.get("difficulty")
+        row.source_agent = str(payload.get("source_agent") or row.source_agent or "ResourceAgent")
+        row.recommend_reason = payload.get("recommend_reason") or payload.get("recommendation_reason")
+        row.generation_status = generation_status
+        row.audit_status = audit_status
+        db.add(row)
+        db.flush()
+        resource_ids.append(row.id)
+
+    quiz_id = None
+    quiz_payload = state.get("quiz")
+    if quiz_payload:
+        quiz = (
+            db.query(Quiz)
+            .filter(Quiz.student_profile_id == item.student_profile_id, Quiz.course_id == item.course_id)
+            .order_by(Quiz.id.desc())
+            .first()
+        )
+        if quiz is None:
+            quiz = Quiz(course_id=item.course_id, student_profile_id=item.student_profile_id, quiz_json=dumps(quiz_payload))
+            db.add(quiz)
+        else:
+            quiz.quiz_json = dumps(quiz_payload)
+        db.flush()
+        quiz_id = quiz.id
+
+    report_id = None
+    report_path = str(state.get("report_path") or "")
+    if state.get("status") == "success" and report_path:
+        report = (
+            db.query(LearningReport)
+            .filter(
+                LearningReport.student_profile_id == item.student_profile_id,
+                LearningReport.course_id == item.course_id,
+            )
+            .order_by(LearningReport.id.desc())
+            .first()
+        )
+        if report is None:
+            report = LearningReport(
+                student_profile_id=item.student_profile_id,
+                course_id=item.course_id,
+                report_title=f"Agent 学习报告 - {item.run_id or item.id}",
+                report_path=report_path,
+                report_json=dumps(state.get("report_summary") or {}),
+            )
+            db.add(report)
+        else:
+            report.report_path = report_path
+            report.report_json = dumps(state.get("report_summary") or {})
+        db.flush()
+        report_id = report.id
+
+    return {"resource_ids": resource_ids, "quiz_id": quiz_id, "report_id": report_id}
+
+
+def _merge_agent_output(item: AgentRun, state: dict[str, Any], artifact_ids: dict[str, Any]) -> dict[str, Any]:
+    output = loads(item.output_json, {})
+    for key in (
+        "student_profile",
+        "knowledge_query",
+        "knowledge_evidence",
+        "learning_path",
+        "resource_plan",
+        "generated_resources",
+        "quiz",
+        "tutor_answer",
+        "retrieved_context",
+        "evaluation_result",
+        "audit_result",
+        "report_path",
+        "report_summary",
+        "messages",
+        "teacher_arbitration_result",
+        "teacher_decision_log",
+        "retry_count",
+    ):
+        if key in state:
+            output[key] = state[key]
+    output.update({key: value for key, value in artifact_ids.items() if value is not None})
+    output["agent_run_id"] = item.id
+    output["status"] = state.get("status", item.status)
+    summary = output.get("workflow_summary") or {}
+    summary.update(
+        {
+            "status": output["status"],
+            "success_rate": 100 if output["status"] == "success" else 0,
+        }
+    )
+    output["workflow_summary"] = summary
+    return output
 
 
 def apply_teacher_arbitration_decision(
@@ -526,14 +679,24 @@ def apply_teacher_arbitration_decision(
 ) -> dict[str, Any]:
     state = loads(item.state, {}) if item else {"run_id": item_id, "retry_count": 0, "messages": []}
     next_state = resume_after_teacher_decision(state, decision, teacher_comment, revised_content)
+    can_resume = bool(item and next_state.get("course_id") and "generated_resources" in next_state)
+    if can_resume:
+        from app.agents.graph import continue_after_teacher_arbitration
+
+        next_state = continue_after_teacher_arbitration(next_state)
+    artifact_ids: dict[str, Any] = {}
     if item:
+        artifact_ids = _sync_agent_run_artifacts(db, item, next_state)
         item.teacher_arbitration_result = dumps(next_state["teacher_arbitration_result"])
         item.state = dumps(next_state)
         item.messages = dumps(next_state.get("messages", []))
         item.current_node = next_state["current_node"]
         item.status = next_state["status"]
-        if decision in {"approve", "reject"}:
+        item.output_json = dumps(_merge_agent_output(item, next_state, artifact_ids))
+        if next_state["status"] in {"success", "rejected"}:
             item.finished_at = datetime.utcnow()
+        else:
+            item.finished_at = None
     log_detail = next_state["teacher_decision_log"][-1]
     row = AuditLog(
         actor_id="teacher_001",
@@ -553,4 +716,11 @@ def apply_teacher_arbitration_decision(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return {"state": next_state, "audit_log": row, "next_node": next_state["current_node"], "status": next_state["teacher_arbitration_result"]["status"]}
+    return {
+        "state": next_state,
+        "audit_log": row,
+        "next_node": next_state["current_node"],
+        "status": next_state["teacher_arbitration_result"]["status"],
+        "run_status": next_state["status"],
+        "artifacts": artifact_ids,
+    }

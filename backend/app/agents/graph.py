@@ -24,6 +24,38 @@ def route_after_teacher_arbitration(state: AgentState) -> str:
     return "end"
 
 
+def _regenerate_and_reaudit(state: AgentState) -> AgentState:
+    for node in (resource_agent, tutor_agent, evaluator_agent, audit_agent, compliance_agent):
+        state = node(state)
+    return state
+
+
+def _finish_governed_flow(state: AgentState) -> AgentState:
+    branch = should_retry_or_arbitrate(state)
+    while branch == "retry" and int(state.get("retry_count") or 0) < 3:
+        state = audit_retry(state)
+        state = _regenerate_and_reaudit(state)
+        branch = should_retry_or_arbitrate(state)
+    if branch == "teacher_arbitration":
+        return teacher_arbitration_agent(state)
+    completed = reporter_agent(state)
+    return {**completed, "current_node": "ReporterAgent", "status": "success"}
+
+
+def continue_after_teacher_arbitration(state: AgentState) -> AgentState:
+    """Resume a persisted workflow after approve/revise/reject was recorded."""
+    current_node = state.get("current_node")
+    if current_node == "ReporterAgent":
+        completed = reporter_agent(state)
+        return {**completed, "current_node": "ReporterAgent", "status": "success"}
+    if current_node == "ResourceAgent":
+        regenerated = _regenerate_and_reaudit(state)
+        return _finish_governed_flow(regenerated)
+    if current_node == "END" or state.get("publication_blocked"):
+        return {**state, "current_node": "END", "status": "rejected"}
+    return state
+
+
 def build_learning_graph():
     from langgraph.graph import END, StateGraph
 
@@ -82,28 +114,9 @@ def run_full_learning_graph(initial_state: AgentState) -> AgentState:
             evaluator_agent,
             audit_agent,
             compliance_agent,
-            reporter_agent,
         ):
             state = node(state)
-            if node is compliance_agent:
-                branch = should_retry_or_arbitrate(state)
-                while branch == "retry" and int(state.get("retry_count") or 0) < 3:
-                    state = audit_retry(state)
-                    state = resource_agent(state)
-                    state = tutor_agent(state)
-                    state = evaluator_agent(state)
-                    state = audit_agent(state)
-                    state = compliance_agent(state)
-                    branch = should_retry_or_arbitrate(state)
-                if branch == "teacher_arbitration":
-                    state = teacher_arbitration_agent(state)
-                    route = route_after_teacher_arbitration(state)
-                    if route == "reporter":
-                        state = reporter_agent(state)
-                    elif route == "resource":
-                        state = resource_agent(state)
-                    else:
-                        break
+        state = _finish_governed_flow(state)
         state["messages"] = [
             *state.get("messages", []),
             "当前环境未安装 langgraph，已使用顺序兜底；安装 requirements 后自动启用 LangGraph。",
