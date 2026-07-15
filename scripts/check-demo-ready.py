@@ -19,6 +19,7 @@ from app.core.config import settings  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
     AgentRun,
+    AuditLog,
     Course,
     CourseDocument,
     GeneratedResource,
@@ -32,9 +33,9 @@ from app.models import (  # noqa: E402
 )
 
 
-CORE_STUDENTS = ["张三", "李四", "王五"]
+CORE_STUDENTS = ["李明", "张三", "李四", "王五"]
 CORE_TEACHERS = ["王老师", "陈老师", "张老师"]
-CORE_COURSES = ["Python 爬虫基础与实践", "人工智能导论", "数据结构与算法", "Web 开发技术"]
+CORE_COURSES = ["Python 程序设计", "Python 爬虫基础与实践", "人工智能导论", "数据结构与算法", "Web 开发技术"]
 CORE_CLASSES = ["计科大三 1 班", "计科大三 2 班"]
 COURSE_KB_FILE = ROOT_DIR / "docs" / "course_kb" / "python_programming.json"
 
@@ -98,6 +99,22 @@ def _exists_check(name: str, path: Path, fail_if_missing: bool, suggestion: str,
     return CheckResult("FAIL" if fail_if_missing else "WARN", name, "missing", "exists", suggestion, category)
 
 
+def _source_check(name: str, relative_path: str, patterns: list[str], suggestion: str, category: str = "source") -> CheckResult:
+    path = ROOT_DIR / relative_path
+    if not path.exists():
+        return CheckResult("FAIL", name, "missing", "exists", suggestion, category)
+    content = path.read_text(encoding="utf-8", errors="replace")
+    missing = [pattern for pattern in patterns if pattern not in content]
+    return CheckResult(
+        "PASS" if not missing else "FAIL",
+        name,
+        "ok" if not missing else "missing: " + ",".join(missing[:4]),
+        "all patterns present",
+        "满足演示要求" if not missing else suggestion,
+        category,
+    )
+
+
 def _http_check(name: str, url: str, expected_status: int = 200) -> CheckResult:
     try:
         request = Request(url, headers={"User-Agent": "EduMind-demo-ready-check/1.0"})
@@ -158,10 +175,10 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
         event_count = db.query(SystemLog).filter(SystemLog.type == "business_event").count()
         results.extend(
             [
-                _count_check("courses", db.query(Course).count(), 4, "请运行 python scripts/seed_demo_data.py 初始化四门核心课程。"),
-                _value_check("core_courses", course_count >= 4, str(course_count), "4", "缺少核心课程，请运行 seed-demo-data。"),
-                _count_check("student_profiles", db.query(StudentProfile).count(), 3, "请运行 python scripts/seed_demo_data.py 初始化学生画像。"),
-                _value_check("core_students", student_count >= 3, str(student_count), "3", "缺少张三、李四、王五画像数据。"),
+                _count_check("courses", db.query(Course).count(), 5, "请运行 python scripts/seed_demo_data.py 初始化核心课程。"),
+                _value_check("core_courses", course_count >= 5, str(course_count), "5", "缺少 Python 程序设计等核心课程，请运行 seed-demo-data。"),
+                _count_check("student_profiles", db.query(StudentProfile).count(), 4, "请运行 python scripts/seed_demo_data.py 初始化学生画像。"),
+                _value_check("core_students", student_count >= 4, str(student_count), "4", "缺少李明、张三、李四、王五画像数据。"),
                 _value_check("core_teachers", teacher_count >= 3, str(teacher_count), "3", "缺少王老师、陈老师、张老师课程数据。"),
                 _count_check("course_documents", db.query(CourseDocument).count(), 3, "请运行 seed-demo-data 或上传课程资料。"),
                 _count_check("tutor_question_logs", db.query(TutorQuestionLog).count(), 5, "请运行 seed-demo-data 或在智能答疑页面提交问题。"),
@@ -171,6 +188,7 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
                 _count_check("agent_runs", db.query(AgentRun).count(), 3, "请运行 seed-demo-data 或在 AgentWorkflow 页面运行流程。"),
                 _count_check("learning_paths", db.query(LearningPath).count(), 3, "请生成学生学习路径。"),
                 _count_check("generated_resources", db.query(GeneratedResource).count(), 3, "请生成学习资源包。"),
+                _count_check("audit_logs", db.query(AuditLog).count(), 3, "请运行 seed-demo-data 或触发教师仲裁/审核。"),
                 _count_check("business_events", event_count, 9, "请运行 seed-demo-data 或 e2e_demo_flow_check 生成关键业务事件。"),
             ]
         )
@@ -186,7 +204,63 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
     ]:
         results.append(_exists_check(name, path, fail_if_missing=False, suggestion=suggestion))
 
-    for relative in ["start-dev.bat", "stop-dev.bat", "seed-demo-data.bat", "check-demo-ready.bat", "scripts/seed_demo_data.py", "scripts/e2e_demo_flow_check.py"]:
+    results.extend(
+        [
+            _source_check(
+                "report_service_methods",
+                "backend/app/services/report_service.py",
+                ["class ReportService", "generate_student_report", "export_docx", "fallback_reason"],
+                "ReportService 缺少报告生成/导出/fallback 方法。",
+            ),
+            _source_check(
+                "profile_service_methods",
+                "backend/app/services/profile_service.py",
+                ["class ProfileService", "build_profile_visualization", "calculate_risk_level", "merge_profile_evidence"],
+                "ProfileService 缺少画像可视化、风险或证据合并方法。",
+            ),
+            _source_check(
+                "quiz_service_methods",
+                "backend/app/services/quiz_service.py",
+                ["class QuizService", "grade_answers", "wrong_reason_analysis", "dkvmn_updated"],
+                "QuizService 缺少评分、错因分析或 DKVMN 更新字段。",
+            ),
+            _source_check(
+                "rag_citations_contract",
+                "backend/app/services/lightweight_rag_service.py",
+                ["citations", "retrieved_chunks", "parser_warnings", "curriculum_alignment"],
+                "RAG 返回结构缺少 citations/retrieved_chunks/parser_warnings/curriculum_alignment。",
+            ),
+            _source_check(
+                "teacher_arbitration_decisions",
+                "backend/app/services/governance_service.py",
+                ["resume_after_teacher_decision", "approve", "revise", "reject", "teacher_decision_log"],
+                "教师仲裁缺少 approve/revise/reject 状态推进逻辑。",
+            ),
+            _source_check(
+                "miniprogram_request_or_fallback",
+                "miniprogram/utils/api.js",
+                ["requestOrFallback", "fallback", "demoData"],
+                "小程序 api.js 缺少 requestOrFallback 或 demoData fallback。",
+                "miniprogram",
+            ),
+        ]
+    )
+
+    for relative in [
+        "start-dev.bat",
+        "stop-dev.bat",
+        "seed-demo-data.bat",
+        "check-demo-ready.bat",
+        "scripts/seed_demo_data.py",
+        "scripts/e2e_demo_flow_check.py",
+        "scripts/eval_retrieval.py",
+        "docker-compose.yml",
+        "backend/Dockerfile",
+        "frontend/Dockerfile",
+        "frontend/nginx.conf",
+        ".env.example",
+        ".github/workflows/ci.yml",
+    ]:
         results.append(_exists_check(relative, ROOT_DIR / relative, fail_if_missing=True, suggestion=f"关键脚本缺失：{relative}", category="script"))
 
     if include_http:
@@ -223,6 +297,8 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
                     },
                 ),
                 _http_check("backend_content_review_records", f"{backend_url}/api/v1/content-review/records"),
+                _http_check("backend_agent_runs", f"{backend_url}/api/v1/agent-runs"),
+                _http_check("backend_audit_logs", f"{backend_url}/api/v1/audit-logs"),
             ]
         )
         for route in FRONTEND_ROUTES:

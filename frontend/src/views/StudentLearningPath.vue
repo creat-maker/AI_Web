@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../api/client';
 import { learningTaskPaths } from '../api/mocks/competitionData';
 import DataCard from '../components/DataCard.vue';
+import LearningPathTimeline from '../components/LearningPathTimeline.vue';
 import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
@@ -16,6 +17,8 @@ const activeProfile = ref(learningTaskPaths.active_profile_type);
 const loading = ref(true);
 const error = ref('');
 const operationMessage = ref('');
+const governanceNotice = ref('');
+const activeVersionNo = ref<number | null>(null);
 const replanLoading = ref(false);
 const { demoUserId: selectedUserId, setDemoUserId: setSelectedUserId } = useRole();
 const selectableUsers = selectableStudents;
@@ -24,6 +27,26 @@ const updateReasons = [
   '最近测验中 while 死循环问题错误率较高',
   'AI 求助集中在循环条件更新和循环嵌套',
   '学生偏好代码案例和图解资源'
+];
+const adjustmentLogs = [
+  {
+    time: '最近测验后',
+    trigger: 'quiz_submission',
+    old_level: '巩固练习',
+    new_level: '基础补弱',
+    reason: 'DKVMN 显示 while 循环、break/continue 掌握度低于阈值，路径插入补弱任务。',
+    inserted_tasks: ['while 循环条件更新专项练习', 'break / continue 对比复盘'],
+    related_concepts: ['while 循环', 'break/continue']
+  },
+  {
+    time: '资源评分后',
+    trigger: 'resource_rating',
+    old_level: '基础补弱',
+    new_level: '巩固练习',
+    reason: '学生对代码案例评分较高，后续资源推荐偏向代码实操和小项目。',
+    inserted_tasks: ['循环结构小项目任务'],
+    related_concepts: ['列表遍历', '循环嵌套']
+  }
 ];
 const emptyPath = {
   profile_type: '基础薄弱 + 代码实操偏好型',
@@ -66,6 +89,13 @@ async function loadTasks(profileType?: string) {
     const query = `?${params.toString()}`;
     data.value = await api.get<LearningTaskPaths>(`/api/v1/student/learning-tasks${query}`);
     activeProfile.value = profileType || data.value.active_profile_type;
+    try {
+      const governance = await api.get<any>('/api/v1/content-versions/active?item_type=learning_path');
+      activeVersionNo.value = governance.active?.version_no || null;
+      governanceNotice.value = governance.rollback_notice || '当前学习路径为已发布版本，待审核调整不会直接覆盖学生端。';
+    } catch {
+      governanceNotice.value = '当前学习路径为已发布版本，待审核调整不会直接覆盖学生端。';
+    }
   } catch (err) {
     error.value = '当前网络不稳定，已为你展示本地学习建议。';
     data.value = learningTaskPaths;
@@ -118,7 +148,10 @@ watch(selectedUserId, () => loadTasks());
     <p v-if="loading" class="panel muted">正在加载个性化学习路径...</p>
     <p v-if="error" class="panel warning-text">{{ error }}</p>
     <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
-    <p class="panel muted">学习路径已根据最近一次循环结构测验更新。</p>
+    <p class="panel muted">
+      {{ governanceNotice || '学习路径已根据最近一次循环结构测验更新。' }}
+      <span v-if="activeVersionNo">当前内容版本：v{{ activeVersionNo }}</span>
+    </p>
 
     <div class="stat-grid">
       <StatCard label="当前课程" value="Python 程序设计" hint="循环结构" icon="Py" />
@@ -149,6 +182,7 @@ watch(selectedUserId, () => loadTasks());
     </DataCard>
 
     <DataCard title="路径更新原因" subtitle="路径根据测验、AI 求助和资源偏好动态更新">
+      <LearningPathTimeline :logs="adjustmentLogs" />
       <div class="overview-list reason-list">
         <article v-for="item in updateReasons" :key="item">
           <strong>{{ item }}</strong>

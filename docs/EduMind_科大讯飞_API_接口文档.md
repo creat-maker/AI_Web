@@ -1427,7 +1427,7 @@ CREATE TABLE course_kb_files (
 
 - 对话式学生画像
 - 个性化学习路径
-- 5 类资源生成
+- 9 类资源生成
 - RAG 防幻觉
 - AI 辅导
 - 学习报告

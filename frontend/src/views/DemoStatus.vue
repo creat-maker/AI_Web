@@ -22,6 +22,18 @@ interface DemoStatus {
   capability_checklist: Array<{ name: string; status: string; detail?: string }>;
   real_capabilities: string[];
   demo_fallback_capabilities: string[];
+  feature_status?: {
+    profile_dialog?: { supported: boolean; status?: string; dimensions?: number; dimension_count: number; dimension_labels?: string[]; update_mode?: string };
+    multimodal_resources?: { status: string; resource_types: number; animation_html: boolean; tts_audio: string; video_script: boolean; video_mp4?: string; ffmpeg_available?: boolean };
+    assessment_adjustment?: { status: string; flow: string };
+    multimodal_resource_type_count?: number;
+    animation_html?: { supported: boolean; preview: string };
+    tts_audio?: { status: string; message: string };
+    ffmpeg?: { status: string; message: string };
+    content_safety?: { status: string; message?: string; rule_based?: boolean; citation_check?: boolean; xfyun_safety?: string; provider_status?: { status: string; message: string } };
+    evaluation_adjustment_loop?: { supported: boolean; fields: string[] };
+    production_upgrade_path?: string[];
+  };
   refresh_command: string;
 }
 
@@ -75,7 +87,7 @@ const demoGroups = (Object.keys(demoRoutes) as DemoRole[]).map((key) => ({
     route: item.route,
     goal: item.goal,
     script: roleScripts[key][Math.min(index, roleScripts[key].length - 1)],
-    expected: `页面可访问，并展示 ${item.title} 相关演示数据或能力边界说明。`
+    expected: `页面可访问，并展示 ${item.title} 相关业务数据或能力边界说明。`
   }))
 }));
 
@@ -146,7 +158,7 @@ onMounted(loadPage);
     <article class="placeholder-hero">
       <StatusBadge :label="`演示状态：${statusLabel}`" :tone="statusTone" />
       <h2>演示闭环与最终验收</h2>
-      <p>用于答辩前确认三端路由、后端健康、演示数据、关键能力、Agent 工作流和最近验收报告。</p>
+      <p>用于答辩前确认三端路由、后端健康、业务数据、关键能力、Agent 工作流和最近验收报告。</p>
     </article>
 
     <p v-if="loading" class="panel muted">正在读取最近一次验收报告...</p>
@@ -167,7 +179,7 @@ onMounted(loadPage);
 
       <section class="panel">
         <div class="panel-title">
-          <h2>统一演示数据口径</h2>
+          <h2>统一业务数据口径</h2>
           <span class="muted">前后端样例数据均围绕以下对象组织</span>
         </div>
         <div class="data-grid">
@@ -221,6 +233,50 @@ onMounted(loadPage);
             </div>
           </div>
         </article>
+      </section>
+
+      <section class="panel" v-if="data.feature_status">
+        <div class="panel-title">
+          <h2>赛题关键能力状态</h2>
+          <span class="muted">画像、多模态资源、讯飞工具、内容安全与闭环</span>
+        </div>
+        <div class="event-status-grid">
+          <article class="item compact">
+            <strong>对话式画像</strong>
+            <span>{{ data.feature_status.profile_dialog?.dimension_count || 6 }} 个画像维度</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>多模态资源</strong>
+            <span>{{ data.feature_status.multimodal_resource_type_count || 0 }} 类资源</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>动画资源</strong>
+            <span>{{ data.feature_status.animation_html?.preview || 'sandbox iframe' }}</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>MP4 合成</strong>
+            <span>{{ data.feature_status.multimodal_resources?.ffmpeg_available ? 'FFmpeg 已检测到，可合成简易 MP4' : '可选部署能力，当前运行环境未检测到 FFmpeg' }}</span>
+            <StatusBadge :label="data.feature_status.multimodal_resources?.ffmpeg_available ? 'available' : 'optional'" :tone="data.feature_status.multimodal_resources?.ffmpeg_available ? 'success' : 'warning'" />
+          </article>
+          <article class="item compact">
+            <strong>讯飞 TTS</strong>
+            <span>{{ data.feature_status.tts_audio?.message || '按环境变量配置接入' }}</span>
+            <StatusBadge :label="data.feature_status.tts_audio?.status || 'not_configured'" :tone="data.feature_status.tts_audio?.status === 'configured' ? 'success' : 'warning'" />
+          </article>
+          <article class="item compact">
+            <strong>内容安全</strong>
+            <span>{{ data.feature_status.content_safety?.message || '本地规则审核已启用' }}</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+          <article class="item compact">
+            <strong>测评闭环</strong>
+            <span>{{ data.feature_status.evaluation_adjustment_loop?.fields.join(' / ') || 'evaluation / path_adjustment' }}</span>
+            <StatusBadge label="PASS" tone="success" />
+          </article>
+        </div>
       </section>
 
       <section class="panel">

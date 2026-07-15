@@ -1,158 +1,271 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { api, apiBase } from '../api/client';
 import DataCard from '../components/DataCard.vue';
+import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
-import StatCard from '../components/StatCard.vue';
+import ReportPreviewModal from '../components/ReportPreviewModal.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
-const templates = [
-  { title: '平台数据报告', desc: '平台用户、课程、资源与 AI 调用总体表现', icon: '数' },
-  { title: '课程质量报告', desc: '课程完成率、活跃度、资源完整度与异常提醒', icon: '课' },
-  { title: '学生学习报告', desc: '学习进度、任务完成、测验表现与成长趋势', icon: '学' },
-  { title: 'AI 服务报告', desc: '生成成功率、调用量、失败原因与服务健康', icon: 'AI' },
-  { title: '系统运行报告', desc: '日志告警、接口异常、存储与备份状态', icon: '稳' }
-];
-
-const reports = [
-  { name: 'EduMind 平台 5 月运营月报', type: '平台数据报告', time: '2024-05-31 18:00', status: '已完成', owner: 'Admin' },
-  { name: 'Python 循环结构课程质量报告', type: '课程质量报告', time: '2024-05-30 20:15', status: '待审核', owner: '王老师' },
-  { name: 'AI 服务调用稳定性报告', type: 'AI 服务报告', time: '2024-05-30 11:42', status: '生成中', owner: '系统任务' },
-  { name: '系统运行与告警周报', type: '系统运行报告', time: '2024-05-29 09:10', status: '失败', owner: '监控服务' }
-];
-
-function reportTone(status: string) {
-  if (status === '已完成') return 'success';
-  if (status === '待审核' || status === '生成中') return 'warning';
-  return 'danger';
+interface AdminReport {
+  id: number;
+  report_title: string;
+  student_name: string;
+  course_title: string;
+  report_type: string;
+  status: string;
+  review_status: string;
+  creator: string;
+  quality_score?: number | null;
+  created_at: string;
+  summary: any;
 }
+
+const reports = ref<AdminReport[]>([]);
+const loading = ref(false);
+const processing = ref(false);
+const error = ref('');
+const success = ref('');
+const keyword = ref('');
+const typeFilter = ref('全部类型');
+const statusFilter = ref('全部状态');
+const selected = ref<AdminReport | null>(null);
+const previewVisible = ref(false);
+
+const typeOptions = computed(() => ['全部类型', ...Array.from(new Set(reports.value.map((item) => item.report_type)))]);
+const filteredReports = computed(() => {
+  const word = keyword.value.trim().toLowerCase();
+  return reports.value.filter((report) => {
+    const haystack = [
+      report.report_title,
+      report.student_name,
+      report.course_title,
+      report.report_type,
+      report.status,
+      report.review_status,
+      report.creator,
+      report.summary?.report_abstract,
+      (report.summary?.weak_points || []).join(' ')
+    ]
+      .join(' ')
+      .toLowerCase();
+    const matchWord = !word || haystack.includes(word);
+    const matchType = typeFilter.value === '全部类型' || report.report_type === typeFilter.value;
+    const matchStatus = statusFilter.value === '全部状态' || report.review_status === statusFilter.value || report.status === statusFilter.value;
+    return matchWord && matchType && matchStatus;
+  });
+});
+
+const stats = computed(() => [
+  { label: '报告总数', value: reports.value.length },
+  { label: '待审核', value: reports.value.filter((item) => item.review_status === '待审核').length },
+  { label: '当前结果', value: filteredReports.value.length },
+  { label: '平均质量', value: averageQuality.value || '-' }
+]);
+
+const averageQuality = computed(() => {
+  const values = reports.value.map((item) => item.quality_score).filter((item): item is number => typeof item === 'number');
+  return values.length ? Math.round(values.reduce((sum, item) => sum + item, 0) / values.length) : 0;
+});
+
+async function loadReports() {
+  loading.value = true;
+  error.value = '';
+  try {
+    reports.value = await api.get<AdminReport[]>('/api/v1/admin/reports');
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '报告审核列表加载失败。';
+  } finally {
+    loading.value = false;
+  }
+}
+
+function openPreview(report: AdminReport) {
+  selected.value = report;
+  previewVisible.value = true;
+}
+
+function download(report: AdminReport) {
+  window.open(`${apiBase}/api/v1/admin/reports/${report.id}/download`, '_blank');
+}
+
+async function regenerate(report: AdminReport) {
+  processing.value = true;
+  error.value = '';
+  success.value = '';
+  try {
+    await api.post(`/api/v1/admin/reports/${report.id}/regenerate`);
+    success.value = '报告已重新生成。';
+    await loadReports();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '重新生成失败。';
+  } finally {
+    processing.value = false;
+  }
+}
+
+async function updateStatus(report: AdminReport, status: string) {
+  try {
+    await api.patch(`/api/v1/admin/reports/${report.id}/status`, { status });
+    report.review_status = status;
+    success.value = '审核状态已更新。';
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '审核状态更新失败。';
+  }
+}
+
+async function createMonthlyReport() {
+  processing.value = true;
+  error.value = '';
+  success.value = '';
+  try {
+    await api.post('/api/v1/admin/reports/monthly');
+    success.value = '平台运营月报已生成。';
+    await loadReports();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '月报生成失败。';
+  } finally {
+    processing.value = false;
+  }
+}
+
+async function exportBatch() {
+  window.open(`${apiBase}/api/v1/admin/reports/export`, '_blank');
+}
+
+function clearSearch() {
+  keyword.value = '';
+  typeFilter.value = '全部类型';
+  statusFilter.value = '全部状态';
+}
+
+onMounted(loadReports);
 </script>
 
 <template>
-  <section class="page">
-    <PageHeader title="报告审核中心" description="管理平台数据报告、课程质量报告、AI 服务报告和系统运行报告。">
+  <section class="page admin-report-page">
+    <PageHeader title="报告审核中心" description="管理学习诊断报告、平台运营报告和系统运行报告。">
       <template #actions>
-        <button>一键生成平台月报</button>
-        <button class="secondary">批量导出</button>
+        <button class="secondary" type="button" @click="exportBatch">批量导出</button>
+        <button :disabled="processing" type="button" @click="createMonthlyReport">{{ processing ? '处理中...' : '生成月报' }}</button>
       </template>
     </PageHeader>
 
+    <p v-if="error" class="panel error-text">{{ error }}</p>
+    <p v-if="success" class="panel success-text">{{ success }}</p>
+    <p v-if="loading" class="panel muted">正在加载报告...</p>
+
     <div class="stat-grid">
-      <StatCard label="报告总数" value="216" unit="份" icon="报" />
-      <StatCard label="今日生成" value="32" unit="份" icon="今" tone="green" />
-      <StatCard label="待审核" value="18" unit="份" icon="审" tone="orange" />
-      <StatCard label="下载次数" value="1,286" unit="次" icon="下" tone="purple" />
+      <article v-for="item in stats" :key="item.label" class="stat-card">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+      </article>
     </div>
 
-    <div class="three-column report-template-grid">
-      <DataCard v-for="item in templates" :key="item.title">
-        <div class="template-card">
-          <span>{{ item.icon }}</span>
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.desc }}</p>
-          <button class="secondary">生成报告</button>
-        </div>
-      </DataCard>
-    </div>
+    <DataCard title="搜索报告" subtitle="按学生、课程、章节、报告类型、状态和关键词过滤">
+      <div class="filter-grid">
+        <input v-model="keyword" placeholder="搜索报告，例如：循环、平台运营、系统运行" @keyup.enter.prevent />
+        <select v-model="typeFilter">
+          <option v-for="item in typeOptions" :key="item">{{ item }}</option>
+        </select>
+        <select v-model="statusFilter">
+          <option>全部状态</option>
+          <option>待审核</option>
+          <option>已通过</option>
+          <option>completed</option>
+          <option>generating</option>
+        </select>
+        <button class="secondary" type="button" @click="clearSearch">清空</button>
+      </div>
+    </DataCard>
 
-    <div class="content-with-aside">
-      <DataCard title="最近生成报告" subtitle="报告状态、创建人与操作入口">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>报告名称</th>
-              <th>类型</th>
-              <th>生成时间</th>
-              <th>状态</th>
-              <th>创建人</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="report in reports" :key="report.name">
-              <td><strong>{{ report.name }}</strong></td>
-              <td>{{ report.type }}</td>
-              <td>{{ report.time }}</td>
-              <td><StatusBadge :label="report.status" :tone="reportTone(report.status)" /></td>
-              <td>{{ report.owner }}</td>
-              <td>
-                <div class="row-actions">
-                  <button class="ghost">预览</button>
-                  <button class="ghost">下载</button>
-                  <button class="ghost">重新生成</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </DataCard>
-
-      <DataCard title="报告预览" subtitle="平台月报摘要">
-        <div class="preview-card">
-          <StatusBadge label="已完成" tone="success" />
-          <h3>EduMind 平台 5 月运营月报</h3>
-          <p>本月注册用户增长 8.6%，课程完成率 76.3%，AI 生成任务成功率 94.8%，系统健康度稳定在 99.8%。</p>
-          <div class="preview-metrics">
-            <span>用户 8,345</span>
-            <span>课程 128</span>
-            <span>资源 2,846</span>
+    <DataCard title="报告列表" :subtitle="`${filteredReports.length} 份报告`">
+      <div v-if="filteredReports.length" class="report-list">
+        <article v-for="report in filteredReports" :key="report.id" class="report-row">
+          <div>
+            <strong>{{ report.report_title }}</strong>
+            <p>{{ report.course_title }} / {{ report.student_name }} / {{ report.report_type }}</p>
+            <small>{{ report.creator }} / {{ report.created_at }}</small>
           </div>
-          <button>查看完整预览</button>
-        </div>
-      </DataCard>
-    </div>
+          <StatusBadge :label="report.review_status" :tone="report.review_status === '已通过' ? 'success' : 'warning'" />
+          <div class="row-actions">
+            <button class="ghost" type="button" @click="openPreview(report)">查看预览</button>
+            <button class="ghost" type="button" @click="download(report)">导出报告</button>
+            <button class="ghost" type="button" @click="regenerate(report)">重新生成</button>
+            <button class="ghost" type="button" @click="updateStatus(report, '已通过')">通过</button>
+          </div>
+        </article>
+      </div>
+      <EmptyState v-else title="未找到相关报告" description="请更换关键词，或清空搜索后查看全部报告。" />
+    </DataCard>
+
+    <ReportPreviewModal :visible="previewVisible" :report="selected" @close="previewVisible = false" @download="download" />
   </section>
 </template>
 
 <style scoped>
-.report-template-grid {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.template-card,
-.preview-card {
+.stat-grid,
+.filter-grid {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.template-card span {
-  display: inline-grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
+.filter-grid {
+  grid-template-columns: minmax(260px, 1fr) 170px 150px 110px;
+}
+
+.stat-card,
+.report-row {
+  border: 1px solid var(--border-light);
   border-radius: 14px;
-  color: #fff;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+  padding: 14px;
+  background: #fff;
 }
 
-.template-card p,
-.preview-card p {
-  margin: 0;
-  line-height: 1.65;
+.stat-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-main);
+  font-size: 26px;
 }
 
-.preview-card h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.preview-metrics {
+.report-list {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 12px;
 }
 
-.preview-metrics span {
-  border-radius: 12px;
-  padding: 10px;
-  color: var(--color-primary-dark);
-  background: var(--color-primary-light);
-  font-weight: 700;
-  text-align: center;
+.report-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.report-row p {
+  margin: 6px 0;
+  color: var(--text-secondary);
 }
 
 .row-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+}
+
+.error-text {
+  color: #b91c1c;
+}
+
+.success-text {
+  color: #047857;
+}
+
+@media (max-width: 1100px) {
+  .stat-grid,
+  .filter-grid,
+  .report-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

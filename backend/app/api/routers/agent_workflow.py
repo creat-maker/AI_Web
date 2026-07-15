@@ -146,15 +146,25 @@ def _workflow_steps(
     ]
 
     failed_index = 0 if status == "failed" else -1
-    return [
-        {
-            **item,
-            "status": "failed" if index == failed_index else "success" if status == "success" else "waiting",
-            "duration": _duration_text(item["duration_ms"]),
-            "error": error if index == failed_index else "",
-        }
-        for index, item in enumerate(rows)
-    ]
+    result = []
+    for index, item in enumerate(rows):
+        if index == failed_index:
+            step_status = "failed"
+        elif status == "success":
+            step_status = "success"
+        elif status == "pending_review":
+            step_status = "success" if item["key"] not in {"content_audit", "report_generation"} else "pending_review" if item["key"] == "content_audit" else "waiting"
+        else:
+            step_status = "waiting"
+        result.append(
+            {
+                **item,
+                "status": step_status,
+                "duration": _duration_text(item["duration_ms"]),
+                "error": error if index == failed_index else "",
+            }
+        )
+    return result
 
 
 def _knowledge_reference_items(contexts: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -385,6 +395,9 @@ def _workflow_templates() -> list[dict[str, Any]]:
         "TutorAgent",
         "EvaluatorAgent",
         "AuditAgent",
+        "ComplianceAgent",
+        "AuditRetry",
+        "TeacherArbitration",
         "ReporterAgent",
     ]
     names = ["个性化资源生成工作流", "学习路径规划工作流", "学习报告生成工作流"]
@@ -454,9 +467,14 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
         workflow_name="full-learning-flow",
         input_json=payload.model_dump_json(),
         status="running",
+        current_node="ProfileAgent",
+        state=dumps({"status": "running", "payload": payload.model_dump()}),
+        messages=dumps(["Agent 工作流已启动"]),
+        started_at=datetime.utcnow(),
     )
     db.add(run)
     db.flush()
+    run.run_id = f"run-{run.id:06d}"
     record_event(
         db,
         event_type="agent_workflow_rerun",
@@ -477,11 +495,17 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
         state = run_full_learning_graph(
             {
                 **payload.model_dump(),
+                "run_id": run.run_id,
                 "course_title": course.title,
                 "messages": [],
                 "errors": [],
             }
         )
+        pending_review = (
+            state.get("status") == "pending_review"
+            or (state.get("teacher_arbitration_result") or {}).get("status") == "pending"
+        )
+        workflow_status = "pending_review" if pending_review else "success"
 
         profile = StudentProfile(
             student_name=payload.student_name,
@@ -514,6 +538,8 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
                 difficulty=item.get("difficulty"),
                 source_agent=item.get("source_agent", "ResourceAgent"),
                 recommend_reason=item.get("recommend_reason") or item.get("recommendation_reason"),
+                generation_status="draft" if pending_review else "generated",
+                audit_status="pending_review" if pending_review else "passed",
             )
             db.add(resource)
             resources.append(resource)
@@ -525,19 +551,22 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
         )
         db.add(quiz)
 
-        report = LearningReport(
-            student_profile_id=profile.id,
-            course_id=payload.course_id,
-            report_title=f"{payload.student_name} - {course.title} 学习报告",
-            report_path=state.get("report_path", ""),
-            report_json=dumps(state.get("report_summary", {})),
-        )
-        db.add(report)
+        report = None
+        if not pending_review and state.get("report_path"):
+            report = LearningReport(
+                student_profile_id=profile.id,
+                course_id=payload.course_id,
+                report_title=f"{payload.student_name} - {course.title} 学习报告",
+                report_path=state.get("report_path", ""),
+                report_json=dumps(state.get("report_summary", {})),
+            )
+            db.add(report)
         db.commit()
         for resource in resources:
             db.refresh(resource)
         db.refresh(quiz)
-        db.refresh(report)
+        if report:
+            db.refresh(report)
 
         run.student_profile_id = profile.id
         output = {
@@ -554,25 +583,47 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
             "evaluation_result": state.get("evaluation_result", {}),
             "audit_result": state.get("audit_result", {}),
             "report_path": state.get("report_path", ""),
-            "report_id": report.id,
+            "report_id": report.id if report else None,
             "agent_run_id": run.id,
             "messages": state.get("messages", []),
+            "teacher_arbitration_result": state.get("teacher_arbitration_result", {}),
+            "retry_count": int(state.get("retry_count") or 0),
+            "status": workflow_status,
         }
-        steps = _workflow_steps(payload, course, dict(state))
+        steps = _workflow_steps(payload, course, dict(state), status=workflow_status)
         artifacts = _artifacts(output)
         output.update(
             {
-                "workflow_summary": _workflow_summary("success", steps, artifacts),
+                "workflow_summary": _workflow_summary(workflow_status, steps, artifacts),
                 "steps": steps,
                 "artifacts": artifacts,
             }
         )
         run.output_json = dumps(output)
-        run.status = "success"
+        run.status = workflow_status
+        run.current_node = "TeacherArbitration" if pending_review else "ReporterAgent"
+        run.state = dumps(
+            {
+                **state,
+                "run_id": run.run_id,
+                "status": workflow_status,
+                "current_node": run.current_node,
+                "profile_id": profile.id,
+                "quiz_id": quiz.id,
+                "resource_ids": [resource.id for resource in resources],
+                "report_id": report.id if report else None,
+            }
+        )
+        run.messages = dumps(state.get("messages", []))
+        run.audit_result = dumps(state.get("audit_result", {}))
+        run.retry_count = int(state.get("retry_count") or 0)
+        run.teacher_arbitration_result = dumps(state.get("teacher_arbitration_result", {}))
+        run.finished_at = None if pending_review else datetime.utcnow()
         db.commit()
         return output
     except Exception as exc:
         run.status = "failed"
+        run.current_node = "error"
         steps = _workflow_steps(payload, course, {}, status="failed", error=str(exc))
         artifacts = _artifacts({"error": str(exc)})
         run.output_json = dumps(
@@ -583,6 +634,7 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
                 "artifacts": artifacts,
             }
         )
+        run.finished_at = datetime.utcnow()
         db.commit()
         raise HTTPException(status_code=500, detail=f"Agent 工作流运行失败：{exc}") from exc
 

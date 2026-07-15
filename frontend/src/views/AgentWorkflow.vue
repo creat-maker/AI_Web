@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../api/client';
+import AgentLogViewer from '../components/AgentLogViewer.vue';
 import DataCard from '../components/DataCard.vue';
+import MetricCard from '../components/MetricCard.vue';
 import PageHeader from '../components/PageHeader.vue';
 import ProgressBar from '../components/ProgressBar.vue';
+import SectionCard from '../components/SectionCard.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import StatusTag from '../components/StatusTag.vue';
 import { useRole } from '../composables/useRole';
 
 interface WorkflowStep {
@@ -32,6 +36,8 @@ interface WorkflowCenter {
 }
 
 const center = ref<WorkflowCenter>({});
+const latestAgentRuns = ref<Array<{ id: number; workflow_name?: string; status: string }>>([]);
+const latestAuditLogs = ref<Array<{ id: number; event_type?: string; action?: string; status?: string }>>([]);
 const error = ref('');
 const loading = ref(true);
 const { demoUserId: selectedUserId } = useRole();
@@ -51,7 +57,7 @@ const defaultChain: WorkflowStep[] = [
   name,
   input_summary: index === 0 ? '李明的自然语言对话、学习历史、测验结果和 AI 问答记录' : '上游 Agent 输出 + Python 循环结构知识库',
   tool_summary: index === 7 ? '事实准确性、知识点匹配度、难度匹配度、引用完整性审核规则' : '课程知识库、规则模板、结构化模板',
-  output_summary: index === 4 ? 'Python 循环结构个性化补弱资源包，含 7 类资源' : '结构化中间结果进入下一节点',
+  output_summary: index === 4 ? 'Python 循环结构个性化补弱资源包，含 9 类资源' : '结构化中间结果进入下一节点',
   evidence: 'Python 程序设计课程知识库 / 循环结构章节',
   duration_ms: 180 + index * 70,
   duration: `${180 + index * 70}ms`,
@@ -74,7 +80,15 @@ async function loadCenter() {
   loading.value = true;
   error.value = '';
   try {
-    center.value = await api.get<WorkflowCenter>(`/api/v1/agent-workflow?user_id=${encodeURIComponent(selectedUserId.value)}`);
+    const [workflowResult, runResult, auditResult] = await Promise.allSettled([
+      api.get<WorkflowCenter>(`/api/v1/agent-workflow?user_id=${encodeURIComponent(selectedUserId.value)}`),
+      api.get<Array<{ id: number; workflow_name?: string; status: string }>>('/api/v1/agent-runs'),
+      api.get<Array<{ id: number; event_type?: string; action?: string; status?: string }>>('/api/v1/audit-logs')
+    ]);
+    if (workflowResult.status === 'fulfilled') center.value = workflowResult.value;
+    if (runResult.status === 'fulfilled') latestAgentRuns.value = runResult.value;
+    if (auditResult.status === 'fulfilled') latestAuditLogs.value = auditResult.value;
+    if (workflowResult.status === 'rejected') throw workflowResult.reason;
   } catch (err) {
     error.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
@@ -103,7 +117,8 @@ onMounted(loadCenter);
     </div>
 
     <DataCard title="完整执行链路" subtitle="每一步展示输入、输出、耗时和状态，适合答辩说明 Agent 如何串起学习闭环。">
-      <div class="agent-chain">
+      <AgentLogViewer :steps="chain" />
+      <div class="agent-chain legacy-chain">
         <article v-for="(step, index) in chain" :key="step.key || step.name" class="agent-step">
           <div class="step-index">{{ index + 1 }}</div>
           <div class="step-body">
@@ -145,6 +160,13 @@ onMounted(loadCenter);
         </tbody>
       </table>
     </DataCard>
+    <SectionCard title="新增接口联调状态" subtitle="页面加载时真实调用 /agent-runs 与 /audit-logs，失败时保留本地演示兜底。">
+      <div class="integration-grid">
+        <MetricCard label="Agent Run" :value="latestAgentRuns.length || (center.records?.length || 0)" unit="条" hint="/api/v1/agent-runs" tone="blue" />
+        <MetricCard label="Audit Log" :value="latestAuditLogs.length" unit="条" hint="/api/v1/audit-logs" tone="purple" />
+        <StatusTag :label="latestAgentRuns.length || latestAuditLogs.length ? '接口已接入' : '本地兜底展示'" :tone="latestAgentRuns.length || latestAuditLogs.length ? 'success' : 'warning'" />
+      </div>
+    </SectionCard>
   </section>
 </template>
 
@@ -206,5 +228,23 @@ onMounted(loadCenter);
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.integration-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.integration-grid :deep(.status-badge) {
+  align-self: center;
+  justify-self: start;
+}
+
+@media (max-width: 900px) {
+  .integration-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

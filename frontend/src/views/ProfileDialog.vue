@@ -20,13 +20,27 @@ interface ChatMessage {
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
+  knowledge_base: '知识基础',
+  cognitive_style: '认知风格',
+  learning_preference: '学习偏好',
+  error_prone_points: '易错点',
+  learning_progress: '学习进度',
+  emotional_motivation: '情感动机',
   current_level: '当前水平',
   learning_goal: '学习目标',
   weak_points: '薄弱知识点',
-  learning_preference: '学习偏好',
   diagnosis: '学习诊断',
   strategy: '学习策略',
 };
+
+const PROFILE_DIMENSIONS = [
+  { key: 'knowledge_base', label: '知识基础' },
+  { key: 'cognitive_style', label: '认知风格' },
+  { key: 'learning_preference', label: '学习偏好' },
+  { key: 'error_prone_points', label: '易错点' },
+  { key: 'learning_progress', label: '学习进度' },
+  { key: 'emotional_motivation', label: '情感动机' },
+];
 
 const courses = ref<Course[]>([]);
 const loading = ref(false);
@@ -56,16 +70,18 @@ function switchDemoUser(userId: string) {
 }
 
 function getExtractedDimensions(): ExtractedDimension[] {
-  return Object.entries(extracted.value).map(([key, value]) => ({
-    key,
-    label: DIMENSION_LABELS[key] || key,
-    value: value as string | string[],
-    isNew: false,
-  }));
+  return PROFILE_DIMENSIONS
+    .filter((dim) => dim.key in extracted.value)
+    .map((dim) => ({
+      key: dim.key,
+      label: dim.label,
+      value: extracted.value[dim.key] as string | string[],
+      isNew: false,
+    }));
 }
 
 function getFilledCount(): number {
-  return Object.keys(extracted.value).length;
+  return PROFILE_DIMENSIONS.filter((dim) => dim.key in extracted.value).length;
 }
 
 function getProgressPercent(): number {
@@ -207,7 +223,7 @@ onMounted(loadCourses);
         <select :value="demoUserId" @change="switchDemoUser(($event.target as HTMLSelectElement).value)">
           <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
         </select>
-        <RouterLink class="btn secondary" to="/profiles">返回画像列表</RouterLink>
+        <RouterLink class="btn secondary" to="/student/profile">返回画像列表</RouterLink>
       </template>
     </PageHeader>
 
@@ -287,14 +303,7 @@ onMounted(loadCourses);
             <span class="progress-text">{{ getFilledCount() }} / 6 个维度</span>
           </div>
           <div class="dimension-checklist">
-            <div v-for="dim in [
-              { key: 'current_level', label: '当前水平' },
-              { key: 'learning_goal', label: '学习目标' },
-              { key: 'weak_points', label: '薄弱知识点' },
-              { key: 'learning_preference', label: '学习偏好' },
-              { key: 'diagnosis', label: '学习诊断' },
-              { key: 'strategy', label: '学习策略' },
-            ]" :key="dim.key" :class="['dim-item', { filled: dim.key in extracted }]">
+            <div v-for="dim in PROFILE_DIMENSIONS" :key="dim.key" :class="['dim-item', { filled: dim.key in extracted }]">
               <span class="dim-check">{{ dim.key in extracted ? '✓' : '○' }}</span>
               <span class="dim-label">{{ dim.label }}</span>
               <span v-if="dim.key in extracted" class="dim-value">
@@ -307,9 +316,9 @@ onMounted(loadCourses);
         <!-- 完整画像结果 -->
         <DataCard v-if="completed && profile" title="完整画像" subtitle="6 维画像结果">
           <div class="profile-result">
-            <div v-for="(value, key) in profile" :key="String(key)" class="profile-item">
-              <strong>{{ DIMENSION_LABELS[String(key)] || key }}</strong>
-              <span>{{ Array.isArray(value) ? value.join('、') : value }}</span>
+            <div v-for="dim in PROFILE_DIMENSIONS" :key="dim.key" class="profile-item">
+              <strong>{{ dim.label }}</strong>
+              <span>{{ Array.isArray(profile[dim.key]) ? (profile[dim.key] as string[]).join('、') : profile[dim.key] || '-' }}</span>
             </div>
           </div>
         </DataCard>

@@ -214,8 +214,8 @@ onBeforeUnmount(() => {
   <section class="page teacher-dashboard">
     <PageHeader title="上午好，王老师" description="今天重点关注 Python 循环结构学情、李明的学习预警和教师干预建议。">
       <template #actions>
-        <RouterLink class="btn secondary" to="/courses">新建课程</RouterLink>
-        <RouterLink class="btn" to="/reports">生成报告</RouterLink>
+        <RouterLink class="btn secondary" to="/teacher/courses">新建课程</RouterLink>
+        <RouterLink class="btn" to="/teacher/reports">生成报告</RouterLink>
       </template>
     </PageHeader>
 
@@ -278,7 +278,7 @@ onBeforeUnmount(() => {
     <div class="teacher-main-grid">
       <DataCard title="课程管理" subtitle="课程、班级、学生数与学习进度">
         <template #action>
-          <RouterLink class="text-link" to="/courses">查看全部</RouterLink>
+          <RouterLink class="text-link" to="/teacher/courses">查看全部</RouterLink>
         </template>
         <table class="table course-overview-table">
           <thead>
@@ -312,7 +312,7 @@ onBeforeUnmount(() => {
 
       <DataCard title="学生画像分析" subtitle="综合评分、能力雷达与个性化建议">
         <template #action>
-          <RouterLink class="text-link" to="/profiles">查看全部学生</RouterLink>
+          <RouterLink class="text-link" to="/teacher/profiles">查看全部学生</RouterLink>
         </template>
         <div class="student-profile-card">
           <div class="student-head">
@@ -334,7 +334,7 @@ onBeforeUnmount(() => {
                 <ProgressBar :value="item.value" />
                 <strong>{{ item.value }}/100</strong>
               </div>
-              <RouterLink class="btn secondary report-button" to="/reports">生成个性化学习报告</RouterLink>
+              <RouterLink class="btn secondary report-button" to="/teacher/reports">生成个性化学习报告</RouterLink>
             </div>
           </div>
         </div>

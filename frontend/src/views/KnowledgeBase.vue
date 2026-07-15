@@ -481,7 +481,7 @@ onMounted(loadCourses);
           </div>
         </article>
         <p v-if="!diagnosticsLoading && !ragDiagnostics?.recent_retrieval_diagnostics?.length" class="empty-state">
-          暂无检索诊断记录。先在 TutorChat 提问或运行演示数据脚本后，这里会显示最近检索链路。
+          暂无检索诊断记录。先在 TutorChat 提问或运行本地业务数据脚本后，这里会显示最近检索链路。
         </p>
       </div>
     </section>

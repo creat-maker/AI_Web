@@ -1,40 +1,96 @@
-.result-card .muted {
-  display: block;
-  margin-top: 12rpx;
+.quiz-page {
+  padding-bottom: 80rpx;
 }
 
-.report-btn {
-  margin-top: 22rpx;
+.quiz-hero {
+  min-height: 300rpx;
+}
+
+.quiz-progress {
+  position: relative;
+  z-index: 1;
+  margin-top: 28rpx;
+  padding: 22rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.progress-label,
+.progress-value {
+  display: block;
+  color: #ffffff;
+}
+
+.progress-label {
+  font-size: 22rpx;
+  opacity: 0.78;
+}
+
+.progress-value {
+  margin-top: 6rpx;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.progress-line {
+  height: 12rpx;
+  margin-top: 18rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.progress-line-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: #ffffff;
+}
+
+.question-card {
+  padding: 28rpx;
+}
+
+.question-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.question-status {
+  color: #64748b;
+  font-size: 23rpx;
+  font-weight: 800;
 }
 
 .question-title {
-  flex: 1;
+  display: block;
+  margin-top: 22rpx;
+  color: #0f172a;
+  font-size: 32rpx;
+  font-weight: 900;
+  line-height: 1.45;
 }
 
 .option-list {
-  margin-top: 20rpx;
+  margin-top: 22rpx;
 }
 
 .option {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  min-height: 78rpx;
-  margin-top: 14rpx;
-  padding: 16rpx;
-  border: 1rpx solid #e4e7ec;
+  min-height: 84rpx;
+  margin-top: 16rpx;
+  padding: 18rpx;
+  border: 2rpx solid transparent;
   border-radius: 24rpx;
-  background: #f9fafb;
+  background: #f8fafc;
 }
 
 .option-selected {
-  border-color: #2f6fed;
-  background: #eaf1ff;
-}
-
-.option-correct {
-  border-color: #12b76a;
-  background: #e7f8ef;
+  border-color: #2563eb;
+  background: #eef4ff;
+  box-shadow: 0 10rpx 24rpx rgba(37, 99, 235, 0.12);
 }
 
 .option-index {
@@ -43,35 +99,151 @@
   justify-content: center;
   width: 46rpx;
   height: 46rpx;
-  border-radius: 50%;
+  border-radius: 999rpx;
   background: #ffffff;
-  color: #2f6fed;
+  color: #2563eb;
   font-size: 24rpx;
   font-weight: 900;
 }
 
 .option-text {
   flex: 1;
-  color: #162033;
+  color: #0f172a;
   font-size: 26rpx;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
-.analysis {
+.submit-btn {
+  margin-top: 26rpx;
+}
+
+.submit-done {
+  opacity: 0.82;
+}
+
+.result-banner {
+  margin-bottom: 18rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #e0f2fe, #f3e8ff);
+  color: #1d4ed8;
+  font-size: 25rpx;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.result-card {
+  display: flex;
+  gap: 24rpx;
+  align-items: stretch;
+}
+
+.score-block {
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  justify-content: center;
+  width: 170rpx;
+  min-height: 170rpx;
+  border-radius: 30rpx;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  text-align: center;
+}
+
+.score-label {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 22rpx;
+}
+
+.score-value {
+  margin-top: 8rpx;
+  color: #ffffff;
+  font-size: 58rpx;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.result-stats {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.mini-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48rpx;
+  padding: 0 4rpx;
+}
+
+.detail-card,
+.adjustment-card,
+.dkvmn-result-card {
   margin-top: 20rpx;
+}
+
+.dkvmn-result-card {
+  display: grid;
+  gap: 12rpx;
+}
+
+.detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  margin-top: 16rpx;
+}
+
+.detail-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38rpx;
+  width: 38rpx;
+  height: 38rpx;
+  border-radius: 999rpx;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 21rpx;
+  font-weight: 900;
+}
+
+.adjust-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.adjust-col,
+.next-step {
   padding: 18rpx;
   border-radius: 20rpx;
-  background: #f5f7fb;
+  background: #f8fbff;
+}
+
+.next-step {
+  margin-top: 16rpx;
+}
+
+.adjust-title {
+  display: block;
+  color: #2563eb;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.adjust-text {
+  display: block;
+  margin-top: 10rpx;
+  color: #334155;
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .action-grid {
   display: flex;
-  gap: 24rpx;
-}
-
-.action-grid button {
-  flex: 1;
+  flex-direction: column;
+  gap: 16rpx;
 }

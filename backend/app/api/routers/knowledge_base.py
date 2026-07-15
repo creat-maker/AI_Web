@@ -13,6 +13,8 @@ from app.rag.document_loader import load_document_text
 from app.rag.text_splitter import split_text
 from app.rag.vector_store import vector_store
 from app.services.course_service import get_course
+from app.services.chunk_strategy import chunk_document
+from app.services.document_parser import parse_document
 from app.services.json_utils import loads
 
 
@@ -151,14 +153,19 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
-    text = load_document_text(str(target))
-    chunks = split_text(text)
+    parsed = parse_document(str(target))
+    structured_chunks = chunk_document(parsed)
+    if structured_chunks:
+        chunks = [item["content"] for item in structured_chunks]
+    else:
+        text = load_document_text(str(target))
+        chunks = split_text(text)
     chunk_count = vector_store.add_chunks(course_id, doc.id, doc.filename, chunks)
-    doc.parse_status = "parsed"
+    doc.parse_status = "parsed" if not parsed.get("warnings") else "parsed_with_warnings"
     doc.chunk_count = chunk_count
     db.commit()
     db.refresh(doc)
-    return _doc_to_dict(doc)
+    return {**_doc_to_dict(doc), "parser_result": parsed, "chunk_strategy": structured_chunks[:3]}
 
 
 @router.get("/documents")

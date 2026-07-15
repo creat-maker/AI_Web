@@ -82,6 +82,17 @@ export const fallbackQuizResult = {
     { title: 'while 死循环修复案例', knowledge_point: 'while 循环', minutes: 12 },
     { title: '循环嵌套变量变化表', knowledge_point: '循环嵌套', minutes: 15 }
   ],
+  path_adjustment: {
+    adjusted: true,
+    reason: '本次测评显示 while 循环条件更新和循环嵌套仍需巩固，系统已追加补弱任务。',
+    added_tasks: ['while 循环条件更新专项练习', 'break / continue 对比复盘'],
+    difficulty_change: '降低到基础巩固',
+    recommended_resources: [
+      { title: 'while 循环条件更新专项练习', type: 'quiz' },
+      { title: 'break / continue 对比资源', type: 'handout' }
+    ],
+    next_learning_step: '先完成 while 循环条件更新练习，再进入 break / continue 对比复盘。'
+  },
   next_step: '系统已把 while 循环补全题加入李明的学习路径，建议完成后再进入 break / continue 对比练习。'
 };
 

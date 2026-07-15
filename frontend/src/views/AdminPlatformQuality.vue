@@ -20,7 +20,7 @@ async function load() {
   try {
     data.value = await api.get<PlatformQuality>('/api/v1/admin/platform-quality');
   } catch (err) {
-    error.value = err instanceof Error ? `课程质量接口暂不可用，已使用本地演示数据：${err.message}` : '课程质量接口暂不可用，已使用本地演示数据。';
+    error.value = err instanceof Error ? `课程质量接口暂不可用，已使用本地业务样例：${err.message}` : '课程质量接口暂不可用，已使用本地业务样例。';
     data.value = platformQuality;
   } finally {
     loading.value = false;

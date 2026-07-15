@@ -20,7 +20,7 @@ EduMind 当前版本不接入真实大模型 API，不存储真实 API Key，不
 - 学习风险
 - 推荐策略
 
-## 3. 5 类个性化资源生成
+## 3. 8 类个性化资源生成
 
 接口：`POST /api/v1/resources/generate-pack`
 

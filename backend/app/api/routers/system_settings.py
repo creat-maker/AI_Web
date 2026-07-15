@@ -10,6 +10,9 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models import CourseDocument, LearningReport, TutorQuestionLog
 from app.services.llm_service import llm_service
+from app.services.xfyun_safety_service import xfyun_safety_service
+from app.services.xfyun_spark_service import xfyun_spark_service
+from app.services.xfyun_tts_service import xfyun_tts_service
 
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -47,6 +50,16 @@ def _database_hint() -> str:
     if settings.resolved_database_url.startswith("sqlite"):
         return str(settings.path_from_root(settings.sqlite_fallback_path))
     return "外部数据库连接已配置，前端不展示连接串。"
+
+
+def _xfyun_status() -> dict:
+    return {
+        "xfyun_enabled": settings.xfyun_configured,
+        "tts": xfyun_tts_service.status(),
+        "spark": xfyun_spark_service.status(),
+        "safety": xfyun_safety_service.status(),
+        "fallback_engine": "local_intelligent_evaluator",
+    }
 
 
 @router.get("")
@@ -100,6 +113,13 @@ def get_settings_snapshot(db: Session = Depends(get_db)):
             "report_count": report_count,
             "qa_count": qa_count,
         },
+        "xfyun_tools": {**_xfyun_status(), "enabled": settings.xfyun_configured, "secret_visible": False},
+        "xfyun_status": _xfyun_status(),
+        "ai_tool_status": {
+            "provider": "local_intelligent_evaluator",
+            "xfyun_configurable": True,
+            "xfyun_status": _xfyun_status(),
+        },
     }
 
 
@@ -124,6 +144,11 @@ def test_settings_connection(db: Session = Depends(get_db)):
                 "name": "报告目录",
                 "status": "ok",
                 "detail": str(settings.path_from_root(settings.report_dir)),
+            },
+            {
+                "name": "科大讯飞 TTS",
+                "status": "ok" if settings.xfyun_configured else "warning",
+                "detail": xfyun_tts_service.status()["message"],
             },
         ],
     }

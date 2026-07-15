@@ -9,6 +9,7 @@ import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
+import ProfileRadarCard from '../components/ProfileRadarCard.vue';
 import ProgressBar from '../components/ProgressBar.vue';
 import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
@@ -94,12 +95,14 @@ interface StudentView {
 }
 
 const { currentRole, demoUserId, setDemoUserId } = useRole();
+const reportCenterPath = computed(() => (currentRole.value === 'teacher' ? '/teacher/reports' : '/student/reports'));
 const demoUsers = demoStudents;
 const courses = ref<Course[]>([]);
 const profiles = ref<StudentProfileItem[]>([]);
 const loading = ref(true);
 const error = ref('');
 const operationMessage = ref('');
+const visualizationMessage = ref('');
 const dialogInput = ref('我正在学 Python 程序设计，循环结构有点弱，尤其是 while 循环和循环嵌套，我更喜欢代码案例和图解，想尽快完成课程作业。');
 const dialogProfile = ref({
   summary: '系统已根据你的学习情况生成个性化建议，你在循环结构上还需要加强。',
@@ -367,6 +370,7 @@ async function load() {
     selectedId.value = selectedStudent.value?.id || null;
     taskForm.student_profile_id = selectedStudent.value?.id || 0;
     taskForm.course_id = selectedStudent.value?.course_id || courses.value[0]?.id || 0;
+    await loadProfileVisualization(selectedId.value);
     await nextTick();
     renderCharts();
   }
@@ -439,8 +443,22 @@ async function refreshDialogProfile() {
   }
 }
 
+async function loadProfileVisualization(id?: number | null) {
+  if (!id) {
+    visualizationMessage.value = '';
+    return;
+  }
+  try {
+    const data = await api.get<{ radar?: unknown[]; cognitive_state?: unknown }>(`/api/v1/profiles/${id}/visualization`);
+    visualizationMessage.value = `画像可视化接口已返回：${data.radar?.length || 0} 个维度。`;
+  } catch (err) {
+    visualizationMessage.value = err instanceof Error ? err.message : '画像可视化接口暂不可用，保留本地图表。';
+  }
+}
+
 function selectStudent(id: number) {
   selectedId.value = id;
+  loadProfileVisualization(id);
   nextTick(renderCharts);
 }
 
@@ -473,19 +491,20 @@ onBeforeUnmount(() => {
         </select>
         <button type="button" class="secondary" @click="simulateProfileUpdate">模拟测试后更新画像</button>
         <RouterLink class="btn secondary" to="/student/profile-dialog">对话式画像构建</RouterLink>
-        <RouterLink class="btn secondary" to="/reports">报告中心</RouterLink>
+        <RouterLink class="btn secondary" :to="reportCenterPath">报告中心</RouterLink>
         <button type="button" @click="assignTask">生成个性化学习报告</button>
       </template>
     </PageHeader>
 
     <p v-if="loading" class="panel muted">正在加载画像数据...</p>
     <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
+    <p v-if="visualizationMessage" class="panel muted">{{ visualizationMessage }}</p>
 
     <div class="stat-grid">
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
-    <DataCard title="对话式画像构建" subtitle="从自然语言对话抽取 8 维画像，并展示风险、薄弱知识点、资源偏好和画像来源。">
+    <DataCard title="对话式画像构建" subtitle="从自然语言对话抽取 6 维画像，并支持随学更新、风险、薄弱知识点、资源偏好和画像来源展示。">
       <textarea v-model="dialogInput" class="dialog-profile-input" rows="4"></textarea>
       <div class="row-actions dialog-actions">
         <button type="button" @click="runDialogProfile">生成画像</button>
@@ -648,6 +667,7 @@ onBeforeUnmount(() => {
           </DataCard>
 
           <DataCard title="能力条" subtitle="关键学习能力评分">
+            <ProfileRadarCard :dimensions="selectedStudent.abilities.map((item) => ({ name: item.name, value: item.value, label: item.value >= 80 ? '优势' : item.value >= 60 ? '稳定' : '需补强' }))" />
             <div class="ability-list">
               <div v-for="item in selectedStudent.abilities" :key="item.name" class="ability-row">
                 <span>{{ item.name }}</span>

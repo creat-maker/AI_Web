@@ -19,6 +19,15 @@ interface ResourceCard {
   difficulty: string;
   reviewStatus?: string;
   references?: string[];
+  content?: string;
+  description?: string;
+  format?: string;
+  status?: string;
+  file_path?: string;
+  fallback_resources?: string[];
+  tts_status?: { status?: string; message?: string };
+  tts_result?: { status?: string; message?: string; audio_path?: string | null };
+  ffmpeg_status?: { status?: string; message?: string };
   estimatedMinutes?: number;
   suitableLearner?: string;
   libraryStatus?: string;
@@ -76,20 +85,22 @@ const agentNodes = [
   name,
   input: index === 0 ? '自然语言对话 + 学习历史' : '上游 Agent 输出 + 循环结构知识库',
   tool: index === 7 ? '审核规则 + 引用完整性检查' : '课程知识库 + 资源模板',
-  output: index === 4 ? '7 类个性化资源' : '结构化中间结果',
+  output: index === 4 ? '8 类个性化资源' : '结构化中间结果',
   status: 'success',
   duration: `${180 + index * 60}ms`,
   evidence: 'Python 程序设计课程知识库 / 循环结构章节'
 }));
 
 const defaultResources: ResourceCard[] = [
-  ['循环结构讲解文档', '讲解文档', '基础'],
-  ['for / while 知识点思维导图', '思维导图', '基础'],
-  ['循环结构分层练习题', '分层练习题', '中等'],
-  ['循环结构拓展阅读材料', '拓展阅读', '中等'],
-  ['Python while 循环代码实操案例', '代码实操案例', '基础'],
-  ['循环结构课堂 PPT / 课件大纲', 'PPT / 课件大纲', '基础'],
-  ['多模态教学视频 / 动画脚本', '视频 / 动画脚本', '基础']
+  ['循环结构知识讲义', 'handout', '基础'],
+  ['for / while 知识点思维导图', 'mindmap', '基础'],
+  ['循环结构分层练习题', 'quiz', '中等'],
+  ['while 循环条件更新动画', 'animation_html', '基础'],
+  ['循环结构视频讲解脚本', 'video_script', '基础'],
+  ['循环结构语音讲解资源', 'tts_audio', '基础'],
+  ['Python 循环结构简易 MP4 视频', 'video_mp4', '基础'],
+  ['Python while 循环代码实操案例', 'code_case', '基础'],
+  ['循环结构项目任务', 'project_task', '中等']
 ].map(([title, resourceType, difficulty]) => ({
   title,
   resourceType,
@@ -135,6 +146,9 @@ const resources = ref<ResourceCard[]>(normalizeResources(defaultResources));
 const packageTitle = ref('Python 循环结构个性化补弱资源包');
 const message = ref('');
 const loading = ref(false);
+const failLoading = ref(false);
+const latestTaskStatus = ref('');
+const latestReviewItemId = ref<number | null>(null);
 const activeReviewTitle = ref<string | null>(null);
 const courseware = ref<CoursewareOutline | null>(null);
 const coursewareLoading = ref(false);
@@ -142,6 +156,18 @@ const coursewareLibraryStatus = ref('待加入教学资源库');
 
 function typeOf(item: ResourceCard) {
   return item.resourceType || item.resource_type || '资源';
+}
+
+function isAnimation(item: ResourceCard) {
+  return typeOf(item) === 'animation_html';
+}
+
+function isTts(item: ResourceCard) {
+  return typeOf(item) === 'tts_audio';
+}
+
+function isVideoMp4(item: ResourceCard) {
+  return typeOf(item) === 'video_mp4';
 }
 
 function agentOf(item: ResourceCard) {
@@ -158,25 +184,29 @@ function statusTone(status?: string): 'success' | 'warning' | 'info' {
   return 'info';
 }
 
-async function generatePack() {
+async function generatePack(forceFail = false) {
   loading.value = true;
+  failLoading.value = forceFail;
   message.value = '';
   try {
-    const result = await api.post<{ packageTitle: string; resources: ResourceCard[] }>('/api/v1/resources/generate-pack', {
+    const result = await api.post<{ packageTitle: string; resources: ResourceCard[]; taskStatus?: string; taskId?: number; reviewItemId?: number; rollbackNotice?: string }>('/api/v1/resources/generate-pack', {
       studentId: 'student-li-ming',
       courseId: 'python-programming',
       courseName: form.value.course,
       knowledgePoints: form.value.knowledgePoints.split('、'),
-      learningGoal: form.value.goal
+      learningGoal: forceFail ? `${form.value.goal} fail` : form.value.goal
     });
     packageTitle.value = result.packageTitle || packageTitle.value;
     resources.value = normalizeResources(result.resources?.length ? result.resources : defaultResources);
-    message.value = '已生成资源包，并完成内容安全与防幻觉审核。';
+    latestTaskStatus.value = result.taskStatus || 'pending_review';
+    latestReviewItemId.value = result.reviewItemId || null;
+    message.value = result.rollbackNotice || '已生成资源包，当前状态为待审核；教师或管理员通过后才会发布到学生端。';
   } catch (err) {
     resources.value = normalizeResources(defaultResources);
     message.value = '当前网络不稳定，已为你展示本地学习建议。';
   } finally {
     loading.value = false;
+    failLoading.value = false;
   }
 }
 
@@ -252,11 +282,15 @@ function markAction(action: string, item: ResourceCard) {
     <PageHeader title="个性化多模态资源生成中心" description="围绕李明的 Python 循环结构薄弱点，展示多智能体协同生成、审核、入库与推送。">
       <template #actions>
         <button @click="generateCoursewareOutline" :disabled="coursewareLoading">{{ coursewareLoading ? '生成中...' : 'AI 课件生成' }}</button>
-        <button class="secondary" @click="generatePack" :disabled="loading">{{ loading ? '生成中...' : '生成资源包' }}</button>
+        <button class="secondary" @click="generatePack()" :disabled="loading">{{ loading && !failLoading ? '生成中...' : '生成资源包' }}</button>
+        <button class="secondary" @click="generatePack(true)" :disabled="loading">{{ failLoading ? '生成中...' : '制造失败任务' }}</button>
       </template>
     </PageHeader>
 
     <p v-if="message" class="panel muted">{{ message }}</p>
+    <p v-if="latestTaskStatus" class="panel muted">
+      智能生成记录状态：{{ latestTaskStatus }}<span v-if="latestReviewItemId">；审核项 #{{ latestReviewItemId }}</span>
+    </p>
 
     <DataCard title="AI 课件生成" subtitle="根据课程、章节、学生画像和薄弱知识点生成可入库课件大纲">
       <div class="courseware-toolbar">
@@ -312,7 +346,7 @@ function markAction(action: string, item: ResourceCard) {
           <label>学习目标<input v-model="form.goal" /></label>
           <label>资源偏好<input v-model="form.preference" /></label>
         </div>
-        <button class="full-button" @click="generatePack" :disabled="loading">{{ loading ? '生成中...' : '点击生成' }}</button>
+        <button class="full-button" @click="generatePack()" :disabled="loading">{{ loading ? '生成中...' : '点击生成' }}</button>
       </DataCard>
 
       <DataCard title="多智能体流程" subtitle="每个节点展示输入、工具、输出、状态、耗时和证据">
@@ -341,8 +375,25 @@ function markAction(action: string, item: ResourceCard) {
           <p><span>关联知识点</span>{{ (item.relatedKnowledgePoints || []).join('、') }}</p>
           <p><span>推荐原因</span>{{ reasonOf(item) }}</p>
           <p><span>难度等级</span>{{ item.difficulty }}</p>
+          <p v-if="item.description"><span>资源说明</span>{{ item.description }}</p>
           <p><span>适合对象</span>{{ item.suitableLearner || '李明：循环结构需巩固，偏好代码实操' }}</p>
           <p><span>预计学习时间</span>{{ item.estimatedMinutes || 20 }} 分钟</p>
+          <div v-if="isAnimation(item) && item.content" class="animation-preview">
+            <iframe :srcdoc="item.content" sandbox="" title="动画资源预览"></iframe>
+          </div>
+          <div v-if="isTts(item)" class="review-summary">
+            <strong>语音资源状态</strong>
+            <p><span>TTS 配置</span>{{ item.tts_status?.message || '可配置科大讯飞 TTS；当前保留文本讲解资源。' }}</p>
+            <p><span>合成结果</span>{{ item.tts_result?.message || '无 Key 时不会伪装真实音频。' }}</p>
+          </div>
+          <div v-if="typeOf(item) === 'video_script' && item.ffmpeg_status" class="review-summary">
+            <strong>视频导出状态</strong>
+            <p>{{ item.ffmpeg_status.message }}</p>
+          </div>
+          <div v-if="isVideoMp4(item)" class="review-summary">
+            <strong>MP4 合成状态</strong>
+            <p>{{ item.status === 'generated' ? `已生成：${item.file_path || 'MP4 文件'}` : item.description || '配置 FFmpeg 后可合成 MP4，HTML 动画为当前稳定预览能力。' }}</p>
+          </div>
           <div class="status-flow">
             <StatusBadge :label="item.reviewStatus || '已审核'" :tone="statusTone(item.reviewStatus)" />
             <StatusBadge :label="item.libraryStatus || '待加入'" :tone="statusTone(item.libraryStatus)" />
@@ -447,6 +498,21 @@ function markAction(action: string, item: ResourceCard) {
   border-radius: 8px;
   padding: 12px;
   background: var(--color-primary-light);
+}
+
+.animation-preview {
+  margin-top: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.animation-preview iframe {
+  width: 100%;
+  min-height: 230px;
+  border: 0;
+  display: block;
 }
 
 .review-summary strong {

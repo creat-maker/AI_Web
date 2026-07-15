@@ -1,23 +1,56 @@
-<view class="page">
-  <view class="header">
-    <text class="eyebrow">对话式画像构建</text>
-    <text class="title">李明的 Python 循环结构画像</text>
-    <text class="subtitle">通过对话识别学习目标、当前水平、薄弱点、学习偏好和风险等级。</text>
+<view class="page profile-dialog-page">
+  <view class="hero-card profile-hero">
+    <text class="eyebrow">{{sourceLabel}}</text>
+    <text class="title">对话式学习画像</text>
+    <text class="subtitle">通过问答与学习记录形成动态画像，聚焦 {{student.course}} · {{student.chapter}}</text>
+  </view>
+
+  <view class="soft-tip">
+    <text class="tip-dot"></text>
+    <text>{{updateNote}}</text>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">画像维度</text></view>
-    <view class="grid-2">
-      <view class="stat-card" wx:for="{{dimensions}}" wx:key="name">
-        <text class="stat-label">{{item.name}}</text>
-        <text class="stat-value">{{item.value}}</text>
+    <view class="section-head">
+      <view>
+        <view class="section-title">6 维画像报告</view>
+        <view class="section-subtitle">每个维度都会影响资源推荐与学习路径</view>
+      </view>
+      <text class="tag tag-purple">随学更新</text>
+    </view>
+    <view class="dimension-grid">
+      <view class="glass-card dimension-card" wx:for="{{dimensions}}" wx:key="name">
+        <view class="dimension-head">
+          <view class="dimension-icon">{{item.icon}}</view>
+          <view class="dimension-title-wrap">
+            <text class="dimension-title">{{item.name}}</text>
+            <text class="muted">{{item.explanation}}</text>
+          </view>
+        </view>
+        <view class="dimension-level">
+          <text class="tag">{{item.level}}</text>
+          <view class="mini-progress"><view class="mini-progress-bar" style="{{item.progressStyle}}"></view></view>
+        </view>
+        <view class="dimension-block">
+          <text class="block-label">当前判断</text>
+          <text class="body-text">{{item.judgement}}</text>
+        </view>
+        <view class="dimension-block strategy-block">
+          <text class="block-label">推荐策略</text>
+          <text class="body-text">{{item.strategy}}</text>
+        </view>
       </view>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">识别出的薄弱点</text></view>
-    <view class="card">
+    <view class="section-head">
+      <view>
+        <view class="section-title">识别出的薄弱点</view>
+        <view class="section-subtitle">用于驱动下一步补强任务</view>
+      </view>
+    </view>
+    <view class="glass-card">
       <view class="chip-row">
         <text class="chip" wx:for="{{weakPoints}}" wx:key="*this">{{item}}</text>
       </view>
@@ -25,18 +58,19 @@
   </view>
 
   <view class="section chat-list">
-    <view class="card message-card {{item.role === 'user' ? 'user-message' : 'ai-message'}}" wx:for="{{messages}}" wx:key="content">
-      <text class="primary-text">{{item.role === 'user' ? '李明' : '画像助手'}}</text>
-      <text class="body-text">{{item.content}}</text>
+    <view class="chat-row {{item.bubbleClass}}" wx:for="{{messages}}" wx:key="content">
+      <view class="avatar">{{item.avatarText}}</view>
+      <view class="bubble">
+        <text class="bubble-speaker">{{item.speaker}}</text>
+        <text class="bubble-text">{{item.content}}</text>
+      </view>
     </view>
   </view>
 
-  <view class="section input-panel">
-    <input value="{{inputValue}}" bindinput="onInput" placeholder="补充你的循环结构学习困难" />
-    <button class="button-primary" bindtap="sendMessage">发送</button>
+  <view class="input-panel">
+    <input class="dialog-input" value="{{inputValue}}" bindinput="onInput" placeholder="补充你的循环结构学习困难" />
+    <button class="send-btn" loading="{{loading}}" bindtap="sendMessage">发送</button>
   </view>
 
-  <view class="section action-grid">
-    <button class="button-primary" bindtap="goPath">查看一人一堂路径</button>
-  </view>
+  <button class="floating-path-btn" bindtap="goPath">查看学习路径</button>
 </view>

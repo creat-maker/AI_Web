@@ -5,360 +5,414 @@ import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
-import ProgressBar from '../components/ProgressBar.vue';
-import StatCard from '../components/StatCard.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { useRole } from '../composables/useRole';
 import type { Course } from '../types';
 
-type CourseStatus = '进行中' | '即将开始' | '已结束' | '草稿';
-
-interface CourseRow {
-  id: number;
+interface CourseForm {
   title: string;
-  subject: string;
+  course_code: string;
   teacher_name: string;
-  description?: string;
-  className: string;
-  students: number;
-  progress: number;
-  completion: number;
-  status: CourseStatus;
-  updatedAt: string;
-  type: string;
+  description: string;
+  chapter_count: number;
+  status: string;
+  tagsText: string;
+  subject: string;
 }
 
-const { currentRole } = useRole();
 const courses = ref<Course[]>([]);
-const loading = ref(true);
+const loading = ref(false);
+const saving = ref(false);
 const error = ref('');
-const operationMessage = ref('');
+const success = ref('');
+const showCreate = ref(false);
 const keyword = ref('');
-const typeFilter = ref('全部类型');
 const statusFilter = ref('全部状态');
-const classFilter = ref('全部班级');
-const form = reactive({
-  title: 'Python 程序设计',
-  subject: '计算机',
+
+const form = reactive<CourseForm>({
+  title: '',
+  course_code: '',
   teacher_name: '王老师',
-  description: '面向计科大三的 Python 循环结构专项补弱课程'
+  description: '',
+  chapter_count: 8,
+  status: '启用',
+  tagsText: 'Python, 循环结构',
+  subject: '计算机'
 });
 
-const fallbackRows: CourseRow[] = [
-  { id: 1, title: 'Python 程序设计', subject: '计算机', teacher_name: '王老师', className: '计科大三 1 班', students: 32, progress: 72, completion: 68, status: '进行中', updatedAt: '今天 10:20', type: '主线课程' },
-  { id: 2, title: '循环结构专项补弱课', subject: '计算机', teacher_name: '王老师', className: '计科大三 1 班', students: 32, progress: 56, completion: 48, status: '进行中', updatedAt: '今天 09:30', type: '章节专项' },
-  { id: 3, title: 'while 循环代码讲解课', subject: '计算机', teacher_name: '陈老师', className: '计科大三 1 班', students: 32, progress: 42, completion: 37, status: '进行中', updatedAt: '昨天 16:40', type: '补弱任务' },
-  { id: 4, title: 'break / continue 对比练习', subject: '计算机', teacher_name: '李老师', className: 'Python 程序设计 2 班', students: 30, progress: 35, completion: 28, status: '即将开始', updatedAt: '昨天 11:20', type: '章节专项' },
-  { id: 5, title: '循环嵌套变量追踪实训', subject: '计算机', teacher_name: '刘老师', className: '计科大三 1 班', students: 32, progress: 64, completion: 60, status: '进行中', updatedAt: '05-20 16:00', type: '代码实操' },
-  { id: 6, title: '形成性评价与学习报告', subject: '计算机', teacher_name: '王老师', className: '计科大三 1 班', students: 32, progress: 22, completion: 0, status: '草稿', updatedAt: '05-18 12:10', type: '评价报告' }
-];
-
-function cleanText(value: string | undefined, fallback: string) {
-  if (!value || /[?]{2,}|�/.test(value)) return fallback;
-  return value;
-}
-
-const courseRows = computed<CourseRow[]>(() => {
-  if (!courses.value.length) return fallbackRows;
-  return courses.value.map((course, index) => {
-    const fallback = fallbackRows[index % fallbackRows.length];
+const enrichedCourses = computed(() =>
+  courses.value.map((course) => {
+    const text = `${course.title || ''}\n${course.description || ''}`;
+    const status = text.includes('状态：草稿') ? '草稿' : '启用';
+    const courseCode = text.match(/课程编号：(.+)/)?.[1]?.trim() || `PY-${String(course.id).padStart(3, '0')}`;
+    const chapterCount = text.match(/章节数：(\d+)/)?.[1] || '8';
+    const tags = text.match(/知识点：(.+)/)?.[1]?.split(/[、,，]/).map((item) => item.trim()).filter(Boolean) || ['Python', '循环结构'];
     return {
-      id: course.id,
-      title: cleanText(course.title, fallback.title),
-      subject: cleanText(course.subject, fallback.subject),
-      teacher_name: cleanText(course.teacher_name, fallback.teacher_name),
-      description: cleanText(course.description, fallback.description || ''),
-      className: fallback.className,
-      students: fallback.students,
-      progress: fallback.progress,
-      completion: fallback.completion,
-      status: fallback.status,
-      updatedAt: fallback.updatedAt,
-      type: fallback.type
+      ...course,
+      status,
+      courseCode,
+      chapterCount,
+      tags
     };
-  });
-});
+  })
+);
 
-const filteredRows = computed(() => {
+const filteredCourses = computed(() => {
   const word = keyword.value.trim().toLowerCase();
-  return courseRows.value.filter((course) => {
-    const matchWord = !word || `${course.title}${course.className}${course.teacher_name}`.toLowerCase().includes(word);
-    const matchType = typeFilter.value === '全部类型' || course.type === typeFilter.value;
+  return enrichedCourses.value.filter((course) => {
+    const haystack = [
+      course.title,
+      course.subject,
+      course.teacher_name,
+      course.description,
+      course.status,
+      course.courseCode,
+      course.tags.join(' ')
+    ]
+      .join(' ')
+      .toLowerCase();
+    const matchWord = !word || haystack.includes(word);
     const matchStatus = statusFilter.value === '全部状态' || course.status === statusFilter.value;
-    const matchClass = classFilter.value === '全部班级' || course.className === classFilter.value;
-    return matchWord && matchType && matchStatus && matchClass;
+    return matchWord && matchStatus;
   });
 });
 
-const typeOptions = computed(() => ['全部类型', ...Array.from(new Set(courseRows.value.map((item) => item.type)))]);
-const classOptions = computed(() => ['全部班级', ...Array.from(new Set(courseRows.value.map((item) => item.className)))]);
-
-const statCards = computed(() => {
-  const rows = courseRows.value;
-  const active = rows.filter((item) => item.status === '进行中').length;
-  const students = rows.reduce((sum, item) => sum + item.students, 0);
-  const average = rows.length ? Math.round(rows.reduce((sum, item) => sum + item.completion, 0) / rows.length) : 0;
+const stats = computed(() => {
+  const total = enrichedCourses.value.length;
   return [
-    { label: '课程总数', value: rows.length, unit: '门', hint: '当前教师课程池', icon: '课' },
-    { label: '进行中课程', value: active, unit: '门', hint: '正常推进', icon: '行', tone: 'green' as const },
-    { label: '学生总数', value: students, unit: '人', hint: '覆盖班级人数', icon: '学', tone: 'purple' as const },
-    { label: '平均完成率', value: average, unit: '%', hint: '按课程完成率估算', icon: '率', tone: 'cyan' as const },
-    { label: '待批改作业', value: 18, unit: '份', hint: '需本周处理', icon: '批', tone: 'orange' as const }
+    { label: '课程总数', value: total, hint: '来自课程接口' },
+    { label: '启用课程', value: enrichedCourses.value.filter((item) => item.status === '启用').length, hint: '可被资源中心选择' },
+    { label: '知识点标签', value: new Set(enrichedCourses.value.flatMap((item) => item.tags)).size, hint: '参与搜索过滤' },
+    { label: '搜索结果', value: filteredCourses.value.length, hint: '当前筛选命中' }
   ];
 });
 
-function badgeTone(status: CourseStatus) {
-  if (status === '进行中') return 'success';
-  if (status === '即将开始') return 'info';
-  if (status === '已结束') return 'neutral';
-  return 'warning';
+function resetForm() {
+  form.title = '';
+  form.course_code = '';
+  form.teacher_name = '王老师';
+  form.description = '';
+  form.chapter_count = 8;
+  form.status = '启用';
+  form.tagsText = 'Python, 循环结构';
+  form.subject = '计算机';
 }
 
-async function load() {
+async function loadCourses() {
   loading.value = true;
   error.value = '';
   try {
     courses.value = await api.get<Course[]>('/api/v1/courses');
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '课程接口暂不可用，当前显示演示数据。';
-    courses.value = [];
+    error.value = err instanceof Error ? err.message : '课程列表加载失败。';
   } finally {
     loading.value = false;
   }
 }
 
 async function createCourse() {
-  operationMessage.value = '';
+  success.value = '';
+  error.value = '';
+  if (!form.title.trim() || !form.course_code.trim() || !form.teacher_name.trim()) {
+    error.value = '请填写课程名称、课程编号和授课教师。';
+    return;
+  }
+  saving.value = true;
   try {
-    await api.post<Course>('/api/v1/courses', form);
-    operationMessage.value = '课程已保存。';
-    await load();
+    const tags = form.tagsText
+      .split(/[、,，]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    await api.post<Course>('/api/v1/courses', {
+      title: form.title.trim(),
+      course_code: form.course_code.trim(),
+      teacher_name: form.teacher_name.trim(),
+      description: form.description.trim(),
+      chapter_count: Number(form.chapter_count) || 1,
+      status: form.status,
+      tags,
+      subject: form.subject.trim() || '计算机'
+    });
+    success.value = '课程已创建，列表已刷新。';
+    showCreate.value = false;
+    resetForm();
+    await loadCourses();
   } catch (err) {
-    operationMessage.value = err instanceof Error ? err.message : '保存课程失败，演示数据保持可用。';
+    error.value = err instanceof Error ? err.message : '课程创建失败。';
+  } finally {
+    saving.value = false;
   }
 }
 
-function demoAction(label: string) {
-  operationMessage.value = `${label} 为演示操作，后续可接章节、任务和班级管理流程。`;
+function clearSearch() {
+  keyword.value = '';
+  statusFilter.value = '全部状态';
 }
 
-onMounted(load);
+onMounted(loadCourses);
 </script>
 
 <template>
   <section class="page course-page">
-    <PageHeader title="课程管理" description="统一管理课程、班级、学习进度和任务完成情况。">
+    <PageHeader title="课程管理" description="创建课程、维护基础信息，并将课程同步到资源生成和学习资源链路。">
       <template #actions>
-        <RouterLink class="btn secondary" to="/teacher">返回概览</RouterLink>
-        <button type="button" @click="createCourse">新建课程</button>
+        <RouterLink class="btn secondary" to="/teacher">返回教师首页</RouterLink>
+        <button type="button" @click="showCreate = true">新建课程</button>
       </template>
     </PageHeader>
 
-    <p v-if="loading" class="panel muted">正在加载课程数据...</p>
-    <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
+    <p v-if="error" class="panel error-text">{{ error }}</p>
+    <p v-if="success" class="panel success-text">{{ success }}</p>
+    <p v-if="loading" class="panel muted">正在加载课程...</p>
 
     <div class="stat-grid">
-      <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
+      <article v-for="item in stats" :key="item.label" class="stat-card">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+        <small>{{ item.hint }}</small>
+      </article>
     </div>
 
-    <DataCard title="知识点 - 资源 - 题目关联" subtitle="静态展示课程内容治理关系，后续可替换为可视化编辑器和数据库关联。">
-      <div class="relation-board">
-        <section>
-          <h3>知识点</h3>
-          <span v-for="item in ['变量与数据类型', '条件语句', 'for 循环', 'while 循环', 'break / continue', '循环嵌套', '变量变化表', '形成性评价']" :key="item">{{ item }}</span>
-        </section>
-        <section>
-          <h3>推荐资源</h3>
-          <article>
-            <strong>循环边界专项微课</strong>
-            <p>关联：循环结构、条件语句</p>
-          </article>
-          <article>
-            <strong>while 死循环修复案例</strong>
-            <p>关联：while 循环、变量更新</p>
-          </article>
-          <article>
-            <strong>循环嵌套变量变化表</strong>
-            <p>关联：for 循环、循环嵌套</p>
-          </article>
-        </section>
-        <section>
-          <h3>章节题目</h3>
-          <article>
-            <strong>while 循环终止条件判断</strong>
-            <p>难度：基础 · 关联：循环结构</p>
-          </article>
-          <article>
-            <strong>break / continue 输出判断</strong>
-            <p>难度：中等 · 关联：循环控制语句</p>
-          </article>
-          <article>
-            <strong>循环嵌套补全题</strong>
-            <p>难度：进阶 · 关联：循环嵌套、变量追踪</p>
-          </article>
-        </section>
-      </div>
-    </DataCard>
-
-    <DataCard title="筛选课程" subtitle="按课程名称、状态、类型和班级快速定位">
-      <div class="filter-grid">
-        <input v-model="keyword" placeholder="搜索课程名称、教师、班级..." />
-        <select v-model="typeFilter">
-          <option v-for="item in typeOptions" :key="item">{{ item }}</option>
-        </select>
+    <DataCard title="搜索课程" subtitle="按课程名称、编号、教师、状态、学科、描述和知识点标签过滤">
+      <form class="filter-grid" @submit.prevent>
+        <input v-model="keyword" placeholder="搜索课程、教师、编号或知识点，例如：循环" @keyup.enter.prevent />
         <select v-model="statusFilter">
           <option>全部状态</option>
-          <option>进行中</option>
-          <option>即将开始</option>
-          <option>已结束</option>
+          <option>启用</option>
           <option>草稿</option>
         </select>
-        <select v-model="classFilter">
-          <option v-for="item in classOptions" :key="item">{{ item }}</option>
-        </select>
-      </div>
+        <button class="secondary" type="button" @click="clearSearch">清空</button>
+      </form>
     </DataCard>
 
-    <DataCard v-if="currentRole !== 'student'" title="新建课程" subtitle="保留现有课程创建接口，提交后刷新课程列表">
-      <div class="form-grid">
-        <label>课程名称<input v-model="form.title" /></label>
-        <label>学科<input v-model="form.subject" /></label>
-        <label>教师<input v-model="form.teacher_name" /></label>
-        <label>简介<input v-model="form.description" /></label>
-        <button @click="createCourse">保存课程</button>
+    <DataCard title="课程列表" :subtitle="`${filteredCourses.length} 门课程`">
+      <div v-if="filteredCourses.length" class="course-grid">
+        <article v-for="course in filteredCourses" :key="course.id" class="course-card">
+          <div class="course-main">
+            <span class="course-icon">{{ course.title.slice(0, 1) }}</span>
+            <div>
+              <strong>{{ course.title }}</strong>
+              <p>{{ course.courseCode }} / {{ course.teacher_name || '未设置教师' }} / {{ course.subject || '未设置学科' }}</p>
+              <p class="desc">{{ course.description || '该课程暂无简介，可在后续编辑中补充课程目标和章节安排。' }}</p>
+              <div class="tag-row">
+                <span v-for="tag in course.tags" :key="tag">{{ tag }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="course-side">
+            <StatusBadge :label="course.status" :tone="course.status === '启用' ? 'success' : 'warning'" />
+            <span>{{ course.chapterCount }} 章</span>
+            <RouterLink class="btn ghost" :to="`/teacher/resource-generation?course_id=${course.id}`">生成资源</RouterLink>
+          </div>
+        </article>
       </div>
+      <EmptyState v-else title="未找到相关课程" description="请更换关键词，或清空搜索条件后查看全部课程。" />
     </DataCard>
 
-    <DataCard title="课程列表" :subtitle="`${filteredRows.length} 门课程`">
-      <template #action>
-        <StatusBadge v-if="error" label="演示数据" tone="warning" />
-      </template>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>课程名称</th>
-              <th>班级</th>
-              <th>学生数</th>
-              <th>学习进度</th>
-              <th>完成率</th>
-              <th>状态</th>
-              <th>最近更新</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="course in filteredRows" :key="course.id">
-              <td>
-                <strong>{{ course.title }}</strong>
-                <span class="table-sub">{{ course.subject }} · {{ course.teacher_name }}</span>
-              </td>
-              <td>{{ course.className }}</td>
-              <td>{{ course.students }}</td>
-              <td>
-                <div class="table-progress">
-                  <span>{{ course.progress }}%</span>
-                  <ProgressBar :value="course.progress" :tone="course.progress > 70 ? 'success' : course.progress < 45 ? 'warning' : 'primary'" />
-                </div>
-              </td>
-              <td>{{ course.completion }}%</td>
-              <td><StatusBadge :label="course.status" :tone="badgeTone(course.status)" /></td>
-              <td>{{ course.updatedAt }}</td>
-              <td>
-                <div class="row-actions">
-                  <button class="ghost" @click="demoAction('课程详情')">详情</button>
-                  <button class="secondary" @click="demoAction('布置任务')">任务</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <EmptyState v-if="!filteredRows.length" title="暂无课程" description="调整筛选条件或新建课程后会显示。" />
-    </DataCard>
+    <div v-if="showCreate" class="modal-mask" @click.self="showCreate = false">
+      <form class="modal-card" @submit.prevent="createCourse">
+        <header>
+          <div>
+            <h2>新建课程</h2>
+            <p>提交后写入后端课程接口，刷新页面后仍可查看。</p>
+          </div>
+          <button class="ghost" type="button" @click="showCreate = false">关闭</button>
+        </header>
+        <div class="form-grid">
+          <label>课程名称<input v-model="form.title" placeholder="例如：Python 程序设计" /></label>
+          <label>课程编号<input v-model="form.course_code" placeholder="例如：PY-2026-01" /></label>
+          <label>授课教师<input v-model="form.teacher_name" placeholder="例如：王老师" /></label>
+          <label>章节数<input v-model.number="form.chapter_count" min="1" type="number" /></label>
+          <label>状态
+            <select v-model="form.status">
+              <option>启用</option>
+              <option>草稿</option>
+            </select>
+          </label>
+          <label>学科<input v-model="form.subject" placeholder="例如：计算机" /></label>
+          <label class="wide">知识点标签<input v-model="form.tagsText" placeholder="用逗号分隔，例如：Python, 循环结构, while" /></label>
+          <label class="wide">课程简介<textarea v-model="form.description" placeholder="输入课程目标、适用学生和章节重点"></textarea></label>
+        </div>
+        <footer>
+          <button class="secondary" type="button" @click="showCreate = false">取消</button>
+          <button :disabled="saving" type="submit">{{ saving ? '正在保存...' : '提交课程' }}</button>
+        </footer>
+      </form>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.filter-grid {
+.stat-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 160px 160px 160px;
-  gap: 12px;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.table-sub {
-  display: block;
-  margin-top: 4px;
-  color: var(--color-text-sub);
-  font-size: 12px;
-}
-
-.table-progress {
-  display: grid;
-  grid-template-columns: 42px minmax(120px, 1fr);
-  gap: 8px;
-  align-items: center;
-  min-width: 170px;
-}
-
-.row-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.relation-board {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
-.relation-board section {
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 14px;
+.stat-card {
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 16px;
   background: #fff;
 }
 
-.relation-board h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
+.stat-card span,
+.stat-card small {
+  color: var(--text-secondary);
 }
 
-.relation-board span {
-  display: inline-block;
-  margin: 0 8px 8px 0;
+.stat-card strong {
+  display: block;
+  margin: 8px 0;
+  color: var(--text-main);
+  font-size: 28px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 160px 120px;
+  gap: 12px;
+}
+
+.course-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.course-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+}
+
+.course-main {
+  display: flex;
+  gap: 12px;
+}
+
+.course-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--color-primary);
+  font-weight: 900;
+}
+
+.course-card p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.desc {
+  line-height: 1.6;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tag-row span {
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 5px 9px;
   color: var(--color-primary-dark);
   background: var(--color-primary-light);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.relation-board article {
-  border-top: 1px solid var(--color-border);
-  padding: 10px 0;
+.course-side {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 10px;
 }
 
-.relation-board article:first-of-type {
-  border-top: 0;
-  padding-top: 0;
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
 }
 
-.relation-board p {
-  margin: 6px 0 0;
-  color: var(--color-text-sub);
-  font-size: 13px;
+.modal-card {
+  width: min(760px, 100%);
+  border-radius: 18px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
 }
 
-@media (max-width: 980px) {
+.modal-card header,
+.modal-card footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.modal-card h2,
+.modal-card p {
+  margin: 0;
+}
+
+.modal-card p {
+  color: var(--text-secondary);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-weight: 800;
+}
+
+.form-grid .wide {
+  grid-column: 1 / -1;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.error-text {
+  color: #b91c1c;
+}
+
+.success-text {
+  color: #047857;
+}
+
+@media (max-width: 860px) {
+  .stat-grid,
   .filter-grid,
-  .relation-board {
+  .course-card,
+  .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .course-side {
+    justify-items: start;
   }
 }
 </style>

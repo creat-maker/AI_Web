@@ -4,6 +4,7 @@ import { LineChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import PageHeader from '../components/PageHeader.vue';
 import StatCard from '../components/StatCard.vue';
@@ -21,6 +22,8 @@ const suggestions = [
 const message = ref('');
 const exportLoading = ref(false);
 const reportLoading = ref(false);
+const governanceNotice = ref('');
+const activeVersionNo = ref<number | null>(null);
 const quizResult = {
   score: 67,
   accuracy: 67,
@@ -83,6 +86,13 @@ onMounted(async () => {
   await nextTick();
   renderChart();
   window.addEventListener('resize', resizeChart);
+  try {
+    const governance = await api.get<any>('/api/v1/content-versions/active?item_type=learning_report');
+    activeVersionNo.value = governance.active?.version_no || null;
+    governanceNotice.value = governance.rollback_notice || governance.active?.content?.rollback_notice || '当前报告为已发布版本。';
+  } catch {
+    governanceNotice.value = '当前报告为已发布版本；重新生成失败时保留上一版内容。';
+  }
 });
 
 onBeforeUnmount(() => {
@@ -100,6 +110,10 @@ onBeforeUnmount(() => {
       </template>
     </PageHeader>
     <p v-if="message" class="panel muted">{{ message }}</p>
+    <p class="panel muted">
+      {{ governanceNotice || '当前报告为已发布版本；重新生成失败时保留上一版内容。' }}
+      <span v-if="activeVersionNo">当前内容版本：v{{ activeVersionNo }}</span>
+    </p>
 
     <DataCard title="本周学习报告" subtitle="2026-05-25 至 2026-05-31">
       <div class="stat-grid">

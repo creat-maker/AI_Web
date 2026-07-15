@@ -1,350 +1,109 @@
 # EduMind 最终验收报告
 
-本报告用于项目冻结验收阶段归档。当前阶段不再建议继续开发新功能，重点转向稳定演示、提交整理和答辩准备。
-
-## 1. 项目当前完成模块
-
-EduMind 当前已完成以下核心模块：
-
-- Dashboard 总览：展示课程、知识库、问答、报告、测评和最近活动统计。
-- 课程管理：支持课程创建、查看和课程基础数据维护。
-- 知识库管理：支持课程资料上传、文档记录、解析状态和检索测试。
-- 智能答疑：基于课程知识库进行 RAG 问答，并沉淀问答日志。
-- 学生画像：维护学生姓名、学习水平、目标、薄弱点和学习偏好。
-- 学习路径：生成并展示个性化学习路径。
-- 资源生成：生成讲解、练习、学习材料等资源。
-- 测验评价：生成测验、提交答案、记录评分和反馈。
-- 教师分析：展示测评统计、薄弱点分布、表现分布和教学建议。
-- Agent 工作流：串联任务接收、意图识别、知识检索、答疑生成、学情分析、教学建议和报告生成。
-- 报告中心：展示学习报告列表、报告摘要、推荐路径、教学建议和下载入口。
-- 系统设置：展示运行模式、模型配置状态、RAG 配置和脱敏安全提示。
-- 日志管理中心：聚合系统、问答、知识库、Agent、报告和错误日志。
-- 演示数据初始化：通过脚本生成比赛演示数据，避免空页面。
-- 演示健康检查：通过脚本检查数据量、storage 目录和关键脚本是否满足演示要求。
-- 现场演示手册：提供演示顺序、讲解话术、异常处理和禁止操作清单。
-
-## 2. 前端页面清单
-
-主要页面文件：
-
-```text
-frontend/src/views/Dashboard.vue
-frontend/src/views/CourseManage.vue
-frontend/src/views/KnowledgeBase.vue
-frontend/src/views/StudentProfile.vue
-frontend/src/views/LearningPath.vue
-frontend/src/views/ResourceGenerate.vue
-frontend/src/views/TutorChat.vue
-frontend/src/views/QuizEvaluate.vue
-frontend/src/views/TeacherAnalysis.vue
-frontend/src/views/AgentWorkflow.vue
-frontend/src/views/ReportCenter.vue
-frontend/src/views/SystemSettings.vue
-frontend/src/views/LogManagement.vue
-```
-
-主要路由：
-
-```text
-/
-/dashboard
-/courses
-/knowledge-base
-/profiles
-/learning-paths
-/resources
-/tutor-chat
-/quiz-evaluate
-/teacher-analysis
-/agent-workflow
-/reports
-/settings
-/system-settings
-/logs
-/log-management
-```
-
-侧边栏已包含核心演示入口：
-
-```text
-Dashboard
-课程管理
-知识库
-学生画像
-学习路径
-资源生成
-Agent 工作流
-智能答疑
-测验评价
-教师分析
-报告中心
-日志管理
-系统设置
-```
-
-## 3. 后端接口清单
-
-后端基于 FastAPI，主要接口如下：
-
-### Dashboard
-
-```text
-GET /api/dashboard/summary
-GET /api/dashboard/activity
-```
-
-### 课程与知识库
-
-```text
-GET /api/v1/courses
-POST /api/v1/courses
-GET /api/v1/courses/stats
-GET /api/v1/courses/{course_id}
-PUT /api/v1/courses/{course_id}
-DELETE /api/v1/courses/{course_id}
+## 已完成能力
+
+- DKVMN 在线门控知识追踪：softmax key 寻址、动态 value memory、erase/add 写入、强弱点和 6 维画像映射。
+- EduLLM 课程约束 RAG：学生问答优先检索已导入的课程向量库，支持文档解析、章节分块、中文 n-gram/概念语义、引用、置信度、超纲检测、检索评估和 JSON 离线降级。
+- FACET 多智能体治理：系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent，并保留运行日志。
+- 多模态资源：讲义、思维导图、练习、HTML 动画、视频脚本、TTS fallback、MP4 fallback、代码案例、小项目。
+- 测评闭环：`/api/v1/quiz/submit` 与 `/api/v1/quizzes/submit` 更新 DKVMN、画像和路径。
+- 报告中心：Markdown/Word fallback，下载接口保留。
+- 前端与小程序：通用组件、引用卡片、Agent 日志、资源预览、路径时间线和移动端核心体验。
+
+## P0/P1/P2 完成情况
+
+| 模块 | P0 | P1 | P2 |
+| --- | --- | --- | --- |
+| DKVMN | 可运行更新与预测 | 联动画像/路径/测验 | `DKVMNModelInterface` 预留 |
+| RAG | 引用问答结构 | 课程约束与检索 debug | SentenceTransformer/OCR 预留 |
+| FACET | 12 节点教学智能体治理增强流程 | 审核回流与教师仲裁 | 并行扩展点保留 |
+| 资源 | 9 类资源 | 预览与评分 | TTS/FFmpeg 可选接入 |
+| 报告 | 生成与下载 | 证据链章节 | PDF 导出预留 |
+
+## 功能验收结果
+
+- 后端新增接口结构稳定：profiles update/visualization、resources preview/rate、agent-runs、audit-logs、teacher-arbitration、quiz/submit。
+- 前端关键页面有 fallback，不依赖后端成功才能展示主线。
+- 小程序 pages 路径完整，学生端核心体验可打开。
+
+## 性能验收结果
+
+- 当前轻量规则和 TF-IDF 检索适合演示数据规模。
+- `scripts/eval_retrieval.py` 输出的 MRR、Recall@K、NDCG@K 属于演示测试集验证结果；当前样本量较小，仅用于确认检索链路能命中预期证据，不代表真实大规模评测结论。
+- Chroma、外部 LLM、讯飞和 FFmpeg 均为可选能力，不阻塞页面。
+
+## 依赖安全核查
+
+- 已在 `frontend` 目录运行 `npm.cmd audit`，当前结果为 `found 0 vulnerabilities`。
+- 因当前审计未发现漏洞，本轮未运行 `npm audit fix`，避免无意义改动依赖树。
+
+## 演示验收结果
+
+- 学生端、教师端、管理端、小程序端均覆盖主线入口。
+- `scripts/check-demo-ready.py`、`scripts/e2e_demo_flow_check.py`、`scripts/eval_retrieval.py` 已同步。
+
+## 未接真实外部服务的边界
+
+- 讯飞 TTS/安全 API：未配置时仅返回本地 fallback 状态。
+- FFmpeg：未安装时不生成真实 MP4。
+- OCR：仅预留接口与提示。
+- DKVMN：当前为在线门控 Key-Value Memory 实现，包含 key_matrix、softmax attention、value_memory、erase/add 门控、动态掌握度更新和 JSON/画像持久化；没有论文规模训练数据或预训练 checkpoint。
+- EduLLM：当前为课程大纲约束 + 轻量语义/规则混合评分 + RAG 引用证据，不是完整教育大模型微调。
+- FACET：当前为教师中心治理流程工程化落地，不是论文完整复现。
+- Chroma、小程序后端连接、讯飞和 FFmpeg 均保留 fallback。
+
+## 审计问题补强修复记录
+
+| 优先级 | 项目 | 修复结果 |
+| --- | --- | --- |
+| P0 | DKVMN Key-Value Memory | 已补显式 key_matrix、softmax attention、动态 value_memory、erase/add 门控、update_memory、predict_mastery、强弱点、画像映射和 JSON fallback。 |
+| P0 | 学生端真实 RAG | `/api/v1/rag/ask` 已优先进入课程 Chroma/持久化向量检索，返回真实文档 citation_id；无命中或后端不可用时才使用课程 JSON fallback。 |
+| P0 | 测试覆盖 | 已新增 DKVMN 与教师仲裁测试，并扩展 RAG/课程约束/graph 断言；记录用例数量和关键路径，不虚报覆盖率百分比。 |
+| P0 | Docker Compose | 已新增 `docker-compose.yml`、backend/frontend Dockerfile、Nginx SPA fallback 与 `.dockerignore`。 |
+| P0 | TeacherArbitration | 已实现 AgentRun `pending_review` 暂停与恢复：approve 进入 ReporterAgent，revise 重新生成并二次审核，reject 阻断发布；教师端展示风险、证据、retry_count 和意见。 |
+| P1 | curriculum_constraint | 已升级为中文 n-gram、课程概念同义映射、大纲词、学习目标、证据覆盖、显式超纲惩罚和课程层级混合评分。 |
+| P1 | audit_retry | 已记录 regeneration_instruction、before/after summary、retry_count，并回流资源内容。 |
+| P1 | 小程序 API | 已补 `utils/api.js`、timeout 和 fallbackToDemoData 配置。 |
+| P1 | 服务审查 | chunk、embedding、RAG、retrieval eval、profile、quiz 保留稳定字段和 fallback；异常时不应直接 500。 |
+| P2 | 12 节点文档 | 已统一为 12 节点教学智能体治理增强版，并解释原始 9+1 核心闭环与当前治理节点扩展关系。 |
+| P2 | CI/CD | 已新增 GitHub Actions 基础后端/前端检查。 |
+
+## 本轮命令验收结果
+
+| 命令 | 结果 |
+| --- | --- |
+| `cd backend && python -m compileall app` | 通过 |
+| `cd backend && python -m pytest -q` | 通过，81 个用例全部通过；覆盖 DKVMN、课程约束、真实/降级 RAG、graph 暂停恢复、教师仲裁、报告、画像、测验、服务契约和 fallback |
+| `cd frontend && npm.cmd install` | 通过；普通 `npm install` 在 PowerShell 执行策略下被拦截，使用等价 `npm.cmd install` 成功 |
+| `cd frontend && npm.cmd run build` | 通过；普通沙箱内构建被 esbuild 目录权限拦截，提升权限后构建成功 |
+| `python scripts/check-demo-ready.py --skip-http` | 通过，状态 READY，39/39 项通过；本地演示数据已幂等补齐 |
+| `python scripts/check-a3-program.py` | 通过，33 PASS / 1 WARN / 0 FAIL；WARN 仅为项目未创建 `.venv`，当前指定 Python 环境可正常运行 |
+| `python scripts/e2e_demo_flow_check.py --base-url http://127.0.0.1:8000` | 通过，16/16 |
+| `python scripts/eval_retrieval.py` | 通过，MRR=1.0、Recall@K=1.0、NDCG@K=0.9751、Precision@K=0.8267、CoverageRate=0.68；已输出 `reports/retrieval_eval_report.md` |
+| `docker compose config` | 未运行成功；当前环境未安装 Docker CLI，已保留 Compose/Dockerfile/Nginx 配置供有 Docker 环境验证 |
+
+## 服务审查结果表
+
+| 服务 | 审查结果 |
+| --- | --- |
+| `chunk_strategy.py` | 保留 citation_id，可支撑引用溯源。 |
+| `embedding_interface.py` | TF-IDF provider 支持中英文词元与中文二/三元切分，无强制 sentence-transformers。 |
+| `lightweight_rag_service.py` | 优先统一到课程向量库检索，返回 citations、confidence、retrieval_debug、alignment_breakdown，并明确 JSON fallback 标记。 |
+| `retrieval_eval_service.py` | 作为检索评估脚本支撑，不阻塞在线问答。 |
+| `profile_service.py` | 画像字段兼容 cognitive_state、dimension_scores、evidence_items。 |
+| `quiz_service.py` | 测验提交写入 DKVMN、画像和路径调整反馈。 |
+
+## 测试用例补强说明
+
+- `test_document_parser.py`：覆盖 TXT、Markdown、DOCX 缺失 fallback、PDF 读取失败 fallback、空文件和未知扩展名。
+- `test_curriculum_constraint.py`：覆盖课程范围 prompt、课程对齐评分、超纲检测、证据不足 warning 和 evidence coverage。
+- `test_retriever.py`：覆盖 citations、confidence、retrieval_debug、题库降权、JSON fallback、课程边界字段。
+- `test_graph.py` 与 `test_teacher_arbitration.py`：覆盖 audit_retry、pass/retry/arbitration 分支和 approve/revise/reject 决策。
+- `test_profile_agent.py`、`test_planner_agent.py`、`test_audit_agent.py`、`test_reports.py`：覆盖 6 维画像、DKVMN 映射、路径调整依据、7 维审核、Markdown 报告 fallback 和下载入口。
+- `test_service_contracts.py`：覆盖 chunk、TF-IDF embedding、retrieval eval、profile_to_dict、quiz helper 的稳定字段。
 
-POST /api/v1/knowledge-base/upload
-GET /api/v1/knowledge-base/documents
-GET /api/v1/knowledge-base/search
-```
+## 后续扩展方向
 
-### 学生画像、路径和资源
-
-```text
-GET /api/v1/profiles
-POST /api/v1/profiles
-POST /api/v1/profiles/generate
-GET /api/v1/profiles/{profile_id}
-
-GET /api/v1/learning-paths
-POST /api/v1/learning-paths/generate
-
-GET /api/v1/resources
-POST /api/v1/resources/generate
-```
-
-### 智能答疑与测评
-
-```text
-POST /api/v1/tutor/ask
-GET /api/v1/tutor/history
-
-GET /api/v1/quizzes
-POST /api/v1/quizzes/generate
-POST /api/v1/quizzes/submit
-GET /api/v1/quizzes/analysis
-```
-
-### Agent、报告、设置和日志
-
-```text
-GET /api/v1/agent-workflow
-POST /api/v1/agent-workflow/run-full-learning-flow
-GET /api/v1/agent-workflow/runs
-
-GET /api/v1/reports
-GET /api/v1/reports/summary
-POST /api/v1/reports/generate
-GET /api/v1/reports/{report_id}/download
-
-GET /api/v1/settings
-POST /api/v1/settings/test
-
-GET /api/v1/logs
-GET /api/v1/logs/summary
-```
-
-### 运行状态
-
-```text
-GET /api/v1/runtime
-GET /health
-```
-
-## 4. 启动与检查脚本说明
-
-### 一键启动
-
-```bat
-start-dev.bat
-```
-
-作用：
-
-- 检查 `backend`、`frontend`、后端入口和前端 `package.json` 是否存在。
-- 检查 `frontend/node_modules` 是否存在。
-- 分别启动 FastAPI 后端和 Vite 前端。
-- 输出常用访问地址。
-
-### 停止服务
-
-```bat
-stop-dev.bat
-```
-
-作用：
-
-- 检查并关闭占用 `8000` 和 `5173` 端口的进程。
-- 不删除任何文件。
-
-### 演示数据初始化
-
-```bat
-seed-demo-data.bat
-```
-
-或：
-
-```bat
-python scripts\seed-demo-data.py
-```
-
-作用：
-
-- 写入演示课程、学生画像、知识库文档记录、问答日志、测验、提交、学习报告、Agent 运行记录、学习路径和生成资源。
-- 支持重复运行，复用已有演示数据，避免无限重复插入。
-- 不清空数据库，不删除用户数据，不写入真实 API Key。
-
-### 演示健康检查
-
-```bat
-check-demo-ready.bat
-```
-
-或：
-
-```bat
-python scripts\check-demo-ready.py
-```
-
-作用：
-
-- 只读检查数据库和文件状态。
-- 检查课程、学生画像、文档、问答日志、测评提交、报告、Agent 运行、学习路径、资源数量是否达到演示阈值。
-- 检查 storage 目录和关键脚本是否存在。
-- 输出总体状态：`READY`、`WARNING` 或 `NOT READY`。
-
-## 5. 比赛演示闭环
-
-当前系统已经形成以下演示闭环：
-
-```text
-知识库上传
--> RAG 智能问答
--> 问答日志
--> 学情分析
--> Agent 工作流
--> 学习报告
--> 日志追踪
--> Dashboard 总览
-```
-
-推荐演示顺序：
-
-```text
-/dashboard
-/knowledge-base
-/tutor-chat
-/teacher-analysis
-/agent-workflow
-/reports
-/logs
-/settings
-```
-
-讲解主线：
-
-- Dashboard 先展示系统整体闭环和当前数据规模。
-- KnowledgeBase 展示课程资料和知识检索能力。
-- TutorChat 展示 RAG 问答和上下文引用。
-- TeacherAnalysis 展示测评反馈和薄弱点分析。
-- AgentWorkflow 展示多智能体流程和产物沉淀。
-- ReportCenter 展示学习报告的结构化交付。
-- LogManagement 展示系统运行追踪和错误可观测能力。
-- SystemSettings 展示配置脱敏、mock 模式和工程部署意识。
-
-## 6. 当前已知风险
-
-### 演示风险
-
-- 首次机器需要先安装前端依赖，否则 `start-dev.bat` 会提示缺少 `frontend/node_modules`。
-- Fresh 数据库如果没有运行 seed 脚本，多个页面会出现空数据或 fallback。
-- Windows 终端可能出现中文显示乱码，但源码按 UTF-8 保存。
-
-### 数据风险
-
-- 本地 SQLite、报告文件、上传文件、Chroma fallback 和演示文本属于运行时数据，不应提交到 GitHub。
-- seed 脚本会向当前 SQLite 写入演示数据，虽然幂等，但仍会改变本地运行时数据库。
-
-### 接口风险
-
-- 日志中心当前是聚合业务记录的轻量方案，不是独立审计日志系统。
-- 系统设置当前展示配置状态和脱敏检查，不提供完整配置持久化能力。
-- 知识库真实上传复杂 PDF/Word 时，仍可能受本地解析依赖和文件质量影响。
-
-### 前端构建风险
-
-- 最近构建通过，但 Vite 可能提示 chunk size warning；该提示不阻断构建。
-- `frontend/dist` 是构建产物，不能提交。
-
-### GitHub 协作风险
-
-- 冻结前需要统一整理当前未提交改动。
-- 提交前必须确认 `.env`、数据库、storage、`node_modules`、`dist` 未进入暂存区。
-
-## 7. 演示前检查步骤
-
-建议按以下顺序执行：
-
-```bat
-git status --short
-seed-demo-data.bat
-check-demo-ready.bat
-start-dev.bat
-```
-
-手动检查：
-
-```text
-http://localhost:8000/health
-http://localhost:8000/docs
-http://localhost:5173/dashboard
-```
-
-重点确认：
-
-- `check-demo-ready.bat` 总体状态为 `READY`。
-- Dashboard、KnowledgeBase、TutorChat、TeacherAnalysis、AgentWorkflow、Reports、Logs、Settings 都能打开。
-- 不展示真实 API Key。
-- 不上传敏感文件。
-- 不现场删除数据库。
-- 不现场修改系统环境变量。
-- 不现场新增依赖或重构代码。
-
-## 8. 不建议继续开发新功能的原因
-
-当前项目已具备比赛演示所需的主要闭环和工程支撑能力。继续开发新功能会带来以下风险：
-
-- 增加前后端回归风险，影响已验证页面稳定性。
-- 可能改变接口结构，破坏现有 Dashboard、TutorChat、KnowledgeBase、TeacherAnalysis、AgentWorkflow、ReportCenter、SystemSettings 和 LogManagement。
-- 可能引入新的依赖、配置或环境差异，降低现场可控性。
-- 会压缩最终测试、演示排练和答辩材料准备时间。
-- 当前更需要稳定交付、清理提交、固化演示流程，而不是扩大功能范围。
-
-冻结阶段建议只做：
-
-- 最终验证。
-- Git 提交整理。
-- 演示数据和健康检查确认。
-- 现场话术排练。
-- 必要的文档补充。
-
-不建议再做：
-
-- 新页面。
-- 新业务接口。
-- 新依赖。
-- 大规模重构。
-- 权限系统。
-- 复杂日志系统。
-- 生产级部署改造。
+- 接入真实课堂数据和更大规模知识库。
+- 对接真实 SentenceTransformer 或云端 embedding。
+- 将教师仲裁接入真实通知和发布流。

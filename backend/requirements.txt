@@ -17,3 +17,5 @@ docxtpl
 python-docx
 pypdf
 python-pptx
+websocket-client>=1.7.0
+pytest

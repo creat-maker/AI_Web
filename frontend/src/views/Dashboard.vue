@@ -227,7 +227,7 @@ onBeforeUnmount(() => {
     <PageHeader title="欢迎回来，Admin" description="平台总览重点关注 Python 循环结构资源包、学习预警、内容审核和系统健康度。">
       <template #actions>
         <button class="secondary">2024-05-01 → 2024-05-31</button>
-        <RouterLink class="btn" to="/resource-generation">新建生成任务</RouterLink>
+        <RouterLink class="btn" to="/admin/resource-generate">新建生成任务</RouterLink>
       </template>
     </PageHeader>
 

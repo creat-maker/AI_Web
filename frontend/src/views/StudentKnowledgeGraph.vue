@@ -79,7 +79,7 @@ async function loadGraph() {
     graph.value = await api.get<KnowledgeGraph>('/api/v1/knowledge-graph');
     selected.value = graph.value.nodes.find((item) => item.status === 'weak') || graph.value.nodes[0];
   } catch (err) {
-    error.value = err instanceof Error ? `后端知识图谱接口暂不可用，已使用本地演示数据：${err.message}` : '后端知识图谱接口暂不可用，已使用本地演示数据。';
+    error.value = err instanceof Error ? `后端知识图谱接口暂不可用，已使用本地业务样例：${err.message}` : '后端知识图谱接口暂不可用，已使用本地业务样例。';
     graph.value = fallbackGraph;
     selected.value = fallbackGraph.nodes[2];
   } finally {

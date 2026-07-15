@@ -1,37 +1,89 @@
-<view class="page">
-  <view class="header">
-    <text class="eyebrow">诊断式 AI 学伴</text>
-    <text class="title">Python 循环结构答疑</text>
-    <text class="subtitle">默认问题：为什么我的 while 循环会死循环？回答基于课程知识库和李明画像。</text>
+<view class="page tutor-page">
+  <view class="tutor-header">
+    <view class="header-copy">
+      <text class="header-kicker">Python 程序设计 · 循环结构</text>
+      <text class="header-title">智能答疑</text>
+      <text class="header-subtitle">围绕 Python 循环结构进行针对性讲解</text>
+    </view>
+
+    <view class="status-row">
+      <text class="status-pill" wx:for="{{statusPills}}" wx:key="*this">{{item}}</text>
+    </view>
+
+    <view class="quick-area">
+      <text class="quick-label">快捷问题</text>
+      <scroll-view class="quick-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
+        <view class="quick-row">
+          <button
+            class="quick-chip"
+            wx:for="{{quickActions}}"
+            wx:key="label"
+            data-question="{{item.question}}"
+            data-action="{{item.action}}"
+            bindtap="handleQuickAction"
+          >{{item.label}}</button>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view wx:if="{{scriptMessage}}" class="script-panel">
+      <text class="script-label">讲解脚本</text>
+      <text class="script-text">{{scriptMessage}}</text>
+    </view>
   </view>
 
-  <view class="section">
-    <view class="chip-row">
-      <button class="button-secondary" wx:for="{{examples}}" wx:key="*this" data-question="{{item}}" bindtap="useExample">{{item}}</button>
-    </view>
-    <button class="button-secondary script-button" bindtap="generateScript">生成讲解脚本</button>
-    <view wx:if="{{scriptMessage}}" class="card script-panel">
-      <text class="body-text">{{scriptMessage}}</text>
-    </view>
-  </view>
-
-  <view class="section chat-list">
-    <view class="card message-card {{item.role === 'user' ? 'user-message' : 'ai-message'}}" wx:for="{{messages}}" wx:key="content">
-      <text class="primary-text">{{item.role === 'user' ? '我' : 'AI 学伴'}}</text>
-      <text class="body-text">{{item.content}}</text>
-      <view wx:if="{{item.sections && item.sections.length}}" class="structured-answer">
-        <view class="answer-section" wx:for="{{item.sections}}" wx:for-item="section" wx:key="title">
-          <text class="answer-title">{{section.title}}</text>
-          <text class="answer-item" wx:for="{{section.items}}" wx:for-item="point" wx:key="*this">• {{point}}</text>
+  <view class="chat-list">
+    <view class="chat-row {{item.bubbleClass}}" wx:for="{{messages}}" wx:key="id">
+      <view wx:if="{{item.role == 'ai'}}" class="avatar ai-avatar">{{item.avatarText}}</view>
+      <view class="bubble">
+        <view class="bubble-head">
+          <text class="bubble-speaker">{{item.speaker}}</text>
+          <text wx:if="{{item.role == 'ai'}}" class="bubble-tag">依据课程知识库</text>
+        </view>
+        <text class="bubble-text">{{item.content}}</text>
+        <text wx:if="{{item.source}}" class="source-label">{{item.source}}</text>
+        <view wx:if="{{item.suggestions.length}}" class="suggestion-list">
+          <button
+            class="suggestion-chip"
+            wx:for="{{item.suggestions}}"
+            wx:for-item="suggestion"
+            wx:key="*this"
+            data-suggestion="{{suggestion}}"
+            bindtap="handleSuggestion"
+          >{{suggestion}}</button>
         </view>
       </view>
-      <text wx:if="{{item.references}}" class="muted">引用依据：{{item.references.knowledgeBase}}</text>
-      <text wx:if="{{item.source}}" class="tag">{{item.source}}</text>
+      <view wx:if="{{item.role == 'user'}}" class="avatar user-avatar">{{item.avatarText}}</view>
     </view>
+
+    <view wx:if="{{loading}}" class="chat-row ai-message loading-row">
+      <view class="avatar ai-avatar">AI</view>
+      <view class="bubble loading-bubble">
+        <view class="bubble-head">
+          <text class="bubble-speaker">AI 学习助手</text>
+          <text class="bubble-tag">正在生成</text>
+        </view>
+        <text class="bubble-text">AI 正在组织讲解...</text>
+      </view>
+    </view>
+
+    <view id="chat-bottom" class="chat-bottom"></view>
   </view>
 
-  <view class="section input-panel">
-    <input value="{{question}}" bindinput="onInput" placeholder="输入你的循环结构问题" />
-    <button class="button-primary" loading="{{loading}}" bindtap="sendQuestion">发送</button>
+  <view class="input-panel">
+    <input
+      class="question-input"
+      value="{{question}}"
+      bindinput="onInput"
+      placeholder="输入你的循环结构问题"
+      confirm-type="send"
+      bindconfirm="sendQuestion"
+    />
+    <button
+      class="send-btn {{canSend ? '' : 'send-btn-disabled'}}"
+      loading="{{loading}}"
+      disabled="{{!canSend || loading}}"
+      bindtap="sendQuestion"
+    >发送</button>
   </view>
 </view>

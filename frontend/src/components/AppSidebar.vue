@@ -1,21 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { roleDescriptions, roleFromPath, roleLabels, roleMenus } from '../config/roles';
+import { RouterLink, useRouter } from 'vue-router';
+import { roleDescriptions, roleLabels, roleMenus } from '../config/roles';
 import { useRole } from '../composables/useRole';
 import StatusBadge from './StatusBadge.vue';
 
-const route = useRoute();
 const router = useRouter();
-const { clearRole } = useRole();
+const { clearRole, currentRole } = useRole();
 
-const activeRole = computed(() => roleFromPath(route.path) || 'student');
-const currentRoleLabel = computed(() => roleLabels[activeRole.value]);
-const menus = computed(() => roleMenus[activeRole.value]);
-const description = computed(() => roleDescriptions[activeRole.value]);
+const currentRoleLabel = computed(() => roleLabels[currentRole.value]);
+const menus = computed(() => roleMenus[currentRole.value]);
+const description = computed(() => roleDescriptions[currentRole.value]);
 const roleSubtitle = computed(() => {
-  if (activeRole.value === 'teacher') return '教学端';
-  if (activeRole.value === 'admin') return '管理控制台';
+  if (currentRole.value === 'teacher') return '教学端';
+  if (currentRole.value === 'admin') return '管理控制台';
   return '学生端';
 });
 

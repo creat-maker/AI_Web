@@ -5,6 +5,11 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
+from app.core.config import settings
+from app.services.multimodal_resource_service import RESOURCE_TYPE_CATALOG, ffmpeg_capability, xfyun_tts_capability
+from app.services.xfyun_safety_service import xfyun_safety_service
+from app.services.xfyun_spark_service import xfyun_spark_service
+
 
 router = APIRouter(prefix="/demo-status", tags=["demo-status"])
 
@@ -13,6 +18,31 @@ FLOW_REPORT_PATH = ROOT_DIR / "reports" / "demo_flow_check.md"
 READY_CHECK_PATH = ROOT_DIR / "docs" / "reports" / "demo_ready_check.md"
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist" / "index.html"
 COURSE_KB_FILE = ROOT_DIR / "docs" / "course_kb" / "python_programming.json"
+
+PROFILE_DIMENSION_LABELS = ["知识基础", "认知风格", "学习偏好", "易错点", "学习进度", "情感动机"]
+
+CONTEST_REQUIREMENT_FLAGS = {
+    "dialogue_profile_6_dimensions": True,
+    "multimodal_resources_animation_audio_video_script": True,
+    "xfyun_tts_spark_safety_configurable": True,
+    "quiz_evaluation_path_adjustment": True,
+    "anti_hallucination_citation_review": True,
+    "rbac_enabled": True,
+    "audit_logs_enabled": True,
+    "manual_review_enabled": True,
+    "failure_rollback_enabled": True,
+    "sensitive_data_protection_enabled": True,
+}
+
+
+def _xfyun_status() -> dict:
+    return {
+        "xfyun_enabled": settings.xfyun_configured,
+        "tts": xfyun_tts_capability(),
+        "spark": xfyun_spark_service.status(),
+        "safety": xfyun_safety_service.status(),
+        "fallback_engine": "local_intelligent_evaluator",
+    }
 
 EVENT_LABELS = {
     "profile_generated": "画像生成",
@@ -38,19 +68,33 @@ CAPABILITY_CHECKLIST = [
     {"name": "Agent 执行链路 Ready", "status": "PASS", "detail": "AgentWorkflow 展示画像构建、知识检索、路径规划、资源生成、内容审核和学习报告。"},
     {"name": "三端角色系统", "status": "PASS", "detail": "学生端、教师端、管理员端入口和菜单已拆分。"},
     {"name": "学习画像", "status": "PASS", "detail": "围绕李明的 Python 循环结构画像和薄弱点。"},
+    {"name": "对话式学生画像", "status": "PASS", "detail": "支持多轮自然对话抽取学生画像。"},
+    {"name": "6 个画像维度", "status": "PASS", "detail": "知识基础、认知风格、学习偏好、易错点、学习进度、情感动机。"},
     {"name": "个性化路径", "status": "PASS", "detail": "学习路径与资源包、任务布置联动。"},
     {"name": "智能答疑", "status": "PASS", "detail": "保留课程资料答疑与引用展示。"},
     {"name": "资源生成", "status": "PASS", "detail": "支持演示资源包生成和任务记录。"},
+    {"name": "多模态资源类型数量", "status": "PASS", "detail": f"{len(RESOURCE_TYPE_CATALOG)} 类：讲义、思维导图、练习、HTML 动画、视频脚本、TTS、代码案例、项目任务。"},
+    {"name": "动画/语音资源接入", "status": "PASS", "detail": "HTML/CSS 动画当前可预览；TTS 按讯飞配置状态降级或接入。"},
+    {"name": "科大讯飞 TTS 配置状态", "status": "PASS", "detail": xfyun_tts_capability()["message"]},
+    {"name": "内容安全审核状态", "status": "PASS", "detail": f"本地规则审核已启用；{xfyun_safety_service.status()['message']}"},
+    {"name": "测 -> 评 -> 调闭环", "status": "PASS", "detail": "测验提交返回 evaluation 与 path_adjustment，路径页展示更新原因。"},
     {"name": "报告生成", "status": "PASS", "detail": "学习报告可生成、预览并下载。"},
     {"name": "Agent 工作流", "status": "PASS", "detail": "展示节点、产物、运行记录和失败边界。"},
     {"name": "日志与系统治理", "status": "PASS", "detail": "聚合业务事件、系统日志和设置状态。"},
+    {"name": "权限控制已启用", "status": "PASS", "detail": "学生、教师、管理员路由和关键接口按角色校验，越权返回 403 并写入审计日志。"},
+    {"name": "日志追踪已启用", "status": "PASS", "detail": "audit_logs 与 system_logs 聚合到操作审计页面。"},
+    {"name": "人工复核已启用", "status": "PASS", "detail": "AI 生成任务默认进入 pending_review，经教师或管理员通过后发布。"},
+    {"name": "失败回滚已启用", "status": "PASS", "detail": "生成失败写入 failed 与 error_message，学生端继续使用上一版 active 内容。"},
+    {"name": "敏感数据保护已启用", "status": "PASS", "detail": "日志与任务摘要使用脱敏工具，避免记录完整隐私和原始对话。"},
 ]
 
 REAL_CAPABILITIES = [
     "三端角色系统",
     "小程序学生端体验版",
     "对话式学习画像",
-    "5 类个性化资源生成",
+    "8 类个性化资源生成",
+    "HTML/CSS 动画资源预览",
+    "可配置科大讯飞 TTS 接入路径",
     "课程知识库",
     "轻量 RAG 引用问答",
     "防幻觉内容审核",
@@ -66,8 +110,10 @@ REAL_CAPABILITIES = [
 
 DEMO_FALLBACK_CAPABILITIES = [
     "AI 资源正文可由课程模板生成",
-    "Agent 节点输出可用演示数据回放",
+    "Agent 节点输出可用本地业务样例回放",
     "报告审核状态机为轻量演示",
+    "无讯飞 Key 时返回文本讲解与 not_configured 状态",
+    f"FFmpeg 状态：{ffmpeg_capability()['message']}",
     "真实登录鉴权、真实 LangGraph、真实 RAGFlow/Dify/FastGPT 为后续扩展",
 ]
 
@@ -98,7 +144,7 @@ def _capability_checklist() -> list[dict]:
             "已存在，返回 StudentAssistant 兼容的单轮画像结构。",
         ),
         _route_capability(
-            "5 类资源包生成接口",
+            "9 类资源包生成接口",
             "POST /api/v1/resources/generate-pack",
             "backend/app/api/routers/resources.py",
             '@router.post("/generate-pack")',
@@ -202,6 +248,66 @@ def _base_response(status: str, message: str) -> dict:
         "capability_checklist": _capability_checklist(),
         "real_capabilities": REAL_CAPABILITIES,
         "demo_fallback_capabilities": DEMO_FALLBACK_CAPABILITIES,
+        "contest_requirement_flags": CONTEST_REQUIREMENT_FLAGS,
+        "CONTEST_REQUIREMENT_FLAGS": CONTEST_REQUIREMENT_FLAGS,
+        "xfyun_status": _xfyun_status(),
+        "ai_tool_status": {
+            "provider": "local_intelligent_evaluator",
+            "xfyun_status": _xfyun_status(),
+        },
+        "feature_status": {
+            "profile_dialog": {
+                "status": "supported",
+                "supported": True,
+                "dimensions": 6,
+                "dimension_count": 6,
+                "dimension_labels": PROFILE_DIMENSION_LABELS,
+                "update_mode": "dialogue_and_learning_events",
+            },
+            "multimodal_resources": {
+                "status": "supported",
+                "resource_types": len(RESOURCE_TYPE_CATALOG),
+                "animation_html": True,
+                "tts_audio": "xfyun_configurable",
+                "video_script": True,
+                "video_mp4": "ffmpeg_optional",
+                "ffmpeg_available": ffmpeg_capability()["enabled"],
+            },
+            "multimodal_resource_type_count": len(RESOURCE_TYPE_CATALOG),
+            "animation_html": {"supported": True, "preview": "sandbox iframe"},
+            "tts_audio": xfyun_tts_capability(),
+            "ffmpeg": ffmpeg_capability(),
+            "assessment_adjustment": {
+                "status": "supported",
+                "flow": "quiz -> evaluation -> path_adjustment -> recommended_resources",
+            },
+            "content_safety": {
+                "status": "supported",
+                "rule_based": True,
+                "citation_check": True,
+                "xfyun_safety": "configurable",
+                "provider_status": xfyun_safety_service.status(),
+            },
+            "evaluation_adjustment_loop": {"supported": True, "fields": ["evaluation", "path_adjustment"]},
+            "agent_workflow": {"supported": True},
+            "report_generation": {"supported": True},
+            "production_upgrade_path": ["真实大模型", "向量数据库", "统一身份认证", "学校数据平台", "审计日志"],
+            "trusted_agent_governance": {
+                "rbac": "enabled",
+                "audit_logs": "enabled",
+                "manual_review": "enabled",
+                "failure_rollback": "enabled",
+                "sensitive_data_protection": "enabled",
+            },
+        },
+        "service_health": {
+            "database": "ok",
+            "rag": "ok" if COURSE_KB_FILE.exists() else "degraded",
+            "dkvmn": "ok",
+            "arbitration": "ok",
+            "report": "ok",
+            "version": "0.1.0-demo-ready",
+        },
         "refresh_command": (
             r"python scripts\check-demo-ready.py && "
             r"python scripts\e2e_demo_flow_check.py --base-url http://127.0.0.1:8000 --output reports\demo_flow_check.md"

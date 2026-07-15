@@ -1,5 +1,8 @@
 from app.models.a3 import (
+    AITaskRun,
     AgentRun,
+    AuditLog,
+    ContentVersion,
     Course,
     CourseDocument,
     GeneratedResource,
@@ -7,13 +10,17 @@ from app.models.a3 import (
     LearningReport,
     Quiz,
     QuizSubmission,
+    ReviewItem,
     StudentProfile,
     SystemLog,
     TutorQuestionLog,
 )
 
 __all__ = [
+    "AITaskRun",
     "AgentRun",
+    "AuditLog",
+    "ContentVersion",
     "Course",
     "CourseDocument",
     "GeneratedResource",
@@ -21,6 +28,7 @@ __all__ = [
     "LearningReport",
     "Quiz",
     "QuizSubmission",
+    "ReviewItem",
     "StudentProfile",
     "SystemLog",
     "TutorQuestionLog",

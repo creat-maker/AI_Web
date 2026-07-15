@@ -1,57 +1,80 @@
-<view class="page">
-  <view class="header">
-    <text class="eyebrow">个性化补弱资源包</text>
-    <text class="title">{{pack.packageTitle}}</text>
-    <text class="subtitle">课程：{{pack.courseName}}。覆盖 while 循环、循环嵌套和 break / continue。</text>
-  </view>
-
-  <view class="section grid-2">
-    <view class="stat-card">
-      <text class="stat-label">资源数量</text>
-      <text class="stat-value">{{pack.resourceCount}} 类</text>
-    </view>
-    <view class="stat-card">
-      <text class="stat-label">审核状态</text>
-      <text class="stat-value">通过</text>
-    </view>
+<view class="page resources-page">
+  <view class="hero-card resources-hero">
+    <text class="eyebrow">{{pack.courseName}} · {{pack.chapter}}</text>
+    <text class="title">多模态学习资源</text>
+    <text class="subtitle">围绕 Python 循环结构推荐讲义、练习、动画、语音、视频与项目任务</text>
+    <view wx:if="{{sourceMessage}}" class="source-banner">{{sourceMessage}}</view>
   </view>
 
   <view class="section">
-    <view class="section-head"><text class="section-title">薄弱点覆盖</text></view>
-    <view class="card">
-      <view class="chip-row">
-        <text class="chip" wx:for="{{pack.weakPoints}}" wx:key="*this">{{item}}</text>
+    <view class="search-panel glass-card">
+      <view class="search-input-wrap">
+        <text class="search-icon">⌕</text>
+        <input value="{{keyword}}" bindinput="onKeyword" placeholder="搜索课程、章节、资源类型或知识点" />
       </view>
+      <picker mode="selector" range="{{typeOptions}}" bindchange="onTypeChange">
+        <view class="filter-btn">{{typeFilter}}</view>
+      </picker>
     </view>
   </view>
 
+  <scroll-view scroll-x class="type-scroll" show-scrollbar="false">
+    <view class="type-row">
+      <text class="type-chip" wx:for="{{typeOptions}}" wx:key="*this">{{item}}</text>
+    </view>
+  </scroll-view>
+
   <view class="section">
-    <view class="section-head"><text class="section-title">生成资源</text></view>
-    <view class="card" wx:for="{{pack.resources}}" wx:key="title">
-      <view class="row">
-        <view class="col">
-          <text class="primary-text">{{item.title}}</text>
-          <text class="muted">{{item.resourceType}} / {{item.difficulty}} / {{item.estimatedMinutes}} 分钟</text>
+    <view class="section-head">
+      <view>
+        <view class="section-title">推荐资源</view>
+        <view class="section-subtitle">共 {{pack.resourceCount}} 类资源，按薄弱点优先排序</view>
+      </view>
+      <text class="tag">{{filteredResources.length}} 项</text>
+    </view>
+
+    <view wx:if="{{filteredResources.length}}" class="resource-list">
+      <view wx:for="{{filteredResources}}" wx:key="title" class="glass-card resource-card">
+        <view class="resource-head">
+          <view class="type-icon {{item.typeClass}}">{{item.icon}}</view>
+          <view class="resource-main">
+            <view class="resource-title">{{item.title}}</view>
+            <view class="resource-meta">{{item.label}} · {{item.difficultyText}} · {{item.estimateText}} 分钟</view>
+          </view>
         </view>
-        <text class="tag">{{item.resourceType}}</text>
+        <view class="resource-content">{{item.content}}</view>
+        <view class="resource-tags">
+          <text class="chip" wx:for="{{item.knowledgeTags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+        </view>
+        <view class="resource-info">
+          <view>
+            <text class="info-label">适合对象</text>
+            <text class="info-value">{{item.audience}}</text>
+          </view>
+          <view>
+            <text class="info-label">资源类型</text>
+            <text class="info-value">{{item.type}}</text>
+          </view>
+        </view>
+        <view wx:if="{{item.note}}" class="resource-note">{{item.note}}</view>
+        <view class="card-actions">
+          <button class="secondary-btn detail-btn" bindtap="previewResource" data-index="{{index}}">查看详情</button>
+          <button class="primary-btn learn-btn" bindtap="addResourceTask" data-index="{{index}}">{{item.taskText}}</button>
+        </view>
       </view>
-      <text class="body-text">{{item.content}}</text>
-      <text class="muted">推荐原因：{{item.reason}}</text>
-      <button class="{{item.joined ? 'button-secondary task-added-btn' : 'button-secondary practice-btn'}}" data-index="{{index}}" bindtap="addResourceTask">{{item.taskText}}</button>
+    </view>
+
+    <view wx:else class="glass-card empty-state">
+      <view class="empty-icon">资</view>
+      <text class="primary-text">暂未找到相关资源</text>
+      <text class="muted">可以清空筛选后查看循环结构资源包。</text>
+      <button class="secondary-btn empty-btn" bindtap="clearFilter">清空筛选</button>
     </view>
   </view>
 
-  <view class="section">
-    <view class="section-head"><text class="section-title">推荐学习顺序</text></view>
-    <view class="card" wx:for="{{recommendedResources}}" wx:key="title">
-      <text class="primary-text">{{item.title}}</text>
-      <text class="muted">{{item.type}} / {{item.duration}}</text>
-      <text class="body-text">{{item.reason}}</text>
-    </view>
+  <view class="tip-card">
+    <text>动画 HTML：Web 端可预览动画，小程序端展示动画步骤。TTS 与 FFmpeg 产物可在 Web 端查看完整状态。</text>
   </view>
 
-  <view class="section action-grid">
-    <button class="{{taskJoined ? 'button-secondary task-added-btn' : 'button-secondary'}}" bindtap="pushPack">{{statusText}}</button>
-    <button class="button-primary" bindtap="goTutor">去问 AI 学伴</button>
-  </view>
+  <button class="primary-btn ask-btn" bindtap="goTutor">围绕资源提问</button>
 </view>

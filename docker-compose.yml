@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: edumind-backend
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:///./storage/edumind.db
+      SQLITE_FALLBACK_PATH: backend/storage/edumind.db
+      CHROMA_PERSIST_DIR: backend/storage/chroma
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/storage:/app/backend/storage
+      - ./storage:/app/storage
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: edumind-frontend
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: edumind-chroma
+    profiles:
+      - chroma
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend/storage/chroma:/chroma/chroma

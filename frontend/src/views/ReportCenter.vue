@@ -1,253 +1,238 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { api, apiBase } from '../api/client';
 import DataCard from '../components/DataCard.vue';
+import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
-import ProgressBar from '../components/ProgressBar.vue';
-import StatCard from '../components/StatCard.vue';
+import ReportPreviewModal from '../components/ReportPreviewModal.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
-const selectedId = ref(1);
+interface ReportRow {
+  id: number;
+  report_title: string;
+  student_name: string;
+  course_title: string;
+  report_type: string;
+  status: string;
+  quality_score?: number | null;
+  created_at: string;
+  summary: any;
+  download_enabled: boolean;
+  student_profile_id: number;
+  course_id: number;
+}
 
-const reports = [
-  {
-    id: 1,
-    title: '李明 Python 循环结构形成性评价报告',
-    student: '李明',
-    course: 'Python 程序设计',
-    chapter: '循环结构',
-    status: '已完成',
-    quality: 92,
-    createdAt: '2026-06-11 10:30',
-    abstract: '系统发现李明在循环结构上还需要加强，当前主要问题集中在 while 循环条件更新、循环嵌套变量变化和 break / continue 区分。',
-    accuracy: 62,
-    wrongPoints: ['while 循环条件更新', '循环嵌套变量变化', 'break / continue 区分'],
-    mistakeReasons: ['循环变量更新位置不稳定', '嵌套循环内外层变量混淆', '把 continue 误认为直接结束循环'],
-    aiAdvice: '先完成变量变化表，再运行短代码验证。每次练习后记录一个主错因，避免只看答案不复盘。',
-    nextPath: 'while 循环补全题 -> break / continue 对比题 -> 循环嵌套综合任务',
-    resourceStrategy: '保留讲解文档和视频脚本，增加 3 道 while 循环补全题，降低嵌套循环任务难度。',
-    teacherSuggestion: '推送循环结构补弱资源包，安排 10 分钟代码讲解，布置 3 道 while 循环补全题。'
-  },
-  {
-    id: 2,
-    title: '计科大三 1 班循环结构班级报告',
-    student: '计科大三 1 班',
-    course: 'Python 程序设计',
-    chapter: '循环结构',
-    status: '已完成',
-    quality: 88,
-    createdAt: '2026-06-10 18:20',
-    abstract: '班级整体掌握度中等，薄弱点集中在 while 循环条件更新和循环嵌套变量追踪。',
-    accuracy: 74,
-    wrongPoints: ['while 循环条件更新', '循环嵌套变量变化'],
-    mistakeReasons: ['部分学生忽略循环变量更新', '对内外层循环执行顺序不稳定'],
-    aiAdvice: '下一轮课堂建议先讲变量变化表，再安排短代码即时练习。',
-    nextPath: '班级讲评 -> 分层练习 -> 个别学生补弱任务',
-    resourceStrategy: '对基础薄弱学生推送低门槛练习，对掌握较好学生推送嵌套循环挑战题。',
-    teacherSuggestion: '课堂集中讲解 10 分钟，并对李明等需重点关注学生进行课后跟踪。'
-  }
-];
+const reports = ref<ReportRow[]>([]);
+const loading = ref(false);
+const error = ref('');
+const success = ref('');
+const keyword = ref('');
+const typeFilter = ref('全部类型');
+const selected = ref<ReportRow | null>(null);
+const previewVisible = ref(false);
 
-const dimensions = [
-  { name: '概念理解', value: 66 },
-  { name: '代码应用', value: 58 },
-  { name: '答题稳定性', value: 61 },
-  { name: '学习活跃度', value: 78 },
-  { name: '资源利用率', value: 72 },
-  { name: '知识迁移能力', value: 55 }
-];
+const typeOptions = computed(() => ['全部类型', ...Array.from(new Set(reports.value.map((item) => item.report_type)))]);
+const filteredReports = computed(() => {
+  const word = keyword.value.trim().toLowerCase();
+  return reports.value.filter((report) => {
+    const haystack = [
+      report.report_title,
+      report.student_name,
+      report.course_title,
+      report.report_type,
+      report.status,
+      report.summary?.report_abstract,
+      (report.summary?.weak_points || []).join(' ')
+    ]
+      .join(' ')
+      .toLowerCase();
+    const matchWord = !word || haystack.includes(word);
+    const matchType = typeFilter.value === '全部类型' || report.report_type === typeFilter.value;
+    return matchWord && matchType;
+  });
+});
 
-const selectedReport = computed(() => reports.find((item) => item.id === selectedId.value) || reports[0]);
-
-const statCards = computed(() => [
-  { label: '报告总数', value: reports.length, unit: '份', hint: '循环结构主题报告', icon: '报' },
-  { label: '李明正确率', value: selectedReport.value.accuracy, unit: '%', hint: '形成性评价结果', icon: '准', tone: 'orange' as const },
-  { label: '能力维度', value: dimensions.length, unit: '项', hint: '综合评分画像', icon: '能', tone: 'purple' as const },
-  { label: '引用依据', value: 1, unit: '库', hint: 'Python 程序设计课程知识库', icon: '引', tone: 'green' as const }
+const stats = computed(() => [
+  { label: '报告总数', value: reports.value.length },
+  { label: '已完成', value: reports.value.filter((item) => item.status === 'completed').length },
+  { label: '当前结果', value: filteredReports.value.length },
+  { label: '平均质量', value: averageQuality.value || '-' }
 ]);
+
+const averageQuality = computed(() => {
+  const values = reports.value.map((item) => item.quality_score).filter((item): item is number => typeof item === 'number');
+  return values.length ? Math.round(values.reduce((sum, item) => sum + item, 0) / values.length) : 0;
+});
+
+async function loadReports() {
+  loading.value = true;
+  error.value = '';
+  try {
+    reports.value = await api.get<ReportRow[]>('/api/v1/reports');
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '报告列表加载失败。';
+  } finally {
+    loading.value = false;
+  }
+}
+
+function openPreview(report: ReportRow) {
+  selected.value = report;
+  previewVisible.value = true;
+}
+
+function download(report: ReportRow) {
+  if (!report.download_enabled) {
+    error.value = '报告文件暂不可下载，请先重新生成。';
+    return;
+  }
+  window.open(`${apiBase}/api/v1/reports/${report.id}/download`, '_blank');
+}
+
+async function regenerate(report?: ReportRow) {
+  const target = report || reports.value[0];
+  if (!target) {
+    error.value = '暂无可重新生成的报告。';
+    return;
+  }
+  success.value = '';
+  error.value = '';
+  try {
+    const row = await api.post<ReportRow>('/api/v1/reports/generate', {
+      student_profile_id: target.student_profile_id,
+      course_id: target.course_id,
+      regenerate_reason: '教师在报告中心触发重新生成。'
+    });
+    success.value = '报告已重新生成。';
+    selected.value = row;
+    await loadReports();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '重新生成失败。';
+  }
+}
+
+function clearSearch() {
+  keyword.value = '';
+  typeFilter.value = '全部类型';
+}
+
+onMounted(loadReports);
 </script>
 
 <template>
   <section class="page report-page">
-    <PageHeader
-      title="Python 循环结构形成性评价报告"
-      description="报告对象聚焦李明，沉淀正确率、错因分析、能力维度、AI 建议、下一步路径和教师干预建议。"
-    >
+    <PageHeader title="报告中心" description="查看、预览、导出和重新生成学习诊断报告。">
       <template #actions>
-        <button class="secondary">导出报告</button>
-        <button>重新生成评价</button>
+        <button class="secondary" type="button" @click="clearSearch">清空搜索</button>
+        <button type="button" @click="regenerate()">重新生成</button>
       </template>
     </PageHeader>
 
+    <p v-if="error" class="panel error-text">{{ error }}</p>
+    <p v-if="success" class="panel success-text">{{ success }}</p>
+    <p v-if="loading" class="panel muted">正在加载报告...</p>
+
     <div class="stat-grid">
-      <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
+      <article v-for="item in stats" :key="item.label" class="stat-card">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+      </article>
     </div>
 
-    <div class="report-layout">
-      <DataCard title="报告列表" subtitle="当前报告重点围绕 Python 循环结构">
-        <div class="report-list">
-          <button
-            v-for="report in reports"
-            :key="report.id"
-            :class="['report-row', { active: report.id === selectedId }]"
-            type="button"
-            @click="selectedId = report.id"
-          >
-            <strong>{{ report.title }}</strong>
-            <span>{{ report.course }} / {{ report.chapter }} / {{ report.student }}</span>
-            <small>{{ report.createdAt }} / 质量评分 {{ report.quality }}</small>
-            <StatusBadge :label="report.status" tone="success" />
-          </button>
-        </div>
-      </DataCard>
-
-      <DataCard title="报告预览" :subtitle="selectedReport.title">
-        <div class="preview-grid">
-          <article class="preview-card wide">
-            <span>报告摘要</span>
-            <p>{{ selectedReport.abstract }}</p>
-          </article>
-          <article class="preview-card">
-            <span>正确率</span>
-            <strong>{{ selectedReport.accuracy }}%</strong>
-            <p>循环结构专项测验</p>
-          </article>
-          <article class="preview-card">
-            <span>引用依据</span>
-            <strong>课程知识库</strong>
-            <p>Python 程序设计 / 循环结构章节</p>
-          </article>
-        </div>
-      </DataCard>
-    </div>
-
-    <div class="report-layout">
-      <DataCard title="错题知识点与错因分析" subtitle="用于驱动下一步路径和资源调整">
-        <div class="analysis-list">
-          <article v-for="(point, index) in selectedReport.wrongPoints" :key="point" class="analysis-row">
-            <StatusBadge :label="point" tone="warning" />
-            <p>{{ selectedReport.mistakeReasons[index] }}</p>
-          </article>
-        </div>
-      </DataCard>
-
-      <DataCard title="能力维度评分" subtitle="形成性评价核心维度">
-        <div class="dimension-list">
-          <div v-for="item in dimensions" :key="item.name" class="dimension-row">
-            <span>{{ item.name }}</span>
-            <ProgressBar :value="item.value" :tone="item.value < 65 ? 'warning' : 'primary'" />
-            <strong>{{ item.value }}</strong>
-          </div>
-        </div>
-      </DataCard>
-    </div>
-
-    <DataCard title="AI 学习建议与后续调整" subtitle="AI 仅提供辅助建议，最终由教师确认">
-      <div class="strategy-grid">
-        <article>
-          <strong>AI 学习建议</strong>
-          <p>{{ selectedReport.aiAdvice }}</p>
-        </article>
-        <article>
-          <strong>下一步路径</strong>
-          <p>{{ selectedReport.nextPath }}</p>
-        </article>
-        <article>
-          <strong>资源调整策略</strong>
-          <p>{{ selectedReport.resourceStrategy }}</p>
-        </article>
-        <article>
-          <strong>教师干预建议</strong>
-          <p>{{ selectedReport.teacherSuggestion }}</p>
-        </article>
+    <DataCard title="搜索报告" subtitle="按学生、课程、章节、报告类型和关键词过滤">
+      <div class="filter-grid">
+        <input v-model="keyword" placeholder="搜索学生、课程、报告或知识点，例如：循环" @keyup.enter.prevent />
+        <select v-model="typeFilter">
+          <option v-for="item in typeOptions" :key="item">{{ item }}</option>
+        </select>
       </div>
     </DataCard>
+
+    <DataCard title="报告列表" :subtitle="`${filteredReports.length} 份报告`">
+      <div v-if="filteredReports.length" class="report-list">
+        <article v-for="report in filteredReports" :key="report.id" class="report-row">
+          <div>
+            <strong>{{ report.report_title }}</strong>
+            <p>{{ report.course_title }} / {{ report.student_name }} / {{ report.report_type }}</p>
+            <small>{{ report.created_at }} / 质量评分 {{ report.quality_score ?? '-' }}</small>
+          </div>
+          <StatusBadge :label="report.status === 'completed' ? '已完成' : '生成中'" :tone="report.status === 'completed' ? 'success' : 'warning'" />
+          <div class="row-actions">
+            <button class="ghost" type="button" @click="openPreview(report)">查看预览</button>
+            <button class="ghost" type="button" @click="download(report)">导出报告</button>
+            <button class="ghost" type="button" @click="regenerate(report)">重新生成</button>
+          </div>
+        </article>
+      </div>
+      <EmptyState v-else title="未找到相关报告" description="请更换关键词，或清空搜索后查看全部报告。" />
+    </DataCard>
+
+    <ReportPreviewModal :visible="previewVisible" :report="selected" @close="previewVisible = false" @download="download" />
   </section>
 </template>
 
 <style scoped>
-.report-layout {
+.stat-grid,
+.filter-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.report-list,
-.preview-grid,
-.analysis-list,
-.dimension-list,
-.strategy-grid {
+.filter-grid {
+  grid-template-columns: minmax(260px, 1fr) 180px;
+}
+
+.stat-card,
+.report-row {
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-main);
+  font-size: 26px;
+}
+
+.report-list {
   display: grid;
   gap: 12px;
 }
 
 .report-row {
   display: grid;
-  gap: 6px;
-  width: 100%;
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 14px;
-  text-align: left;
-  background: #fff;
-}
-
-.report-row.active {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-}
-
-.preview-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.preview-card,
-.analysis-row,
-.strategy-grid article {
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 14px;
-  background: #fff;
-}
-
-.preview-card.wide {
-  grid-column: 1 / -1;
-}
-
-.preview-card span {
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.preview-card strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 24px;
-  color: var(--text-main);
-}
-
-.preview-card p,
-.analysis-row p,
-.strategy-grid p {
-  margin: 8px 0 0;
-  color: var(--text-secondary);
-  line-height: 1.65;
-}
-
-.dimension-row {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) 42px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 14px;
   align-items: center;
 }
 
-.strategy-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.report-row p {
+  margin: 6px 0;
+  color: var(--text-secondary);
 }
 
-@media (max-width: 1120px) {
-  .report-layout,
-  .preview-grid,
-  .strategy-grid {
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.error-text {
+  color: #b91c1c;
+}
+
+.success-text {
+  color: #047857;
+}
+
+@media (max-width: 980px) {
+  .stat-grid,
+  .filter-grid,
+  .report-row {
     grid-template-columns: 1fr;
   }
 }
