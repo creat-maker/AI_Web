@@ -17,6 +17,7 @@ def record_event(
     event_type: str,
     title: str,
     description: str,
+    actor_id: str = "",
     actor_role: str = "demo",
     actor_name: str = "EduMind demo user",
     target_type: str = "system",
@@ -29,6 +30,7 @@ def record_event(
 ) -> SystemLog:
     payload = {
         "event_type": event_type,
+        "actor_id": actor_id,
         "actor_role": actor_role,
         "actor_name": actor_name,
         "target_type": target_type,
@@ -67,6 +69,7 @@ def event_to_dict(item: SystemLog) -> dict[str, Any]:
         "title": item.title,
         "description": item.content,
         "actor_role": data.get("actor_role", "demo"),
+        "actor_id": data.get("actor_id", ""),
         "actor_name": data.get("actor_name") or item.user,
         "target_type": data.get("target_type", item.module),
         "target_id": data.get("target_id") or item.related_id,

@@ -6,6 +6,7 @@ from importlib.util import find_spec
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_admin
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import CourseDocument, LearningReport, TutorQuestionLog
@@ -48,7 +49,7 @@ def _vector_store_type() -> str:
 
 def _database_hint() -> str:
     if settings.resolved_database_url.startswith("sqlite"):
-        return str(settings.path_from_root(settings.sqlite_fallback_path))
+        return "本地 SQLite（物理路径已隐藏）"
     return "外部数据库连接已配置，前端不展示连接串。"
 
 
@@ -63,7 +64,10 @@ def _xfyun_status() -> dict:
 
 
 @router.get("")
-def get_settings_snapshot(db: Session = Depends(get_db)):
+def get_settings_snapshot(
+    current_user: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     parsed_docs = db.query(CourseDocument).filter(CourseDocument.parse_status == "parsed").count()
     report_count = db.query(LearningReport).count()
     qa_count = db.query(TutorQuestionLog).count()
@@ -90,7 +94,7 @@ def get_settings_snapshot(db: Session = Depends(get_db)):
             "top_k": 5,
             "similarity_threshold": 0.2,
             "vector_store_type": vector_type,
-            "persist_dir": str(settings.path_from_root(settings.chroma_persist_dir)),
+            "persist_dir": "已配置（物理路径已隐藏）",
         },
         "teaching_strategy": {
             "answer_mode": "严谨",
@@ -104,7 +108,7 @@ def get_settings_snapshot(db: Session = Depends(get_db)):
             "upload_size_tip": "建议单个教学资料控制在 20MB 内，便于本地解析和演示。",
             "local_dev_tip": "当前为本地开发展示配置，保存按钮不会写入真实密钥或系统环境变量。",
             "database_path": _database_hint(),
-            "vector_store_path": str(settings.path_from_root(settings.chroma_persist_dir)),
+            "vector_store_path": "已配置（物理路径已隐藏）",
         },
         "runtime": {
             "llm_mode": llm_service.runtime_mode,
@@ -124,7 +128,10 @@ def get_settings_snapshot(db: Session = Depends(get_db)):
 
 
 @router.post("/test")
-def test_settings_connection(db: Session = Depends(get_db)):
+def test_settings_connection(
+    current_user: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     parsed_docs = db.query(CourseDocument).filter(CourseDocument.parse_status == "parsed").count()
     return {
         "status": "ok",
@@ -143,7 +150,7 @@ def test_settings_connection(db: Session = Depends(get_db)):
             {
                 "name": "报告目录",
                 "status": "ok",
-                "detail": str(settings.path_from_root(settings.report_dir)),
+                "detail": "报告目录已配置（物理路径已隐藏）",
             },
             {
                 "name": "科大讯飞 TTS",

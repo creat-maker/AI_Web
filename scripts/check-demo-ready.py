@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ BACKEND_DIR = ROOT_DIR / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from app.api.routers.auth import _sign_jwt  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
@@ -115,9 +117,30 @@ def _source_check(name: str, relative_path: str, patterns: list[str], suggestion
     )
 
 
-def _http_check(name: str, url: str, expected_status: int = 200) -> CheckResult:
+def _teacher_auth_headers() -> dict[str, str]:
+    now = int(time.time())
+    token = _sign_jwt(
+        {
+            "username": "teacher",
+            "role": "teacher",
+            "name": "王老师",
+            "display_name": "王老师",
+            "user_id": "teacher_001",
+            "iat": now,
+            "exp": now + 600,
+        }
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _http_check(
+    name: str,
+    url: str,
+    expected_status: int = 200,
+    headers: dict[str, str] | None = None,
+) -> CheckResult:
     try:
-        request = Request(url, headers={"User-Agent": "EduMind-demo-ready-check/1.0"})
+        request = Request(url, headers={"User-Agent": "EduMind-demo-ready-check/1.0", **(headers or {})})
         with urlopen(request, timeout=8) as response:
             status = int(response.status)
         return CheckResult(
@@ -136,7 +159,13 @@ def _http_check(name: str, url: str, expected_status: int = 200) -> CheckResult:
         return CheckResult("FAIL", name, "error", str(expected_status), f"检查异常：{exc}", "http")
 
 
-def _http_post_check(name: str, url: str, payload: dict, expected_status: int = 200) -> CheckResult:
+def _http_post_check(
+    name: str,
+    url: str,
+    payload: dict,
+    expected_status: int = 200,
+    headers: dict[str, str] | None = None,
+) -> CheckResult:
     try:
         request = Request(
             url,
@@ -144,6 +173,7 @@ def _http_post_check(name: str, url: str, payload: dict, expected_status: int = 
             headers={
                 "Content-Type": "application/json",
                 "User-Agent": "EduMind-demo-ready-check/1.0",
+                **(headers or {}),
             },
             method="POST",
         )
@@ -266,6 +296,7 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
     if include_http:
         backend_url = backend_url.rstrip("/")
         frontend_url = frontend_url.rstrip("/")
+        teacher_headers = _teacher_auth_headers()
         results.extend(
             [
                 _http_check("backend_health", f"{backend_url}/health"),
@@ -295,9 +326,18 @@ def run_checks(backend_url: str, frontend_url: str, include_http: bool) -> tuple
                             }
                         ],
                     },
+                    headers=teacher_headers,
                 ),
-                _http_check("backend_content_review_records", f"{backend_url}/api/v1/content-review/records"),
-                _http_check("backend_agent_runs", f"{backend_url}/api/v1/agent-runs"),
+                _http_check(
+                    "backend_content_review_records",
+                    f"{backend_url}/api/v1/content-review/records",
+                    headers=teacher_headers,
+                ),
+                _http_check(
+                    "backend_agent_runs",
+                    f"{backend_url}/api/v1/agent-runs",
+                    headers=teacher_headers,
+                ),
                 _http_check("backend_audit_logs", f"{backend_url}/api/v1/audit-logs"),
             ]
         )

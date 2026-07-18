@@ -1,11 +1,22 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
-import { hasDemoSession, readStoredRole } from '../composables/useRole';
+import { api } from '../api/client';
+import { hasDemoSession, readStoredRole, useRole } from '../composables/useRole';
 import { roleHomePath, type UserRole } from '../config/roles';
 
 const allRoles: UserRole[] = ['student', 'teacher', 'admin'];
 
 function roleHomeRedirect() {
   return roleHomePath[readStoredRole() || 'student'];
+}
+
+async function resolveAuthenticatedRole(): Promise<UserRole | null> {
+  if (!hasDemoSession()) return null;
+  try {
+    const user = await api.get<{ role?: string }>('/api/v1/auth/me');
+    return allRoles.includes(user.role as UserRole) ? (user.role as UserRole) : null;
+  } catch {
+    return null;
+  }
 }
 
 const routes: RouteRecordRaw[] = [
@@ -109,17 +120,29 @@ const router = createRouter({
   routes
 });
 
-router.beforeEach((to) => {
-  const currentRole = readStoredRole();
+router.beforeEach(async (to) => {
+  const { clearRole, setRole } = useRole();
 
-  if (to.path === '/login' && currentRole && hasDemoSession()) {
-    return roleHomePath[currentRole];
+  if (to.path === '/login' && hasDemoSession()) {
+    const authenticatedRole = await resolveAuthenticatedRole();
+    if (authenticatedRole) {
+      setRole(authenticatedRole);
+      return roleHomePath[authenticatedRole];
+    }
+    clearRole();
   }
   if (to.meta.public) return true;
-  if (!hasDemoSession() || !currentRole) return { path: '/login', query: { redirect: to.fullPath } };
+  if (!hasDemoSession()) return { path: '/login', query: { redirect: to.fullPath } };
+
+  const authenticatedRole = await resolveAuthenticatedRole();
+  if (!authenticatedRole) {
+    clearRole();
+    return { path: '/login', query: { redirect: to.fullPath } };
+  }
+  if (readStoredRole() !== authenticatedRole) setRole(authenticatedRole);
 
   const allowedRoles = to.meta.roles as UserRole[] | undefined;
-  if (allowedRoles?.length && !allowedRoles.includes(currentRole)) {
+  if (allowedRoles?.length && !allowedRoles.includes(authenticatedRole)) {
     return { path: '/unauthorized', query: { from: to.fullPath } };
   }
 

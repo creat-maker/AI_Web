@@ -9,7 +9,7 @@ from app.services.multimodal_resource_service import build_multimodal_resources
 DEMO_STUDENTS: list[dict[str, Any]] = [
     {
         "user_id": "demo-basic",
-        "aliases": ["demo-student-liming", "demo-student-zhangsan", "basic", "基础薄弱型", "李明"],
+        "aliases": ["1", "student_001", "student-li-ming", "demo-student-liming", "basic", "基础薄弱型", "李明"],
         "student_name": "李明",
         "display_name": "李明｜基础薄弱 + 代码实操偏好型",
         "profile_type": "基础薄弱 + 代码实操偏好型",
@@ -65,7 +65,7 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
     },
     {
         "user_id": "demo-advanced",
-        "aliases": ["advanced", "进阶提升型", "陈浩"],
+        "aliases": ["2", "demo_student_chenhao", "advanced", "进阶提升型", "陈浩"],
         "student_name": "李同学",
         "display_name": "李同学｜项目提升型",
         "profile_type": "项目提升型",
@@ -121,7 +121,7 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
     },
     {
         "user_id": "demo-exam",
-        "aliases": ["exam", "考试冲刺型", "王悦"],
+        "aliases": ["3", "demo_student_wangyue", "exam", "考试冲刺型", "王悦"],
         "student_name": "王同学",
         "display_name": "王同学｜考试冲刺型",
         "profile_type": "考试冲刺型",
@@ -179,11 +179,13 @@ DEMO_STUDENTS: list[dict[str, Any]] = [
 
 
 def normalize_user_id(user_id: str | int | None = None) -> str:
-    value = str(user_id or "demo-basic").strip()
+    value = str(user_id or "").strip()
+    if not value:
+        return "demo-basic"
     for student in DEMO_STUDENTS:
         if value == student["user_id"] or value in student.get("aliases", []):
             return student["user_id"]
-    return "demo-basic"
+    raise ValueError(f"未知演示学生标识：{value}")
 
 
 def get_demo_student(user_id: str | int | None = None) -> dict[str, Any]:
@@ -418,7 +420,7 @@ def build_resource_pack(payload: dict[str, Any]) -> dict[str, Any]:
 DEMO_STUDENTS = [
     {
         "user_id": "demo-basic",
-        "aliases": ["demo-student-liming", "demo-student-zhangsan", "basic", "基础薄弱型", "李明"],
+        "aliases": ["1", "student_001", "student-li-ming", "demo-student-liming", "basic", "基础薄弱型", "李明"],
         "student_name": "李明",
         "display_name": "李明｜基础薄弱 + 代码实操偏好型",
         "profile_type": "基础薄弱 + 代码实操偏好型",
@@ -459,7 +461,7 @@ DEMO_STUDENTS = [
     },
     {
         "user_id": "demo-advanced",
-        "aliases": ["advanced", "进阶提升型", "陈浩"],
+        "aliases": ["2", "demo_student_chenhao", "advanced", "进阶提升型", "陈浩"],
         "student_name": "陈浩",
         "display_name": "陈浩｜项目实践提升型",
         "profile_type": "项目实践提升型",
@@ -483,7 +485,7 @@ DEMO_STUDENTS = [
     },
     {
         "user_id": "demo-exam",
-        "aliases": ["exam", "考试冲刺型", "王悦"],
+        "aliases": ["3", "demo_student_wangyue", "exam", "考试冲刺型", "王悦"],
         "student_name": "王悦",
         "display_name": "王悦｜考试冲刺型",
         "profile_type": "考试冲刺型",
@@ -509,11 +511,13 @@ DEMO_STUDENTS = [
 
 
 def normalize_user_id(user_id: str | int | None = None) -> str:
-    value = str(user_id or "demo-basic").strip()
+    value = str(user_id or "").strip()
+    if not value:
+        return "demo-basic"
     for student in DEMO_STUDENTS:
         if value == student["user_id"] or value in student.get("aliases", []):
             return student["user_id"]
-    return "demo-basic"
+    raise ValueError(f"未知演示学生标识：{value}")
 
 
 def get_demo_student(user_id: str | int | None = None) -> dict[str, Any]:

@@ -1,0 +1,18 @@
+{
+  "description": "EduMind WeChat miniprogram project config template without real AppID.",
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "EduMind",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  }
+}

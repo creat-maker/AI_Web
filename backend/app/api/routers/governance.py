@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_roles
+from app.api.deps import require_admin
 from app.db.session import get_db
 from app.models import AITaskRun, ContentVersion, ReviewItem
 from app.services.governance_service import (
@@ -41,7 +41,7 @@ def list_tasks(
     status: str | None = None,
     task_type: str | None = None,
     db: Session = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_roles("teacher", "admin")),
+    current_user: dict[str, Any] = Depends(require_admin),
 ):
     ensure_governance_seed(db)
     query = db.query(AITaskRun)
@@ -56,7 +56,7 @@ def list_tasks(
 def create_task(
     payload: TaskCreatePayload,
     db: Session = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_roles("teacher", "admin")),
+    current_user: dict[str, Any] = Depends(require_admin),
 ):
     ensure_governance_seed(db)
     status = "failed" if payload.fail else "pending_review"
@@ -109,7 +109,7 @@ def create_task(
 def list_review_items(
     status: str | None = None,
     db: Session = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_roles("teacher", "admin")),
+    current_user: dict[str, Any] = Depends(require_admin),
 ):
     ensure_governance_seed(db)
     query = db.query(ReviewItem)
@@ -123,7 +123,7 @@ def approve_item(
     item_id: int,
     payload: ReviewActionPayload,
     db: Session = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_roles("teacher", "admin")),
+    current_user: dict[str, Any] = Depends(require_admin),
 ):
     ensure_governance_seed(db)
     item = db.query(ReviewItem).filter(ReviewItem.id == item_id).first()
@@ -137,7 +137,7 @@ def reject_item(
     item_id: int,
     payload: ReviewActionPayload,
     db: Session = Depends(get_db),
-    current_user: dict[str, Any] = Depends(require_roles("teacher", "admin")),
+    current_user: dict[str, Any] = Depends(require_admin),
 ):
     ensure_governance_seed(db)
     item = db.query(ReviewItem).filter(ReviewItem.id == item_id).first()

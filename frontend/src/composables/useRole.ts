@@ -7,6 +7,18 @@ const USER_ID_KEY = 'edumind.demoUserId';
 const TOKEN_KEY = 'edumind.accessToken';
 const USER_KEY = 'edumind.user';
 const STUDENT_ID_KEY = 'edumind.studentId';
+const PROFILE_STATE_KEYS = [
+  'edumind.selectedStudentId',
+  'edumind.profileId',
+  'edumind.profileCache',
+  'edumind.profileVisualization'
+];
+const ADMIN_STATE_KEYS = [
+  'edumind.adminUsers',
+  'edumind.adminReports',
+  'edumind.adminSettings',
+  'edumind.selectedAdminUser'
+];
 
 export const availableRoles: UserRole[] = ['student', 'teacher', 'admin'];
 
@@ -34,7 +46,7 @@ function readStoredUserRole(): UserRole | null {
 }
 
 export function hasDemoSession() {
-  return Boolean(localStorage.getItem(TOKEN_KEY) || readStoredRole());
+  return Boolean(localStorage.getItem(TOKEN_KEY));
 }
 
 export function demoStudentLabel(userId: string) {
@@ -42,7 +54,7 @@ export function demoStudentLabel(userId: string) {
 }
 
 const storedRole = ref<UserRole>(readStoredRole() || 'student');
-const demoUserId = ref(localStorage.getItem(USER_ID_KEY) || '1');
+const demoUserId = ref(localStorage.getItem(USER_ID_KEY) || '');
 
 export function useRole() {
   const currentRole = computed<UserRole>(() => storedRole.value);
@@ -52,6 +64,13 @@ export function useRole() {
 
   function setRole(role: UserRole | null | undefined) {
     if (!role || !availableRoles.includes(role)) return false;
+    if (storedRole.value !== role) {
+      localStorage.removeItem(USER_ID_KEY);
+      localStorage.removeItem(STUDENT_ID_KEY);
+      PROFILE_STATE_KEYS.forEach((key) => localStorage.removeItem(key));
+      ADMIN_STATE_KEYS.forEach((key) => localStorage.removeItem(key));
+      demoUserId.value = '';
+    }
     storedRole.value = role;
     localStorage.setItem(ROLE_KEY, role);
     localStorage.setItem(LEGACY_ROLE_KEY, role);
@@ -65,19 +84,26 @@ export function useRole() {
   }
 
   function setDemoUserId(userId: string) {
-    demoUserId.value = userId;
-    localStorage.setItem(USER_ID_KEY, userId);
+    const normalized = String(userId || '').trim();
+    demoUserId.value = normalized;
+    if (normalized) {
+      localStorage.setItem(USER_ID_KEY, normalized);
+    } else {
+      localStorage.removeItem(USER_ID_KEY);
+    }
   }
 
   function clearRole() {
     storedRole.value = 'student';
-    demoUserId.value = '1';
+    demoUserId.value = '';
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(LEGACY_ROLE_KEY);
     localStorage.removeItem(USER_ID_KEY);
     localStorage.removeItem(STUDENT_ID_KEY);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    PROFILE_STATE_KEYS.forEach((key) => localStorage.removeItem(key));
+    ADMIN_STATE_KEYS.forEach((key) => localStorage.removeItem(key));
   }
 
   return {

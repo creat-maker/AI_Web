@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge.vue';
 interface ArbitrationTask {
   id: string;
   agent_run_id?: number;
+  arbitration_item_id: string;
   student_name: string;
   course: string;
   topic: string;
@@ -24,63 +25,34 @@ interface ArbitrationTask {
   status: string;
 }
 
-const fallbackTasks: ArbitrationTask[] = [
-  {
-    id: 'demo-arb-low',
-    student_name: '李明',
-    course: 'Python 程序设计',
-    topic: 'while 循环条件更新',
-    risk_level: 'low',
-    trigger_reason: '引用证据充分，但建议教师确认示例输出。',
-    original_content: 'while 循环补弱讲义与变量更新练习。',
-    suggested_content: '发布到学生端，并保留引用来源。',
-    review_result: 'pending',
-    retry_count: 0,
-    rag_citations: ['python_programming.json-001'],
-    profile_risk_evidence: ['while_loop 掌握度 0.48'],
-    recommended_action: 'approve',
-    status: 'pending'
-  },
-  {
-    id: 'demo-arb-medium',
-    student_name: '李明',
-    course: 'Python 程序设计',
-    topic: 'break / continue 对比',
-    risk_level: 'medium',
-    trigger_reason: '审核发现示例解释略少，需要教师补充说明。',
-    original_content: 'break 和 continue 的输出判断题。',
-    suggested_content: '补充 continue 跳过本轮但不跳出循环的解释。',
-    review_result: 'needs_review',
-    retry_count: 1,
-    rag_citations: ['python_programming.json-002', 'python_programming.json-003'],
-    profile_risk_evidence: ['break_continue 错误 streak=2'],
-    recommended_action: 'revise',
-    status: 'pending'
-  },
-  {
-    id: 'demo-arb-high',
-    student_name: '李明',
-    course: 'Python 程序设计',
-    topic: '循环结构扩展资源',
-    risk_level: 'high',
-    trigger_reason: '内容出现课程范围外示例，需拦截或重写。',
-    original_content: '将循环结构扩展到股票预测与机器学习训练。',
-    suggested_content: '拒绝该版本，重新回到 Python 循环基础。',
-    review_result: 'blocked',
-    retry_count: 3,
-    rag_citations: [],
-    profile_risk_evidence: ['课程对齐度低', '超纲风险高'],
-    recommended_action: 'reject',
-    status: 'pending'
-  }
-];
-
-const tasks = ref<ArbitrationTask[]>(fallbackTasks);
+const tasks = ref<ArbitrationTask[]>([]);
 const loading = ref(false);
 const message = ref('');
 const comments = reactive<Record<string, string>>({});
 const revisedContent = reactive<Record<string, string>>({});
 const suggestedActions = reactive<Record<string, string>>({});
+const submitting = reactive<Record<string, boolean>>({});
+const decisionRequestIds = reactive<Record<string, string>>({});
+const decisionInFlight = ref(false);
+const pageFrozen = ref(false);
+
+function decisionRequestKey(task: ArbitrationTask, decision: 'approve' | 'revise' | 'reject') {
+  return `${task.id}:${task.arbitration_item_id}:${decision}`;
+}
+
+function newDecisionRequestId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `decision-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function clearTaskState(taskId: string, arbitrationItemId: string) {
+  delete comments[taskId];
+  delete revisedContent[taskId];
+  delete suggestedActions[taskId];
+  Object.keys(decisionRequestIds)
+    .filter((key) => key.startsWith(`${taskId}:${arbitrationItemId}:`))
+    .forEach((key) => delete decisionRequestIds[key]);
+}
 
 function riskTone(risk: string) {
   if (risk === 'high') return 'danger';
@@ -98,37 +70,76 @@ function statusTone(status: string) {
 async function load() {
   loading.value = true;
   message.value = '正在刷新教师仲裁队列...';
+  tasks.value = [];
+  Object.keys(comments).forEach((key) => delete comments[key]);
+  Object.keys(revisedContent).forEach((key) => delete revisedContent[key]);
+  Object.keys(suggestedActions).forEach((key) => delete suggestedActions[key]);
+  Object.keys(submitting).forEach((key) => delete submitting[key]);
+  Object.keys(decisionRequestIds).forEach((key) => delete decisionRequestIds[key]);
   try {
     const result = await api.get<ArbitrationTask[]>('/api/v1/teacher-arbitrations');
-    tasks.value = result.length ? result : fallbackTasks;
-    message.value = '教师仲裁队列已刷新。';
-  } catch {
-    tasks.value = fallbackTasks;
-    message.value = '当前网络不稳定，已展示本地仲裁演示队列。';
+    tasks.value = result;
+    message.value = result.length ? '教师仲裁队列已刷新。' : '当前授权课程暂无待仲裁任务。';
+    return true;
+  } catch (err) {
+    tasks.value = [];
+    message.value = err instanceof Error ? `教师仲裁队列加载失败：${err.message}` : '教师仲裁队列加载失败。';
+    return false;
   } finally {
     loading.value = false;
   }
 }
 
+async function refreshQueue() {
+  if (decisionInFlight.value || loading.value) return;
+  const loaded = await load();
+  if (loaded) pageFrozen.value = false;
+}
+
 async function decide(task: ArbitrationTask, decision: 'approve' | 'revise' | 'reject') {
+  if (decisionInFlight.value || pageFrozen.value) return;
+  decisionInFlight.value = true;
+  submitting[task.id] = true;
+  const requestKey = decisionRequestKey(task, decision);
+  const decisionRequestId = decisionRequestIds[requestKey] || newDecisionRequestId();
+  decisionRequestIds[requestKey] = decisionRequestId;
   const teacherComment = comments[task.id] || (
     decision === 'approve' ? '内容可发布，保留引用证据。' :
     decision === 'revise' ? '请按教师意见修改后重新生成。' :
     '超出课程范围，拒绝发布。'
   );
+  const target = Object.freeze({
+    taskId: task.id,
+    agentRunId: task.agent_run_id || task.id,
+    arbitrationItemId: task.arbitration_item_id,
+    decision,
+    decisionRequestId,
+    teacherComment,
+    revisedContent: decision === 'revise' ? (revisedContent[task.id] || task.suggested_content) : undefined,
+    suggestedAction: suggestedActions[task.id] || task.recommended_action
+  });
   try {
-    const result = await api.post<{ status: string; message?: string }>(`/api/v1/teacher-arbitration/${task.agent_run_id || task.id}/decision`, {
-      decision,
-      teacher_comment: teacherComment,
-      comment: teacherComment,
-      revised_content: decision === 'revise' ? (revisedContent[task.id] || task.suggested_content) : undefined,
-      suggested_action: suggestedActions[task.id] || task.recommended_action
+    const result = await api.post<{ status: string; message?: string }>(`/api/v1/teacher-arbitration/${target.agentRunId}/decision`, {
+      decision: target.decision,
+      arbitration_item_id: target.arbitrationItemId,
+      decision_request_id: target.decisionRequestId,
+      teacher_comment: target.teacherComment,
+      comment: target.teacherComment,
+      revised_content: target.revisedContent,
+      suggested_action: target.suggestedAction
     });
-    task.status = result.status;
-    task.teacher_comment = teacherComment;
-    message.value = result.message || '教师仲裁结果已提交。';
+    pageFrozen.value = true;
+    const taskIndex = tasks.value.findIndex(
+      (item) => item.id === target.taskId && item.arbitration_item_id === target.arbitrationItemId
+    );
+    if (taskIndex >= 0) tasks.value.splice(taskIndex, 1);
+    clearTaskState(target.taskId, target.arbitrationItemId);
+    message.value = `${result.message || '教师仲裁结果已提交。'} 本次操作已完成，请手动刷新后继续。`;
   } catch (err) {
     message.value = err instanceof Error ? err.message : '教师仲裁提交失败。';
+  } finally {
+    submitting[target.taskId] = false;
+    decisionInFlight.value = false;
   }
 }
 
@@ -139,14 +150,14 @@ onMounted(load);
   <section class="page decision-center-page">
     <PageHeader title="教师仲裁中心" description="复核高风险或多次审核未通过的路径、资源与报告，形成 approve / revise / reject 闭环。">
       <template #actions>
-        <button class="secondary" :disabled="loading" @click="load">{{ loading ? '刷新中...' : '刷新' }}</button>
+        <button type="button" class="secondary" :disabled="loading || decisionInFlight" @click="refreshQueue">{{ loading ? '刷新中...' : '刷新' }}</button>
       </template>
     </PageHeader>
 
     <p v-if="message" class="panel muted">{{ message }}</p>
 
     <div class="arbitration-list">
-      <DataCard v-for="task in tasks" :key="task.id" :title="`${task.student_name} · ${task.topic}`" :subtitle="`${task.course} · retry ${task.retry_count}`">
+      <DataCard v-for="task in tasks" :key="`${task.id}:${task.arbitration_item_id}`" :title="`${task.student_name} · ${task.topic}`" :subtitle="`${task.course} · retry ${task.retry_count}`">
         <div class="task-head">
           <StatusBadge :label="`风险：${task.risk_level}`" :tone="riskTone(task.risk_level)" />
           <StatusBadge :label="`状态：${task.status}`" :tone="statusTone(task.status)" />
@@ -193,9 +204,9 @@ onMounted(load);
         </div>
 
         <div class="action-row">
-          <button type="button" @click="decide(task, 'approve')">通过</button>
-          <button type="button" class="secondary" @click="decide(task, 'revise')">修改</button>
-          <button type="button" class="danger" @click="decide(task, 'reject')">拒绝</button>
+          <button type="button" :disabled="decisionInFlight || pageFrozen || submitting[task.id] || task.status !== 'pending'" @click.stop.prevent="decide(task, 'approve')">通过</button>
+          <button type="button" class="secondary" :disabled="decisionInFlight || pageFrozen || submitting[task.id] || task.status !== 'pending'" @click.stop.prevent="decide(task, 'revise')">修改</button>
+          <button type="button" class="danger" :disabled="decisionInFlight || pageFrozen || submitting[task.id] || task.status !== 'pending'" @click.stop.prevent="decide(task, 'reject')">拒绝</button>
         </div>
       </DataCard>
     </div>

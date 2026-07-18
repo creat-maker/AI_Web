@@ -205,8 +205,8 @@ def ensure_governance_seed(db: Session) -> None:
         db,
         task_type="resource_pack",
         title="Python 循环结构个性化补弱资源包",
-        actor_id="teacher_001",
-        actor_role="teacher",
+        actor_id="system_demo_seed",
+        actor_role="system",
         input_summary="课程=Python 程序设计；主题=循环结构；学生画像=基础薄弱 + 代码实操偏好型",
         output_summary="生成讲义、练习、动画、代码案例和项目任务，等待教师复核。",
         status="pending_review",
@@ -236,8 +236,8 @@ def ensure_governance_seed(db: Session) -> None:
         db,
         task_type="learning_report",
         title="循环结构形成性评价报告重新生成",
-        actor_id="teacher_001",
-        actor_role="teacher",
+        actor_id="system_demo_seed",
+        actor_role="system",
         input_summary="学生报告摘要、最近测验结果、答疑摘要",
         output_summary="未覆盖上一版报告。",
         status="failed",
@@ -277,9 +277,9 @@ def ensure_governance_seed(db: Session) -> None:
     )
     write_audit_log(
         db,
-        actor_id="teacher_001",
-        actor_name="王老师",
-        actor_role="teacher",
+        actor_id="system_demo_seed",
+        actor_name="演示数据初始化",
+        actor_role="system",
         action="resource_pack_submitted",
         target_type="review_item",
         target_id=resource_task.id,
@@ -308,7 +308,7 @@ def review_item_to_dict(item: ReviewItem) -> dict[str, Any]:
         "confidence": content.get("confidence", 0.86),
         "risk_tip": content.get("risk_tip", "低依据风险已进入人工复核。"),
         "generation_basis": content.get("generation_basis", []),
-        "actor_name": "王老师",
+        "actor_name": item.reviewer_name or "",
     }
 
 
@@ -670,48 +670,58 @@ def _merge_agent_output(item: AgentRun, state: dict[str, Any], artifact_ids: dic
 def apply_teacher_arbitration_decision(
     db: Session,
     *,
-    item: AgentRun | None,
+    item: AgentRun,
     item_id: str,
+    current_user: dict[str, Any],
     decision: str,
     teacher_comment: str,
+    decision_request_id: str,
+    arbitration_item_id: str,
     revised_content: str | None = None,
     suggested_action: str | None = None,
 ) -> dict[str, Any]:
-    state = loads(item.state, {}) if item else {"run_id": item_id, "retry_count": 0, "messages": []}
+    arbitration = loads(item.teacher_arbitration_result, {})
+    if item.status != "pending_review" or item.current_node != "TeacherArbitration":
+        raise ValueError("该任务当前不处于待仲裁状态")
+    if arbitration and arbitration.get("status") != "pending":
+        raise ValueError("该任务已完成仲裁，不得重复执行")
+    state = loads(item.state, {})
     next_state = resume_after_teacher_decision(state, decision, teacher_comment, revised_content)
-    can_resume = bool(item and next_state.get("course_id") and "generated_resources" in next_state)
+    can_resume = bool(next_state.get("course_id") and "generated_resources" in next_state)
     if can_resume:
         from app.agents.graph import continue_after_teacher_arbitration
 
         next_state = continue_after_teacher_arbitration(next_state)
     artifact_ids: dict[str, Any] = {}
-    if item:
-        artifact_ids = _sync_agent_run_artifacts(db, item, next_state)
-        item.teacher_arbitration_result = dumps(next_state["teacher_arbitration_result"])
-        item.state = dumps(next_state)
-        item.messages = dumps(next_state.get("messages", []))
-        item.current_node = next_state["current_node"]
-        item.status = next_state["status"]
-        item.output_json = dumps(_merge_agent_output(item, next_state, artifact_ids))
-        if next_state["status"] in {"success", "rejected"}:
-            item.finished_at = datetime.utcnow()
-        else:
-            item.finished_at = None
+    artifact_ids = _sync_agent_run_artifacts(db, item, next_state)
+    item.teacher_arbitration_result = dumps(next_state["teacher_arbitration_result"])
+    item.state = dumps(next_state)
+    item.messages = dumps(next_state.get("messages", []))
+    item.current_node = next_state["current_node"]
+    item.status = next_state["status"]
+    item.output_json = dumps(_merge_agent_output(item, next_state, artifact_ids))
+    if next_state["status"] in {"success", "rejected"}:
+        item.finished_at = datetime.utcnow()
+    else:
+        item.finished_at = None
     log_detail = next_state["teacher_decision_log"][-1]
+    actor_id, actor_name, actor_role = current_user_label(current_user)
     row = AuditLog(
-        actor_id="teacher_001",
-        actor_name="王老师",
-        actor_role="teacher",
+        actor_id=actor_id,
+        actor_name=actor_name,
+        actor_role=actor_role,
         action="teacher_arbitration_decision",
         target_type="teacher_arbitration",
         target_id=item_id,
         status=decision,
-        detail=teacher_comment,
+        detail=redact_payload(teacher_comment),
         retry_count=log_detail["retry_count"],
         rule_engine_result=dumps({**log_detail, "revised_content": revised_content, "suggested_action": suggested_action}),
         xfyun_result=dumps({"status": "not_configured", "message": "使用本地 fallback 记录教师仲裁。"}),
-        risk_level=(loads(item.audit_result, {}) if item else {}).get("risk_level", "medium"),
+        risk_level=loads(item.audit_result, {}).get("risk_level", "medium"),
         arbitration_status="completed",
+        decision_request_id=decision_request_id,
+        arbitration_item_id=arbitration_item_id,
     )
     db.add(row)
     db.commit()

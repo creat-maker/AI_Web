@@ -7,10 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_admin, require_staff
+from app.api.routers.auth import get_authenticated_user
 from app.db.session import get_db
-from app.models import Course, GeneratedResource, LearningPath, Quiz, QuizSubmission, StudentProfile
-from app.services.business_event_service import event_to_dict, list_events, record_event
+from app.models import Course, GeneratedResource, LearningPath, Quiz, QuizSubmission, StudentProfile, SystemLog
+from app.services.business_event_service import EVENT_LOG_TYPE, event_to_dict, list_events, record_event
 from app.services.json_utils import dumps, loads
+from app.services.governance_service import current_user_label
+from app.services.teacher_scope_service import get_course_for_write, get_profile_for_write
 
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -23,6 +27,7 @@ class EventPayload(BaseModel):
     event_type: str
     title: str
     description: str
+    actor_id: str | None = None
     actor_role: str = "demo"
     actor_name: str = "EduMind demo user"
     target_type: str = "system"
@@ -76,35 +81,52 @@ def list_business_events(
 
 
 @router.post("")
-def create_event(payload: EventPayload, db: Session = Depends(get_db)):
-    item = record_event(db, **payload.model_dump())
+def create_event(
+    payload: EventPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_admin),
+):
+    actor_id, actor_name, actor_role = current_user_label(current_user)
+    data = payload.model_dump(exclude={"actor_id", "actor_name", "actor_role"})
+    item = record_event(db, **data, actor_id=actor_id, actor_name=actor_name, actor_role=actor_role)
     return event_to_dict(item)
 
 
-def _first_course(db: Session, course_id: int | None) -> Course:
-    course = db.query(Course).filter(Course.id == course_id).first() if course_id else db.query(Course).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="课程不存在，请先运行演示数据脚本。")
-    return course
+def _target_course(db: Session, current_user: dict[str, Any], course_id: int | None) -> Course:
+    if course_id is None:
+        raise HTTPException(status_code=422, detail="必须指定课程")
+    return get_course_for_write(db, current_user, course_id)
 
 
-def _first_profile(db: Session, profile_id: int | None) -> StudentProfile | None:
-    if profile_id:
-        return db.query(StudentProfile).filter(StudentProfile.id == profile_id).first()
-    return db.query(StudentProfile).first()
+def _target_profile(
+    db: Session,
+    current_user: dict[str, Any],
+    profile_id: int | None,
+    course: Course,
+) -> StudentProfile:
+    if profile_id is None:
+        raise HTTPException(status_code=422, detail="必须指定学生画像")
+    return get_profile_for_write(db, current_user, profile_id, course=course)
 
 
 @router.post("/resource-package")
-def create_resource_package(payload: ResourcePackagePayload, db: Session = Depends(get_db)):
-    course = _first_course(db, payload.course_id)
-    profile = _first_profile(db, payload.student_profile_id)
-    weak_points = loads(profile.weak_points, []) if profile else ["while 循环终止条件", "break / continue 区分"]
-    package_id = f"pkg-{course.id}-{profile.id if profile else 0}-{date.today().isoformat()}"
+def create_resource_package(
+    payload: ResourcePackagePayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
+    course = _target_course(db, current_user, payload.course_id)
+    profile = _target_profile(db, current_user, payload.student_profile_id, course)
+    actor_id, actor_name, actor_role = current_user_label(current_user)
+    weak_points = loads(profile.weak_points, [])
+    package_id = f"pkg-{course.id}-{profile.id}-{date.today().isoformat()}"
+    if db.query(SystemLog).filter(SystemLog.type == EVENT_LOG_TYPE, SystemLog.related_id == package_id).first():
+        raise HTTPException(status_code=409, detail="该资源包请求已处理")
     resources = []
     for index, resource_type in enumerate(RESOURCE_TYPES, start=1):
         resource = GeneratedResource(
             course_id=course.id,
-            student_profile_id=profile.id if profile else None,
+            student_profile_id=profile.id,
             resource_type=resource_type,
             title=f"{course.title} · {resource_type}",
             content=f"{resource_type}：围绕 {', '.join(str(item) for item in weak_points[:3])} 生成，用于个性化多模态资源包。",
@@ -118,14 +140,21 @@ def create_resource_package(payload: ResourcePackagePayload, db: Session = Depen
         db,
         event_type="resource_generated",
         title="生成个性化资源包",
-        description=f"已为 {profile.student_name if profile else '演示学生'} 生成 9 类资源包。",
-        actor_role=payload.actor_role,
-        actor_name=payload.actor_name,
+        description=f"已为 {profile.student_name} 生成 9 类资源包。",
+        actor_id=actor_id,
+        actor_role=actor_role,
+        actor_name=actor_name,
         target_type="resource_package",
         target_id=package_id,
-        related_student=profile.student_name if profile else "",
+        related_student=profile.student_name,
         related_course=course.title,
-        metadata={"package_id": package_id, "resource_count": len(resources), "resource_types": RESOURCE_TYPES, "course_id": course.id},
+        metadata={
+            "package_id": package_id,
+            "resource_count": len(resources),
+            "resource_types": RESOURCE_TYPES,
+            "course_id": course.id,
+            "student_profile_id": profile.id,
+        },
         commit=False,
     )
     db.commit()
@@ -134,18 +163,38 @@ def create_resource_package(payload: ResourcePackagePayload, db: Session = Depen
     return {
         "package_id": package_id,
         "course_id": course.id,
-        "student_profile_id": profile.id if profile else None,
+        "student_profile_id": profile.id,
         "resources": resources,
         "demo_fallback_note": "资源包由 EduMind fallback API 生成，用于演示画像到资源生成闭环。",
     }
 
 
 @router.post("/add-resource-to-path")
-def add_resource_to_path(payload: AddToPathPayload, db: Session = Depends(get_db)):
-    course = _first_course(db, payload.course_id)
-    profile = _first_profile(db, payload.student_profile_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="学生画像不存在，请先生成画像。")
+def add_resource_to_path(
+    payload: AddToPathPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_authenticated_user),
+):
+    if payload.course_id is None:
+        raise HTTPException(status_code=422, detail="必须指定课程")
+    course = db.query(Course).filter(Course.id == payload.course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="课程不存在或不可访问")
+    profile = _target_profile(db, current_user, payload.student_profile_id, course)
+    if current_user.get("role") in {"teacher", "admin"}:
+        course = _target_course(db, current_user, payload.course_id)
+    actor_id, actor_name, actor_role = current_user_label(current_user)
+    package_event = (
+        db.query(SystemLog)
+        .filter(SystemLog.type == EVENT_LOG_TYPE, SystemLog.related_id == payload.package_id)
+        .order_by(SystemLog.id.desc())
+        .first()
+    )
+    if not package_event:
+        raise HTTPException(status_code=404, detail="资源包不存在或不可访问")
+    package_data = event_to_dict(package_event).get("metadata", {})
+    if int(package_data.get("course_id") or -1) != int(course.id) or int(package_data.get("student_profile_id") or -1) != int(profile.id):
+        raise HTTPException(status_code=404, detail="资源包不存在或不可访问")
     item = (
         db.query(LearningPath)
         .filter(LearningPath.student_profile_id == profile.id)
@@ -177,8 +226,9 @@ def add_resource_to_path(payload: AddToPathPayload, db: Session = Depends(get_db
             event_type=event_type,
             title=title,
             description=f"{payload.package_id} 已绑定到 {profile.student_name} 的学习路径。",
-            actor_role=payload.actor_role,
-            actor_name=payload.actor_name,
+            actor_id=actor_id,
+            actor_role=actor_role,
+            actor_name=actor_name,
             target_type="learning_path",
             target_id=item.id,
             related_student=profile.student_name,
@@ -192,30 +242,38 @@ def add_resource_to_path(payload: AddToPathPayload, db: Session = Depends(get_db
 
 
 @router.post("/assign-task")
-def assign_task(payload: TaskAssignPayload, db: Session = Depends(get_db)):
-    course = _first_course(db, payload.course_id)
-    profile = _first_profile(db, payload.student_profile_id)
+def assign_task(
+    payload: TaskAssignPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
+    course = _target_course(db, current_user, payload.course_id)
+    profile = _target_profile(db, current_user, payload.student_profile_id, course)
+    actor_id, actor_name, actor_role = current_user_label(current_user)
     due = payload.due_date or (date.today() + timedelta(days=3)).isoformat()
     task = {
-        "task_id": f"task-{course.id}-{profile.id if profile else 0}-{date.today().isoformat()}",
+        "task_id": f"task-{course.id}-{profile.id}-{date.today().isoformat()}",
         "weak_point": payload.weak_point,
         "task_type": payload.task_type,
         "due_date": due,
         "status": "assigned",
     }
+    if db.query(SystemLog).filter(SystemLog.type == EVENT_LOG_TYPE, SystemLog.related_id == task["task_id"]).first():
+        raise HTTPException(status_code=409, detail="该任务已分配")
     for event_type, title in [("teacher_intervention_created", "教师创建干预"), ("task_assigned", "教师布置补强任务")]:
         record_event(
             db,
             event_type=event_type,
             title=title,
             description=f"{payload.task_type}：{payload.weak_point}，截止 {due}。",
-            actor_role=payload.actor_role,
-            actor_name=payload.actor_name,
+            actor_id=actor_id,
+            actor_role=actor_role,
+            actor_name=actor_name,
             target_type="student_task",
             target_id=task["task_id"],
-            related_student=profile.student_name if profile else "",
+            related_student=profile.student_name,
             related_course=course.title,
-            metadata={"task": task, "course_id": course.id, "student_profile_id": profile.id if profile else None},
+            metadata={"task": task, "course_id": course.id, "student_profile_id": profile.id},
             commit=False,
         )
     db.commit()
@@ -223,11 +281,20 @@ def assign_task(payload: TaskAssignPayload, db: Session = Depends(get_db)):
 
 
 @router.post("/demo-quiz")
-def complete_demo_quiz(payload: DemoQuizPayload, db: Session = Depends(get_db)):
-    course = _first_course(db, payload.course_id)
-    profile = _first_profile(db, payload.student_profile_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="学生画像不存在，请先生成画像。")
+def complete_demo_quiz(
+    payload: DemoQuizPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_authenticated_user),
+):
+    if payload.course_id is None:
+        raise HTTPException(status_code=422, detail="必须指定课程")
+    course = db.query(Course).filter(Course.id == payload.course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="课程不存在或不可访问")
+    profile = _target_profile(db, current_user, payload.student_profile_id, course)
+    if current_user.get("role") in {"teacher", "admin"}:
+        course = _target_course(db, current_user, payload.course_id)
+    actor_id, actor_name, actor_role = current_user_label(current_user)
     quiz = db.query(Quiz).filter(Quiz.course_id == course.id).first()
     if not quiz:
         quiz = Quiz(course_id=course.id, student_profile_id=profile.id, quiz_json=dumps({"title": "demo 测验"}))
@@ -253,8 +320,9 @@ def complete_demo_quiz(payload: DemoQuizPayload, db: Session = Depends(get_db)):
         event_type="quiz_completed",
         title="完成一次 demo 测验",
         description=f"{profile.student_name} 完成测验，得分 {result['score']}，薄弱点已反馈到画像和资源推荐。",
-        actor_role=payload.actor_role,
-        actor_name=payload.actor_name,
+        actor_id=actor_id,
+        actor_role=actor_role,
+        actor_name=actor_name,
         target_type="quiz_submission",
         target_id=submission.id,
         related_student=profile.student_name,
@@ -267,10 +335,14 @@ def complete_demo_quiz(payload: DemoQuizPayload, db: Session = Depends(get_db)):
 
 
 @router.post("/admin-review")
-def admin_review(payload: EventPayload, db: Session = Depends(get_db)):
-    data = payload.model_dump()
+def admin_review(
+    payload: EventPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_admin),
+):
+    actor_id, actor_name, actor_role = current_user_label(current_user)
+    data = payload.model_dump(exclude={"actor_id", "actor_name", "actor_role"})
     data["event_type"] = "admin_review_completed"
     data["title"] = data["title"] or "管理员审核完成"
-    data["actor_role"] = "admin"
-    item = record_event(db, **data)
+    item = record_event(db, **data, actor_id=actor_id, actor_name=actor_name, actor_role=actor_role)
     return {"event_id": item.id, "status": "success"}

@@ -40,7 +40,7 @@ from sqlalchemy import inspect, text  # noqa: E402
 DEMO_MARK = "EduMind final demo seed v5"
 NOW = datetime.utcnow()
 
-CORE_STUDENTS = ["张三", "李四", "王五"]
+CORE_STUDENTS = ["李明", "张三", "李四", "王五"]
 CORE_TEACHERS = ["王老师", "陈老师", "张老师"]
 CORE_COURSES = ["Python 爬虫基础与实践", "人工智能导论", "数据结构与算法", "Web 开发技术"]
 CORE_CLASSES = ["计科大三 1 班", "计科大三 2 班"]
@@ -102,6 +102,8 @@ def ensure_profile(db, stats, course: Course, data: dict[str, Any], created_at: 
     if not item:
         item = StudentProfile(
             course_id=course.id,
+            owner_user_id=data["owner_user_id"],
+            demo_profile_key=data.get("demo_profile_key"),
             student_name=data["student_name"],
             current_level=data["current_level"],
             learning_goal=data["learning_goal"],
@@ -110,6 +112,7 @@ def ensure_profile(db, stats, course: Course, data: dict[str, Any], created_at: 
             profile_json=dumps(
                 {
                     "demo_seed": DEMO_MARK,
+                    "user_id": data["owner_user_id"],
                     "class_name": data["class_name"],
                     "diagnosis": data["diagnosis"],
                     "risk_level": data["risk_level"],
@@ -123,6 +126,22 @@ def ensure_profile(db, stats, course: Course, data: dict[str, Any], created_at: 
         db.commit()
         db.refresh(item)
         created = True
+    else:
+        changed = False
+        if not item.owner_user_id:
+            item.owner_user_id = data["owner_user_id"]
+            changed = True
+        if not item.demo_profile_key:
+            item.demo_profile_key = data.get("demo_profile_key")
+            changed = True
+        raw = loads(item.profile_json, {})
+        if raw.get("user_id") != data["owner_user_id"]:
+            raw["user_id"] = data["owner_user_id"]
+            item.profile_json = dumps(raw)
+            changed = True
+        if changed:
+            db.commit()
+            db.refresh(item)
     _touch(stats, "student_profiles", created)
     return item
 
@@ -406,10 +425,10 @@ def seed() -> dict[str, dict[str, int]]:
         }
 
         profiles = [
-            ensure_profile(db, stats, courses["python_programming"], {"student_name": "李明", "class_name": "计算机类 1 班", "current_level": "基础薄弱", "learning_goal": "两周内补齐 Python 循环结构，完成课程作业和基础代码实操", "weak_points": ["while 循环", "循环嵌套", "break / continue"], "learning_preference": "代码实操案例 + 变量变化图解", "diagnosis": "基础概念能跟随讲解理解，但 while 循环终止条件、break/continue 和嵌套循环变量追踪不稳定。", "risk_level": "medium", "recommended_strategy": "先用动画和讲义补基础，再通过代码案例、小项目和分层练习巩固。"}, _created_at(6)),
-            ensure_profile(db, stats, courses["python"], {"student_name": "张三", "class_name": "计科大三 1 班", "current_level": "基础薄弱", "learning_goal": "两周内掌握 Python 爬虫基础与 HTTP 请求流程", "weak_points": ["HTTP 请求", "数据解析", "异常处理"], "learning_preference": "案例驱动", "diagnosis": "能跟随示例完成代码，但对请求参数、页面解析和错误定位缺少稳定方法。", "risk_level": "需关注", "recommended_strategy": "先拆解请求、解析、保存三步，再用小型采集任务巩固。"}, _created_at(6)),
-            ensure_profile(db, stats, courses["python"], {"student_name": "李四", "class_name": "计科大三 1 班", "current_level": "中等", "learning_goal": "完成一个简单网页数据采集小项目", "weak_points": ["HTML 解析", "代码组织", "数据保存"], "learning_preference": "项目制学习", "diagnosis": "语法基础较稳，项目拆解和异常处理仍需要模板支撑。", "risk_level": "稳定", "recommended_strategy": "按请求、解析、保存三个阶段推进小项目。"}, _created_at(5)),
-            ensure_profile(db, stats, courses["ds"], {"student_name": "王五", "class_name": "计科大三 2 班", "current_level": "中等偏弱", "learning_goal": "理解栈、队列、树和递归题的解题套路", "weak_points": ["递归边界", "树遍历", "复杂度分析"], "learning_preference": "图示讲解", "diagnosis": "能背诵定义，但把数据结构映射到题目场景时不够熟练。", "risk_level": "需关注", "recommended_strategy": "用流程图和手算跟踪训练递归与遍历。"}, _created_at(4)),
+            ensure_profile(db, stats, courses["python_programming"], {"owner_user_id": "student_001", "demo_profile_key": "demo-basic", "student_name": "李明", "class_name": "计算机类 1 班", "current_level": "基础薄弱", "learning_goal": "两周内补齐 Python 循环结构，完成课程作业和基础代码实操", "weak_points": ["while 循环", "循环嵌套", "break / continue"], "learning_preference": "代码实操案例 + 变量变化图解", "diagnosis": "基础概念能跟随讲解理解，但 while 循环终止条件、break/continue 和嵌套循环变量追踪不稳定。", "risk_level": "medium", "recommended_strategy": "先用动画和讲义补基础，再通过代码案例、小项目和分层练习巩固。"}, _created_at(6)),
+            ensure_profile(db, stats, courses["python"], {"owner_user_id": "demo_student_zhangsan", "demo_profile_key": "demo-zhangsan", "student_name": "张三", "class_name": "计科大三 1 班", "current_level": "基础薄弱", "learning_goal": "两周内掌握 Python 爬虫基础与 HTTP 请求流程", "weak_points": ["HTTP 请求", "数据解析", "异常处理"], "learning_preference": "案例驱动", "diagnosis": "能跟随示例完成代码，但对请求参数、页面解析和错误定位缺少稳定方法。", "risk_level": "需关注", "recommended_strategy": "先拆解请求、解析、保存三步，再用小型采集任务巩固。"}, _created_at(6)),
+            ensure_profile(db, stats, courses["python"], {"owner_user_id": "demo_student_lisi", "demo_profile_key": "demo-lisi", "student_name": "李四", "class_name": "计科大三 1 班", "current_level": "中等", "learning_goal": "完成一个简单网页数据采集小项目", "weak_points": ["HTML 解析", "代码组织", "数据保存"], "learning_preference": "项目制学习", "diagnosis": "语法基础较稳，项目拆解和异常处理仍需要模板支撑。", "risk_level": "稳定", "recommended_strategy": "按请求、解析、保存三个阶段推进小项目。"}, _created_at(5)),
+            ensure_profile(db, stats, courses["ds"], {"owner_user_id": "demo_student_wangwu", "demo_profile_key": "demo-wangwu", "student_name": "王五", "class_name": "计科大三 2 班", "current_level": "中等偏弱", "learning_goal": "理解栈、队列、树和递归题的解题套路", "weak_points": ["递归边界", "树遍历", "复杂度分析"], "learning_preference": "图示讲解", "diagnosis": "能背诵定义，但把数据结构映射到题目场景时不够熟练。", "risk_level": "需关注", "recommended_strategy": "用流程图和手算跟踪训练递归与遍历。"}, _created_at(4)),
         ]
 
         docs = [
@@ -513,6 +532,8 @@ def seed() -> dict[str, dict[str, int]]:
 def ensure_compatible_columns() -> None:
     table_columns = {
         "student_profiles": {
+            "owner_user_id": "VARCHAR(100)",
+            "demo_profile_key": "VARCHAR(100)",
             "dimension_scores": "TEXT",
             "evidence_items": "TEXT",
             "cognitive_state": "TEXT",

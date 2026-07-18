@@ -6,15 +6,51 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.models import StudentProfile
-from app.services.demo_profile_chain import normalize_profile_schema, normalize_user_id
+from app.services.demo_profile_chain import normalize_profile_schema
 from app.services.json_utils import dumps, loads
 from app.services.llm_service import llm_service
 
 
 def create_profile(db: Session, data: dict) -> StudentProfile:
     generated = llm_service.generate_json("profile", data)
-    profile_json = normalize_profile_schema({**generated, **data}, data.get("user_id"))
+    owner_user_id = str(data.get("owner_user_id") or "").strip()
+    if not owner_user_id:
+        raise ValueError("画像缺少稳定所有者")
+    demo_profile_key = str(data.get("demo_profile_key") or owner_user_id or "generic").strip()
+    raw_profile = {
+        **generated,
+        **data,
+        "user_id": owner_user_id,
+        "student_name": data["student_name"],
+    }
+    try:
+        profile_json = normalize_profile_schema(raw_profile, demo_profile_key)
+    except ValueError:
+        weak_points = raw_profile.get("weak_points") or []
+        if isinstance(weak_points, str):
+            weak_points = [item.strip() for item in weak_points.split(",") if item.strip()]
+        learning_style = (
+            raw_profile.get("learning_style")
+            or raw_profile.get("learning_preference")
+            or ""
+        )
+        profile_json = {
+            **raw_profile,
+            "user_id": owner_user_id,
+            "student_name": data["student_name"],
+            "display_name": data["student_name"],
+            "current_level": raw_profile.get("current_level") or "",
+            "learning_goal": raw_profile.get("learning_goal") or "",
+            "weak_points": weak_points,
+            "learning_style": learning_style,
+            "learning_preference": learning_style,
+        }
+    profile_json["user_id"] = owner_user_id
+    profile_json["student_name"] = data["student_name"]
+    profile_json["display_name"] = data["student_name"]
     profile = StudentProfile(
+        owner_user_id=owner_user_id,
+        demo_profile_key=demo_profile_key,
         student_name=profile_json["student_name"],
         course_id=data["course_id"],
         current_level=profile_json["current_level"],
@@ -41,17 +77,61 @@ def _profile_json(profile: StudentProfile) -> dict:
 
 
 def list_profiles_by_user_id(db: Session, user_id: str | int, course_id: int | None = None) -> list[StudentProfile]:
-    normalized = normalize_user_id(user_id)
-    items = list_profiles(db, course_id)
-    return [
-        item for item in items
-        if _profile_json(item).get("user_id") and normalize_user_id(_profile_json(item).get("user_id")) == normalized
-    ]
+    query = db.query(StudentProfile).filter(StudentProfile.owner_user_id == str(user_id))
+    if course_id:
+        query = query.filter(StudentProfile.course_id == course_id)
+    return query.order_by(StudentProfile.id.desc()).all()
 
 
 def latest_profile_by_user_id(db: Session, user_id: str | int, course_id: int | None = None) -> StudentProfile | None:
     items = list_profiles_by_user_id(db, user_id, course_id)
     return items[0] if items else None
+
+
+def _generic_profile_schema(profile: StudentProfile, raw_json: dict) -> dict:
+    weak_points = loads(profile.weak_points, raw_json.get("weak_points", []))
+    if isinstance(weak_points, str):
+        weak_points = [item.strip() for item in weak_points.split(",") if item.strip()]
+    learning_style = (
+        profile.learning_preference
+        or raw_json.get("learning_style")
+        or raw_json.get("learning_preference")
+        or ""
+    )
+    current_level = profile.current_level or raw_json.get("current_level") or ""
+    return {
+        **raw_json,
+        "user_id": getattr(profile, "owner_user_id", None),
+        "student_name": profile.student_name,
+        "display_name": profile.student_name,
+        "profile_type": raw_json.get("profile_type") or "个性化学习画像",
+        "major": raw_json.get("major") or "",
+        "course_id": profile.course_id,
+        "course_name": raw_json.get("course_name") or "",
+        "learning_goal": profile.learning_goal or raw_json.get("learning_goal") or "",
+        "knowledge_level": raw_json.get("knowledge_level") or current_level,
+        "knowledge_base": raw_json.get("knowledge_base") or current_level,
+        "cognitive_style": raw_json.get("cognitive_style") or "",
+        "current_level": current_level,
+        "weak_points": weak_points if isinstance(weak_points, list) else [],
+        "error_prone_points": raw_json.get("error_prone_points") or weak_points or [],
+        "learning_progress": raw_json.get("learning_progress") or "",
+        "emotional_motivation": raw_json.get("emotional_motivation") or "",
+        "learning_style": learning_style,
+        "learning_preference": learning_style,
+        "mistake_pattern": raw_json.get("mistake_pattern") or "",
+        "available_time": raw_json.get("available_time") or "",
+        "resource_preference": raw_json.get("resource_preference") or "",
+        "risk_level": profile.risk_level or raw_json.get("risk_level") or "medium",
+        "recommended_strategy": raw_json.get("recommended_strategy") or "",
+        "updated_at": profile.updated_at.isoformat() if profile.updated_at else raw_json.get("updated_at"),
+        "change_log": raw_json.get("change_log") or [],
+        "evidence_items": raw_json.get("evidence_items") or [],
+        "dialog_extraction": raw_json.get("dialog_extraction") or {},
+        "score": raw_json.get("score", 0),
+        "progress": raw_json.get("progress", 0),
+        "resource_usage": raw_json.get("resource_usage", 0),
+    }
 
 
 def profile_to_dict(profile: StudentProfile) -> dict:
@@ -61,26 +141,39 @@ def profile_to_dict(profile: StudentProfile) -> dict:
     cognitive_state = loads(getattr(profile, "cognitive_state", None), raw_json.get("cognitive_state", {}))
     profile_history = loads(getattr(profile, "profile_history", None), raw_json.get("profile_history", []))
     risk_level = getattr(profile, "risk_level", None) or raw_json.get("risk_level") or "medium"
-    normalized = normalize_profile_schema(
-        {
-            **raw_json,
-            "student_name": profile.student_name,
-            "course_id": profile.course_id,
-            "current_level": profile.current_level,
-            "learning_goal": profile.learning_goal,
-            "weak_points": loads(profile.weak_points, raw_json.get("weak_points", [])),
-            "learning_preference": profile.learning_preference,
-            "dimension_scores": dimension_scores,
-            "evidence_items": evidence_items,
-            "cognitive_state": cognitive_state,
-            "profile_history": profile_history,
-            "risk_level": risk_level,
-            "updated_at": profile.updated_at.isoformat() if profile.updated_at else raw_json.get("updated_at"),
-        },
-        raw_json.get("user_id"),
+    demo_profile_key = (
+        getattr(profile, "demo_profile_key", None)
+        or getattr(profile, "owner_user_id", None)
+        or "generic"
     )
+    profile_data = {
+        **raw_json,
+        "student_name": profile.student_name,
+        "display_name": profile.student_name,
+        "course_id": profile.course_id,
+        "current_level": profile.current_level,
+        "learning_goal": profile.learning_goal,
+        "weak_points": loads(profile.weak_points, raw_json.get("weak_points", [])),
+        "learning_preference": profile.learning_preference,
+        "dimension_scores": dimension_scores,
+        "evidence_items": evidence_items,
+        "cognitive_state": cognitive_state,
+        "profile_history": profile_history,
+        "risk_level": risk_level,
+        "updated_at": profile.updated_at.isoformat() if profile.updated_at else raw_json.get("updated_at"),
+    }
+    try:
+        normalized = normalize_profile_schema(profile_data, demo_profile_key)
+    except ValueError:
+        normalized = _generic_profile_schema(profile, profile_data)
+    normalized["user_id"] = getattr(profile, "owner_user_id", None)
+    normalized["student_name"] = profile.student_name
+    normalized["display_name"] = profile.student_name
+    normalized["course_id"] = profile.course_id
     return {
         "id": profile.id,
+        "owner_user_id": getattr(profile, "owner_user_id", None),
+        "demo_profile_key": demo_profile_key,
         **normalized,
         "dimension_scores": dimension_scores,
         "evidence_items": evidence_items,

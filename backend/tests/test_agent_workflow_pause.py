@@ -49,6 +49,7 @@ def test_full_flow_pauses_before_report_when_teacher_review_is_pending(tmp_path,
             question="为什么会死循环？",
         ),
         db,
+        {"user_id": "teacher_001", "username": "teacher", "name": "王老师", "role": "teacher"},
     )
 
     run = db.query(AgentRun).one()

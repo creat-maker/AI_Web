@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.api.routers.auth import get_current_user
+from app.api.routers.auth import get_authenticated_user
 from app.db.session import get_db
 from app.services.demo_profile_chain import normalize_user_id
 from app.services.governance_service import current_user_label, write_audit_log
@@ -23,7 +23,7 @@ def require_roles(*roles: str) -> Callable[..., dict[str, Any]]:
     async def dependency(
         request: Request,
         db: Session = Depends(get_db),
-        current_user: dict[str, Any] = Depends(get_current_user),
+        current_user: dict[str, Any] = Depends(get_authenticated_user),
     ) -> dict[str, Any]:
         role = str(current_user.get("role") or "guest")
         if role in allowed:
@@ -44,3 +44,7 @@ def require_roles(*roles: str) -> Callable[..., dict[str, Any]]:
         raise HTTPException(status_code=403, detail="当前角色无权访问该资源")
 
     return dependency
+
+
+require_admin = require_roles("admin")
+require_staff = require_roles("teacher", "admin")

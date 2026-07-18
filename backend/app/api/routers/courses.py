@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_staff
 from app.db.session import get_db
 from app.models import AgentRun, Course, GeneratedResource, LearningReport, Quiz, StudentProfile
 from app.services.course_service import create_course, delete_course, get_course, list_courses, update_course
+from app.services.teacher_scope_service import get_course_for_write, principal_name
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
@@ -50,10 +52,17 @@ def list_items(db: Session = Depends(get_db)):
 
 
 @router.post("")
-def create_item(payload: CoursePayload, db: Session = Depends(get_db)):
+def create_item(
+    payload: CoursePayload,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_staff),
+):
     if not payload.title.strip():
         raise HTTPException(status_code=400, detail="课程名称不能为空")
-    return create_course(db, _to_course_data(payload))
+    data = _to_course_data(payload)
+    if current_user.get("role") == "teacher":
+        data["teacher_name"] = principal_name(current_user)
+    return create_course(db, data)
 
 
 @router.get("/stats")
@@ -78,15 +87,29 @@ def get_item(course_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{course_id}")
-def update_item(course_id: int, payload: CoursePayload, db: Session = Depends(get_db)):
-    course = update_course(db, course_id, _to_course_data(payload))
+def update_item(
+    course_id: int,
+    payload: CoursePayload,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_staff),
+):
+    get_course_for_write(db, current_user, course_id)
+    data = _to_course_data(payload)
+    if current_user.get("role") == "teacher":
+        data["teacher_name"] = principal_name(current_user)
+    course = update_course(db, course_id, data)
     if not course:
         raise HTTPException(status_code=404, detail="课程不存在")
     return course
 
 
 @router.delete("/{course_id}")
-def delete_item(course_id: int, db: Session = Depends(get_db)):
+def delete_item(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_staff),
+):
+    get_course_for_write(db, current_user, course_id)
     if not delete_course(db, course_id):
         raise HTTPException(status_code=404, detail="课程不存在")
     return {"ok": True}

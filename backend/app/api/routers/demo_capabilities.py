@@ -1,20 +1,30 @@
 from __future__ import annotations
 
 from datetime import datetime
+from threading import Lock
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_roles, require_staff
 from app.db.session import get_db
 from app.models import AgentRun, AuditLog, Course, Quiz, StudentProfile
 from app.services.governance_service import apply_teacher_arbitration_decision
 from app.services.json_utils import dumps, loads
 from app.services.quiz_service import create_quiz, submit_quiz
+from app.services.teacher_scope_service import (
+    agent_run_student_matches_course,
+    can_access_agent_run,
+    is_pending_teacher_arbitration,
+    scope_agent_run_query,
+)
 
 
 router = APIRouter(tags=["demo-capabilities"])
+_arbitration_decision_lock = Lock()
 
 
 class QuizSubmitPayload(BaseModel):
@@ -26,6 +36,8 @@ class QuizSubmitPayload(BaseModel):
 
 class ArbitrationDecisionPayload(BaseModel):
     decision: str
+    arbitration_item_id: str = Field(min_length=8, max_length=200)
+    decision_request_id: str = Field(min_length=12, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$")
     comment: str | None = None
     revised_content: str | None = None
     teacher_comment: str | None = None
@@ -84,30 +96,21 @@ def submit_quiz_compat(payload: QuizSubmitPayload, db: Session = Depends(get_db)
 
 
 @router.get("/agent-runs")
-def list_agent_runs(db: Session = Depends(get_db)):
-    rows = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(80).all()
-    if not rows:
-        return [
-            {
-                "run_id": "fallback-run-001",
-                "student_id": 1,
-                "course_id": 1,
-                "topic": "Python 循环结构",
-                "current_node": "TeacherArbitration",
-                "status": "pending_review",
-                "messages": ["本地 fallback：暂无真实 AgentRun，展示治理链路结构。"],
-                "audit_result": {"risk_level": "medium", "review_status": "needs_review"},
-                "retry_count": 1,
-                "teacher_arbitration_result": {"status": "pending"},
-                "started_at": datetime.utcnow().isoformat(),
-                "finished_at": None,
-            }
-        ]
+def list_agent_runs(
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("student", "teacher", "admin")),
+):
+    query = scope_agent_run_query(db.query(AgentRun), db, current_user)
+    rows = query.order_by(AgentRun.id.desc()).limit(80).all()
     return [_agent_run_to_dict(item) for item in rows]
 
 
 @router.get("/agent-runs/{run_id}")
-def get_agent_run(run_id: str, db: Session = Depends(get_db)):
+def get_agent_run(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("student", "teacher", "admin")),
+):
     item = None
     if run_id.isdigit():
         item = db.query(AgentRun).filter(AgentRun.id == int(run_id)).first()
@@ -118,7 +121,7 @@ def get_agent_run(run_id: str, db: Session = Depends(get_db)):
             item = db.query(AgentRun).filter(AgentRun.id == int(run_id.split("-")[-1])).first()
         except ValueError:
             item = None
-    if not item:
+    if not item or not can_access_agent_run(db, current_user, item) or not agent_run_student_matches_course(db, item):
         raise HTTPException(status_code=404, detail="Agent 运行记录不存在")
     return _agent_run_to_dict(item)
 
@@ -217,10 +220,19 @@ def _fallback_arbitration_tasks() -> list[dict[str, Any]]:
 
 
 @router.get("/teacher-arbitrations")
-def list_teacher_arbitrations(db: Session = Depends(get_db)):
-    rows = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(30).all()
+def list_teacher_arbitrations(
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
+    query = db.query(AgentRun).filter(
+        AgentRun.status == "pending_review",
+        AgentRun.current_node == "TeacherArbitration",
+    )
+    rows = scope_agent_run_query(query, db, current_user).order_by(AgentRun.id.desc()).limit(30).all()
     tasks: list[dict[str, Any]] = []
     for item in rows:
+        if not is_pending_teacher_arbitration(item) or not agent_run_student_matches_course(db, item):
+            continue
         arbitration = loads(item.teacher_arbitration_result, {})
         if not arbitration:
             continue
@@ -231,6 +243,7 @@ def list_teacher_arbitrations(db: Session = Depends(get_db)):
             {
                 "id": item.run_id or str(item.id),
                 "agent_run_id": item.id,
+                "arbitration_item_id": str((arbitration.get("review_item") or {}).get("item_id") or ""),
                 "student_name": input_data.get("student_name", "李明"),
                 "course": input_data.get("course_title", "Python 程序设计"),
                 "topic": input_data.get("learning_goal", "循环结构补弱"),
@@ -247,11 +260,16 @@ def list_teacher_arbitrations(db: Session = Depends(get_db)):
                 "status": arbitration.get("status", "pending"),
             }
         )
-    return tasks or _fallback_arbitration_tasks()
+    return tasks
 
 
 @router.post("/teacher-arbitration/{item_id}/decision")
-def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPayload, db: Session = Depends(get_db)):
+def teacher_arbitration_decision(
+    item_id: str,
+    payload: ArbitrationDecisionPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
     if payload.decision not in {"approve", "revise", "reject"}:
         raise HTTPException(status_code=400, detail="decision 必须是 approve / revise / reject")
     item = None
@@ -264,29 +282,74 @@ def teacher_arbitration_decision(item_id: str, payload: ArbitrationDecisionPaylo
             item = db.query(AgentRun).filter(AgentRun.id == int(item_id.split("-")[-1])).first()
         except ValueError:
             item = None
-    teacher_comment = payload.teacher_comment or payload.comment or "教师完成仲裁决策。"
-    applied = apply_teacher_arbitration_decision(
-        db,
-        item=item,
-        item_id=item_id,
-        decision=payload.decision,
-        teacher_comment=teacher_comment,
-        revised_content=payload.revised_content,
-        suggested_action=payload.suggested_action,
-    )
-    log = applied["audit_log"]
-    result = applied["state"]["teacher_arbitration_result"]
-    return {
-        "id": log.id,
-        "item_id": item_id,
-        "decision": payload.decision,
-        "comment": teacher_comment,
-        "revised_content": payload.revised_content,
-        "suggested_action": payload.suggested_action,
-        "status": result["status"],
-        "teacher_arbitration_result": result,
-        "next_node": applied["next_node"],
-        "run_status": applied["run_status"],
-        "artifacts": applied["artifacts"],
-        "message": "教师仲裁结果已写入治理日志，工作流已按决策继续执行。" if item else "教师仲裁结果已写入治理日志。",
-    }
+    if not item:
+        raise HTTPException(status_code=404, detail="待仲裁任务不存在")
+    if not can_access_agent_run(db, current_user, item):
+        raise HTTPException(status_code=404, detail="待仲裁任务不存在")
+    if not agent_run_student_matches_course(db, item):
+        raise HTTPException(status_code=409, detail="仲裁任务的学生与课程关系不一致")
+    with _arbitration_decision_lock:
+        db.expire(item)
+        duplicate_request = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.action == "teacher_arbitration_decision",
+                AuditLog.decision_request_id == payload.decision_request_id,
+            )
+            .first()
+        )
+        if duplicate_request:
+            raise HTTPException(status_code=409, detail="该仲裁请求已处理，不得重复提交")
+        if not is_pending_teacher_arbitration(item):
+            raise HTTPException(status_code=409, detail="该任务当前不处于待仲裁状态")
+        arbitration = loads(item.teacher_arbitration_result, {})
+        if not arbitration:
+            arbitration = loads(item.state, {}).get("teacher_arbitration_result") or {}
+        current_arbitration_item_id = str((arbitration.get("review_item") or {}).get("item_id") or "")
+        if not current_arbitration_item_id or payload.arbitration_item_id != current_arbitration_item_id:
+            raise HTTPException(status_code=409, detail="仲裁item已过期或不是当前待处理item")
+        processed_item = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.action == "teacher_arbitration_decision",
+                AuditLog.arbitration_item_id == payload.arbitration_item_id,
+            )
+            .first()
+        )
+        if processed_item:
+            raise HTTPException(status_code=409, detail="该仲裁item已处理，不得重复提交")
+        teacher_comment = payload.teacher_comment or payload.comment or "教师完成仲裁决策。"
+        try:
+            applied = apply_teacher_arbitration_decision(
+                db,
+                item=item,
+                item_id=item_id,
+                current_user=current_user,
+                decision=payload.decision,
+                teacher_comment=teacher_comment,
+                decision_request_id=payload.decision_request_id,
+                arbitration_item_id=payload.arbitration_item_id,
+                revised_content=payload.revised_content,
+                suggested_action=payload.suggested_action,
+            )
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="仲裁请求或仲裁item已被处理") from exc
+        log = applied["audit_log"]
+        result = applied["state"]["teacher_arbitration_result"]
+        return {
+            "id": log.id,
+            "item_id": item_id,
+            "arbitration_item_id": payload.arbitration_item_id,
+            "decision_request_id": payload.decision_request_id,
+            "decision": payload.decision,
+            "comment": teacher_comment,
+            "revised_content": payload.revised_content,
+            "suggested_action": payload.suggested_action,
+            "status": result["status"],
+            "teacher_arbitration_result": result,
+            "next_node": applied["next_node"],
+            "run_status": applied["run_status"],
+            "artifacts": applied["artifacts"],
+            "message": "教师仲裁结果已写入治理日志，工作流已按决策继续执行。",
+        }

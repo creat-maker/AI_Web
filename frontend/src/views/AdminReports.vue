@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { api, apiBase } from '../api/client';
+import { api } from '../api/client';
 import DataCard from '../components/DataCard.vue';
 import EmptyState from '../components/EmptyState.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -85,8 +85,25 @@ function openPreview(report: AdminReport) {
   previewVisible.value = true;
 }
 
-function download(report: AdminReport) {
-  window.open(`${apiBase}/api/v1/admin/reports/${report.id}/download`, '_blank');
+async function saveDownload(path: string, fallbackName: string, method = 'GET') {
+  const result = await api.download(path, { method });
+  const url = URL.createObjectURL(result.blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = result.filename === 'download.bin' ? fallbackName : result.filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function download(report: AdminReport) {
+  error.value = '';
+  try {
+    await saveDownload(`/api/v1/admin/reports/${report.id}/download`, `admin-report-${report.id}.docx`);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '报告下载失败。';
+  }
 }
 
 async function regenerate(report: AdminReport) {
@@ -130,7 +147,12 @@ async function createMonthlyReport() {
 }
 
 async function exportBatch() {
-  window.open(`${apiBase}/api/v1/admin/reports/export`, '_blank');
+  error.value = '';
+  try {
+    await saveDownload('/api/v1/admin/reports/export', 'admin-reports-export.zip', 'POST');
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '报告批量导出失败。';
+  }
 }
 
 function clearSearch() {
