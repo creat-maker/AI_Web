@@ -36,8 +36,11 @@ def test_teacher_decision_updates_agent_run_and_audit_log(tmp_path):
         db,
         item=run,
         item_id="run-contract",
+        current_user={"user_id": "teacher_001", "name": "王老师", "role": "teacher"},
         decision="revise",
         teacher_comment="请回到课程范围重写",
+        decision_request_id="contract-request-0001",
+        arbitration_item_id="arb-run-contract-2-0",
     )
 
     db.refresh(run)
@@ -115,8 +118,11 @@ def test_teacher_decision_resumes_and_persists_artifacts(tmp_path, monkeypatch):
         db,
         item=run,
         item_id=run.run_id,
+        current_user={"user_id": "teacher_001", "name": "王老师", "role": "teacher"},
         decision="revise",
         teacher_comment="补充课程引用后重写",
+        decision_request_id="contract-request-0002",
+        arbitration_item_id="arb-run-resume-db-3-0",
     )
 
     db.refresh(run)

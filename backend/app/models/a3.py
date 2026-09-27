@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
@@ -38,6 +38,8 @@ class StudentProfile(Base, TimestampMixin):
     __tablename__ = "student_profiles"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    owner_user_id = Column(String(100), nullable=True, index=True)
+    demo_profile_key = Column(String(100), nullable=True)
     student_name = Column(String(100), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
     current_level = Column(String(100), nullable=True)
@@ -178,6 +180,10 @@ class LearningReport(Base, TimestampMixin):
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+    __table_args__ = (
+        Index("uq_audit_logs_decision_request_id", "decision_request_id", unique=True),
+        Index("uq_audit_logs_arbitration_item_id", "arbitration_item_id", unique=True),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     actor_id = Column(String(100), nullable=True)
@@ -194,6 +200,8 @@ class AuditLog(Base):
     rule_engine_result = Column(Text, nullable=True)
     risk_level = Column(String(50), nullable=True)
     arbitration_status = Column(String(50), nullable=True)
+    decision_request_id = Column(String(128), nullable=True)
+    arbitration_item_id = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

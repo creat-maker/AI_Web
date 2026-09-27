@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime
+from threading import Lock
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,14 +12,23 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.agents.graph import run_full_learning_graph
+from app.api.deps import require_roles, require_staff
 from app.db.session import get_db
 from app.models import AgentRun, Course, GeneratedResource, LearningPath, LearningReport, Quiz, StudentProfile
 from app.services.business_event_service import list_events, record_event
 from app.services.demo_learning_service import build_agent_steps
+from app.services.governance_service import current_user_label, write_audit_log
 from app.services.json_utils import dumps, loads
+from app.services.teacher_scope_service import (
+    agent_run_student_matches_course,
+    can_access_agent_run,
+    get_course_for_write,
+    scope_agent_run_query,
+)
 
 
 router = APIRouter(prefix="/agent-workflow", tags=["agent-workflow"])
+_rerun_lock = Lock()
 
 
 class FullFlowPayload(BaseModel):
@@ -422,16 +432,31 @@ def _workflow_templates() -> list[dict[str, Any]]:
 
 
 @router.get("")
-def get_workflow_center(user_id: str | None = None, db: Session = Depends(get_db)):
-    runs = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(50).all()
+def get_workflow_center(
+    user_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("student", "teacher", "admin")),
+):
+    query = scope_agent_run_query(db.query(AgentRun), db, current_user)
+    runs = query.order_by(AgentRun.id.desc()).limit(50).all()
     records = [_record_from_run(item) for item in runs]
+    accessible_run_ids = {str(item.id) for item in runs}
     business_events = [
         item
         for item in list_events(db, limit=20)
         if item["event_type"] in {"resource_generated", "path_updated", "report_generated", "agent_workflow_rerun"}
+        and (
+            str(current_user.get("role")) == "admin"
+            or (item.get("target_type") == "agent_run" and str(item.get("target_id")) in accessible_run_ids)
+        )
     ]
     latest = records[0] if records else {}
-    steps = build_agent_steps(user_id) if user_id else latest.get("steps") or build_agent_steps(user_id)
+    effective_user_id = (
+        str(current_user.get("user_id") or current_user.get("username") or "")
+        if str(current_user.get("role")) == "student"
+        else user_id
+    )
+    steps = build_agent_steps(effective_user_id) if effective_user_id else latest.get("steps") or build_agent_steps()
     return {
         "workflow_summary": _summary_from_records(records) if records else {
             "today_run_count": 3,
@@ -457,10 +482,13 @@ def get_workflow_center(user_id: str | None = None, db: Session = Depends(get_db
 
 
 @router.post("/run-full-learning-flow")
-def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_db)):
-    course = db.query(Course).filter(Course.id == payload.course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="课程不存在")
+def run_full_learning_flow(
+    payload: FullFlowPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
+    course = get_course_for_write(db, current_user, payload.course_id)
+    actor_id, actor_name, actor_role = current_user_label(current_user)
 
     run = AgentRun(
         course_id=payload.course_id,
@@ -477,11 +505,12 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
     run.run_id = f"run-{run.id:06d}"
     record_event(
         db,
-        event_type="agent_workflow_rerun",
+        event_type="agent_workflow_started",
         title="Agent 工作流启动",
         description=f"{payload.student_name} 的 full-learning-flow 已开始执行。",
-        actor_role="admin",
-        actor_name="demo_admin",
+        actor_id=actor_id,
+        actor_role=actor_role,
+        actor_name=actor_name,
         target_type="agent_run",
         target_id=run.id,
         status="running",
@@ -640,56 +669,113 @@ def run_full_learning_flow(payload: FullFlowPayload, db: Session = Depends(get_d
 
 
 @router.get("/runs")
-def list_runs(db: Session = Depends(get_db)):
-    runs = db.query(AgentRun).order_by(AgentRun.id.desc()).limit(50).all()
+def list_runs(
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("student", "teacher", "admin")),
+):
+    query = scope_agent_run_query(db.query(AgentRun), db, current_user)
+    runs = query.order_by(AgentRun.id.desc()).limit(50).all()
     return [_record_from_run(item) for item in runs]
 
 
 @router.get("/runs/{run_id}")
-def get_run(run_id: int, db: Session = Depends(get_db)):
+def get_run(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_roles("student", "teacher", "admin")),
+):
     run = db.query(AgentRun).filter(AgentRun.id == run_id).first()
-    if not run:
+    if not run or not can_access_agent_run(db, current_user, run) or not agent_run_student_matches_course(db, run):
         raise HTTPException(status_code=404, detail="Agent 运行记录不存在")
     return _record_from_run(run)
 
 
 @router.post("/runs/{run_id}/rerun")
-def rerun(run_id: int, db: Session = Depends(get_db)):
-    seed = db.query(AgentRun).filter(AgentRun.id == run_id).first()
-    if not seed:
-        raise HTTPException(status_code=404, detail="Agent 运行记录不存在")
-    input_data = loads(seed.input_json, {})
-    steps = _demo_rerun_steps(seed)
-    artifacts = seed.output_json and (loads(seed.output_json, {}).get("artifacts") or {}) or {}
-    output = {
-        "demo_fallback": True,
-        "rerun_from": seed.id,
-        "langgraph_run_id": None,
-        "steps": steps,
-        "artifacts": artifacts,
-        "workflow_summary": _workflow_summary("success", steps, artifacts),
-    }
-    run = AgentRun(
-        course_id=seed.course_id,
-        student_profile_id=seed.student_profile_id,
-        workflow_name=f"{seed.workflow_name}-rerun",
-        input_json=dumps({**input_data, "rerun_from": seed.id, "demo_fallback": True}),
-        output_json=dumps(output),
-        status="success",
-    )
-    db.add(run)
-    db.commit()
-    db.refresh(run)
-    return _record_from_run(run)
+def rerun(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
+    with _rerun_lock:
+        seed = db.query(AgentRun).filter(AgentRun.id == run_id).first()
+        if not seed or not can_access_agent_run(db, current_user, seed) or not agent_run_student_matches_course(db, seed):
+            raise HTTPException(status_code=404, detail="Agent 运行记录不存在")
+        input_data = loads(seed.input_json, {})
+        if input_data.get("rerun_from") is not None:
+            raise HTTPException(status_code=409, detail="重跑产生的运行记录不能再次重跑")
+        if seed.status not in {"success", "failed"}:
+            raise HTTPException(status_code=409, detail="当前运行状态不允许重跑")
+        existing_child = next(
+            (
+                item
+                for item in db.query(AgentRun).filter(AgentRun.workflow_name.like("%-rerun")).all()
+                if loads(item.input_json, {}).get("rerun_from") == seed.id
+            ),
+            None,
+        )
+        if existing_child:
+            raise HTTPException(status_code=409, detail="该运行记录已经重跑")
+
+        steps = _demo_rerun_steps(seed)
+        artifacts = seed.output_json and (loads(seed.output_json, {}).get("artifacts") or {}) or {}
+        output = {
+            "demo_fallback": True,
+            "rerun_from": seed.id,
+            "langgraph_run_id": None,
+            "steps": steps,
+            "artifacts": artifacts,
+            "workflow_summary": _workflow_summary("success", steps, artifacts),
+        }
+        run = AgentRun(
+            course_id=seed.course_id,
+            student_profile_id=seed.student_profile_id,
+            workflow_name=f"{seed.workflow_name}-rerun",
+            input_json=dumps({**input_data, "rerun_from": seed.id, "demo_fallback": True}),
+            output_json=dumps(output),
+            status="success",
+        )
+        db.add(run)
+        db.flush()
+        actor_id, actor_name, actor_role = current_user_label(current_user)
+        write_audit_log(
+            db,
+            actor_id=actor_id,
+            actor_name=actor_name,
+            actor_role=actor_role,
+            action="agent_run_rerun",
+            target_type="agent_run",
+            target_id=seed.id,
+            detail={"source_run_id": seed.run_id or f"run-{seed.id:06d}", "new_agent_run_id": run.id},
+            commit=False,
+        )
+        record_event(
+            db,
+            event_type="agent_workflow_rerun",
+            title="Agent 工作流重跑",
+            description="授权用户已基于既有运行创建一次演示重跑记录。",
+            actor_id=actor_id,
+            actor_role=actor_role,
+            actor_name=actor_name,
+            target_type="agent_run",
+            target_id=seed.id,
+            related_course=str(seed.course_id),
+            metadata={"new_agent_run_id": run.id},
+            commit=False,
+        )
+        db.commit()
+        db.refresh(run)
+        return _record_from_run(run)
 
 
 @router.post("/run-full-learning-flow/stream")
-def run_full_learning_flow_stream(payload: FullFlowPayload, db: Session = Depends(get_db)):
+def run_full_learning_flow_stream(
+    payload: FullFlowPayload,
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
     """SSE 流式推送 Agent 工作流执行进度。"""
 
-    course = db.query(Course).filter(Course.id == payload.course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="课程不存在")
+    course = get_course_for_write(db, current_user, payload.course_id)
 
     step_names = [
         ("task_receive", "任务接收"),

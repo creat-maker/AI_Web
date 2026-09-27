@@ -91,6 +91,24 @@ async def get_current_user(request: Request) -> dict[str, Any]:
     return {"role": "guest", "name": "访客", "username": "anonymous"}
 
 
+async def get_authenticated_user(request: Request) -> dict[str, Any]:
+    auth = request.headers.get("authorization", "").strip()
+    if not auth.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="需要有效登录凭证",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    payload = verify_jwt(auth[7:].strip())
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="登录凭证无效或已过期",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return payload
+
+
 @router.post("/login")
 def login(payload: LoginPayload):
     username = payload.username.strip()

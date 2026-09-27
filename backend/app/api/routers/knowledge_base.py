@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_staff
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import Course, CourseDocument, TutorQuestionLog
@@ -16,6 +17,7 @@ from app.services.course_service import get_course
 from app.services.chunk_strategy import chunk_document
 from app.services.document_parser import parse_document
 from app.services.json_utils import loads
+from app.services.teacher_scope_service import get_course_for_write
 
 
 router = APIRouter(prefix="/knowledge-base", tags=["knowledge-base"])
@@ -127,10 +129,9 @@ async def upload_document(
     course_id: int = Query(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: dict = Depends(require_staff),
 ):
-    course = get_course(db, course_id)
-    if not course:
-        raise HTTPException(status_code=404, detail="课程不存在")
+    course = get_course_for_write(db, current_user, course_id)
     suffix = Path(file.filename or "document.txt").suffix.lower()
     if suffix not in {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".md", ".markdown"}:
         raise HTTPException(status_code=400, detail="暂不支持该文件类型")

@@ -42,6 +42,7 @@ interface StudentProfileItem {
   change_log?: unknown[];
   evidence_items?: EvidenceItem[];
   dialog_extraction?: DialogExtraction;
+  dimension_scores?: Record<string, { score?: number; label?: string } | number>;
 }
 
 interface EvidenceItem {
@@ -96,6 +97,12 @@ interface StudentView {
 
 const { currentRole, demoUserId, setDemoUserId } = useRole();
 const reportCenterPath = computed(() => (currentRole.value === 'teacher' ? '/teacher/reports' : '/student/reports'));
+const pageTitle = computed(() => (currentRole.value === 'teacher' ? '学生画像分析' : '我的学习画像'));
+const pageDescription = computed(() => (
+  currentRole.value === 'teacher'
+    ? '查看演示范围内学生的综合画像、能力结构、薄弱点和干预建议。'
+    : '查看当前登录学生本人的学习目标、能力结构和薄弱知识点。'
+));
 const demoUsers = demoStudents;
 const courses = ref<Course[]>([]);
 const profiles = ref<StudentProfileItem[]>([]);
@@ -240,6 +247,14 @@ function objectField<T>(profile: StudentProfileItem, key: string): T | undefined
   return value && typeof value === 'object' && !Array.isArray(value) ? value as T : undefined;
 }
 
+function profileAbilities(profile: StudentProfileItem) {
+  const dimensions = profile.dimension_scores || {};
+  return Object.entries(dimensions).map(([name, value]) => ({
+    name,
+    value: Math.round(typeof value === 'number' ? value : Number(value?.score || 0))
+  }));
+}
+
 function simulateWeakPoint() {
   if (demoUserId.value === 'demo-advanced') return '循环嵌套变量变化';
   if (demoUserId.value === 'demo-exam') return 'break / continue 区分';
@@ -261,14 +276,31 @@ function updateReason(result: ProfileUpdateResult | null) {
 }
 
 const students = computed<StudentView[]>(() => {
-  if (!profiles.value.length) return fallbackStudents;
+  if (!profiles.value.length) return currentRole.value === 'student' ? [] : fallbackStudents;
   return profiles.value.map((profile, index) => {
-    const fallback = fallbackStudents[index % fallbackStudents.length];
+    const isStudentSelf = currentRole.value === 'student';
+    const fallback = isStudentSelf
+      ? {
+          ...fallbackStudents[0],
+          name: profile.student_name,
+          className: '',
+          number: '',
+          major: '',
+          score: 0,
+          abilities: [],
+          trend: []
+        }
+      : fallbackStudents[index % fallbackStudents.length];
+    const abilities = profileAbilities(profile);
+    const score = abilities.length
+      ? Math.round(abilities.reduce((sum, item) => sum + item.value, 0) / abilities.length)
+      : fallback.score;
     return {
       ...fallback,
       id: profile.id,
-      user_id: fieldText(profile, 'user_id', demoUserId.value),
+      user_id: fieldText(profile, 'user_id', ''),
       name: cleanText(profile.student_name, fallback.name),
+      score,
       profileType: fieldText(profile, 'profile_type', '个性化学习画像'),
       major: fieldText(profile, 'major', '未填写'),
       course_id: profile.course_id || fallback.course_id,
@@ -285,6 +317,8 @@ const students = computed<StudentView[]>(() => {
       changeLog: (profile.change_log || rawProfile(profile).change_log || []) as unknown[],
       evidenceItems: arrayField<EvidenceItem>(profile, 'evidence_items'),
       dialogExtraction: objectField<DialogExtraction>(profile, 'dialog_extraction'),
+      abilities: abilities.length ? abilities : fallback.abilities,
+      trend: fallback.trend,
       raw: profile
     };
   });
@@ -311,6 +345,7 @@ const statCards = computed(() => {
 
 const suggestions = computed(() => {
   const student = selectedStudent.value;
+  if (!student) return [];
   return [
     { title: '补强任务', content: `围绕 ${student.weakPoints[0] || '薄弱知识点'} 布置 15 分钟分层练习。` },
     { title: '课堂干预', content: '下一节课加入案例复盘，并抽查关键步骤理解情况。' },
@@ -356,14 +391,25 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [courseData, profileData] = await Promise.all([
-      api.get<Course[]>('/api/v1/courses').catch(() => []),
-      api.get<StudentProfileItem[]>(currentRole.value === 'student' ? `/api/v1/profiles?user_id=${encodeURIComponent(demoUserId.value)}` : '/api/v1/profiles')
-    ]);
-    courses.value = courseData;
-    profiles.value = profileData;
+    if (currentRole.value === 'student') {
+      const [courseData, studentProfile] = await Promise.all([
+        api.get<Course[]>('/api/v1/courses').catch(() => []),
+        api.get<StudentProfileItem>('/api/v1/profiles/me')
+      ]);
+      courses.value = courseData;
+      profiles.value = studentProfile ? [studentProfile] : [];
+    } else {
+      const [courseData, profileData] = await Promise.all([
+        api.get<Course[]>('/api/v1/courses').catch(() => []),
+        api.get<StudentProfileItem[]>('/api/v1/profiles')
+      ]);
+      courses.value = courseData;
+      profiles.value = profileData;
+    }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '画像接口暂不可用，当前显示本地学习数据。';
+    error.value = currentRole.value === 'student'
+      ? '画像接口暂不可用，未显示本地学生身份数据。'
+      : `画像接口暂不可用，当前显示明确标注的教师端本地演示数据：${err instanceof Error ? err.message : '未知错误'}`;
     profiles.value = [];
   } finally {
     loading.value = false;
@@ -468,7 +514,9 @@ function resizeCharts() {
 }
 
 watch(selectedStudent, () => nextTick(renderCharts));
-watch(demoUserId, () => load());
+watch(demoUserId, () => {
+  if (currentRole.value === 'teacher') load();
+});
 
 onMounted(() => {
   load();
@@ -484,27 +532,33 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="page profile-page">
-    <PageHeader title="学生画像分析" description="查看学生综合画像、能力结构、薄弱点和干预建议。">
+    <PageHeader :title="pageTitle" :description="pageDescription">
       <template #actions>
-        <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
-          <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
-        </select>
-        <button type="button" class="secondary" @click="simulateProfileUpdate">模拟测试后更新画像</button>
-        <RouterLink class="btn secondary" to="/student/profile-dialog">对话式画像构建</RouterLink>
-        <RouterLink class="btn secondary" :to="reportCenterPath">报告中心</RouterLink>
-        <button type="button" @click="assignTask">生成个性化学习报告</button>
+        <template v-if="currentRole === 'teacher'">
+          <select :value="demoUserId" @change="setDemoUserId(($event.target as HTMLSelectElement).value)">
+            <option v-for="user in demoUsers" :key="user.id" :value="user.id">{{ user.label }}</option>
+          </select>
+          <button type="button" class="secondary" @click="simulateProfileUpdate">模拟测试后更新画像</button>
+          <RouterLink class="btn secondary" :to="reportCenterPath">报告中心</RouterLink>
+          <button type="button" @click="assignTask">生成个性化学习报告</button>
+        </template>
+        <template v-else>
+          <RouterLink class="btn secondary" to="/student/profile-dialog">对话式画像构建</RouterLink>
+          <RouterLink class="btn secondary" :to="reportCenterPath">学习报告</RouterLink>
+        </template>
       </template>
     </PageHeader>
 
     <p v-if="loading" class="panel muted">正在加载画像数据...</p>
+    <p v-if="error" class="panel muted">{{ error }}</p>
     <p v-if="operationMessage" class="panel muted">{{ operationMessage }}</p>
     <p v-if="visualizationMessage" class="panel muted">{{ visualizationMessage }}</p>
 
-    <div class="stat-grid">
+    <div v-if="currentRole === 'teacher'" class="stat-grid">
       <StatCard v-for="item in statCards" :key="item.label" v-bind="item" />
     </div>
 
-    <DataCard title="对话式画像构建" subtitle="从自然语言对话抽取 6 维画像，并支持随学更新、风险、薄弱知识点、资源偏好和画像来源展示。">
+    <DataCard v-if="currentRole === 'teacher'" title="对话式画像构建" subtitle="从自然语言对话抽取 6 维画像，并支持随学更新、风险、薄弱知识点、资源偏好和画像来源展示。">
       <textarea v-model="dialogInput" class="dialog-profile-input" rows="4"></textarea>
       <div class="row-actions dialog-actions">
         <button type="button" @click="runDialogProfile">生成画像</button>
@@ -527,7 +581,7 @@ onBeforeUnmount(() => {
       </div>
     </DataCard>
 
-    <DataCard title="学生画像闭环摘要" subtitle="面向教师干预展示基础水平、学习目标、学习偏好、课程进度、薄弱知识点、错题分布和风险等级。">
+    <DataCard v-if="currentRole === 'teacher'" title="学生画像闭环摘要" subtitle="面向教师干预展示基础水平、学习目标、学习偏好、课程进度、薄弱知识点、错题分布和风险等级。">
       <div class="profile-loop-grid">
         <section class="profile-loop-main">
           <article>
@@ -568,8 +622,19 @@ onBeforeUnmount(() => {
       </div>
     </DataCard>
 
-    <div class="profile-layout">
-      <DataCard title="学生列表" subtitle="按姓名、班级、学号搜索">
+    <EmptyState
+      v-if="!loading && currentRole === 'student' && !selectedStudent"
+      title="本人画像暂不可用"
+      description="系统没有展示任何本地学生身份数据，请稍后重试或联系教师。"
+    />
+
+    <div :class="['profile-layout', { 'student-self-layout': currentRole === 'student' }]">
+      <DataCard
+        v-if="currentRole === 'teacher'"
+        data-testid="teacher-student-list"
+        title="学生列表"
+        subtitle="按姓名、班级、学号搜索"
+      >
         <input v-model="keyword" placeholder="搜索学生..." />
         <div class="student-list">
           <button
@@ -591,25 +656,25 @@ onBeforeUnmount(() => {
       </DataCard>
 
       <main v-if="selectedStudent" class="profile-main">
-        <DataCard title="学生详情" subtitle="综合评分、基础信息和学习目标">
-          <template #action>
+        <DataCard :title="currentRole === 'teacher' ? '学生详情' : '本人画像'" subtitle="学习目标、能力状态和薄弱知识点">
+          <template v-if="currentRole === 'teacher'" #action>
             <button class="secondary" @click="assignTask">生成个性化学习报告</button>
           </template>
           <div class="student-detail-head">
             <span class="student-avatar">{{ selectedStudent.name.slice(0, 1) }}</span>
             <div>
               <h2>{{ selectedStudent.name }}</h2>
-              <p>{{ selectedStudent.className }} | 学号：{{ selectedStudent.number }}</p>
+              <p v-if="currentRole === 'teacher'">{{ selectedStudent.className }} | 学号：{{ selectedStudent.number }}</p>
               <p>学习目标：{{ selectedStudent.goal }}</p>
             </div>
-            <div class="score-card">
+            <div v-if="currentRole === 'teacher'" class="score-card">
               <span>综合评分</span>
               <strong>{{ selectedStudent.score }}</strong><small>/100</small>
             </div>
           </div>
           <div class="profile-dimension-list">
             <article><span>画像类型</span><strong>{{ selectedStudent.profileType }}</strong></article>
-            <article><span>专业</span><strong>{{ selectedStudent.major }}</strong></article>
+            <article v-if="currentRole === 'teacher'"><span>专业</span><strong>{{ selectedStudent.major }}</strong></article>
             <article><span>知识基础</span><strong>{{ selectedStudent.level }}</strong></article>
             <article><span>学习风格</span><strong>{{ selectedStudent.preference }}</strong></article>
             <article><span>易错模式</span><strong>{{ selectedStudent.mistakePattern }}</strong></article>
@@ -617,12 +682,12 @@ onBeforeUnmount(() => {
             <article><span>资源偏好</span><strong>{{ selectedStudent.resourcePreference }}</strong></article>
             <article><span>更新时间</span><strong>{{ selectedStudent.updatedAt || '-' }}</strong></article>
           </div>
-          <div class="change-log-box">
+          <div v-if="currentRole === 'teacher'" class="change-log-box">
             <strong>change_log</strong>
             <p v-if="!selectedStudent.changeLog?.length">暂无变化记录</p>
             <p v-for="(item, index) in selectedStudent.changeLog" :key="index">{{ typeof item === 'string' ? item : JSON.stringify(item) }}</p>
           </div>
-          <div v-if="lastUpdateResult" class="update-compare-box">
+          <div v-if="currentRole === 'teacher' && lastUpdateResult" class="update-compare-box">
             <strong>动态更新前后对比</strong>
             <article>
               <span>更新前薄弱点</span>
@@ -649,7 +714,7 @@ onBeforeUnmount(() => {
               <p>{{ item.description }}</p>
             </article>
           </div>
-          <div v-if="selectedStudent.dialogExtraction" class="extraction-box">
+          <div v-if="currentRole === 'teacher' && selectedStudent.dialogExtraction" class="extraction-box">
             <strong>最近一次对话抽取过程</strong>
             <article>
               <span>{{ selectedStudent.dialogExtraction.mode || '规则抽取' }}</span>
@@ -694,7 +759,7 @@ onBeforeUnmount(() => {
           </DataCard>
         </div>
 
-        <DataCard title="干预建议" subtitle="教师下一步行动">
+        <DataCard v-if="currentRole === 'teacher'" title="干预建议" subtitle="教师下一步行动">
           <div class="suggestion-grid">
             <article v-for="item in suggestions" :key="item.title" class="item">
               <strong>{{ item.title }}</strong>
@@ -713,6 +778,10 @@ onBeforeUnmount(() => {
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+}
+
+.profile-layout.student-self-layout {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .profile-main,

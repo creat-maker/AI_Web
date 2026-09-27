@@ -46,6 +46,8 @@ with engine.connect() as conn:
             "rule_engine_result": "TEXT",
             "risk_level": "VARCHAR(50)",
             "arbitration_status": "VARCHAR(50)",
+            "decision_request_id": "VARCHAR(128)",
+            "arbitration_item_id": "VARCHAR(200)",
         },
         "agent_runs": {
             "run_id": "VARCHAR(100)",
@@ -72,6 +74,24 @@ with engine.connect() as conn:
                     )
                 )
     conn.commit()
+
+    # Q020: nullable columns preserve historical audit rows; unique indexes make
+    # duplicate requests and concurrent decisions for the same arbitration item
+    # fail atomically without deleting or rewriting existing evidence.
+    if "audit_logs" in tables:
+        conn.execute(
+            __import__("sqlalchemy").text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_audit_logs_decision_request_id "
+                "ON audit_logs (decision_request_id)"
+            )
+        )
+        conn.execute(
+            __import__("sqlalchemy").text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_audit_logs_arbitration_item_id "
+                "ON audit_logs (arbitration_item_id)"
+            )
+        )
+        conn.commit()
 
 app = FastAPI(
     title="EduMind API",

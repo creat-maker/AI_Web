@@ -27,7 +27,9 @@ function withDemoUser(path: string, init?: RequestInit) {
     url.searchParams.set('user_id', userId);
   }
   const headers = new Headers(init?.headers);
-  headers.set('X-Demo-User-Id', userId);
+  if (shouldAppendUserId(url.pathname)) {
+    headers.set('X-Demo-User-Id', userId);
+  }
   const token = localStorage.getItem(TOKEN_KEY);
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
@@ -58,6 +60,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+async function download(path: string, init?: RequestInit): Promise<{ blob: Blob; filename: string }> {
+  const requestInfo = withDemoUser(path, init);
+  const response = await fetch(`${apiBase}${requestInfo.path}`, requestInfo.init);
+  if (!response.ok) {
+    const text = await response.text();
+    let detail = text || `请求失败：${response.status}`;
+    try {
+      const payload = text ? JSON.parse(text) : null;
+      detail = typeof payload?.detail === 'string' ? payload.detail : detail;
+    } catch {
+      // 非 JSON 错误响应沿用脱敏后的文本摘要。
+    }
+    throw new Error(detail.slice(0, 300));
+  }
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
+  return {
+    blob: await response.blob(),
+    filename: decodeURIComponent(filenameMatch?.[1] || 'download.bin')
+  };
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
@@ -79,5 +103,6 @@ export const api = {
       body: body ? JSON.stringify(body) : undefined
     }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
-  upload: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', body: formData })
+  upload: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', body: formData }),
+  download: (path: string, init?: RequestInit) => download(path, init)
 };

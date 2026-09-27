@@ -3,16 +3,22 @@ from __future__ import annotations
 import json
 import zipfile
 from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_admin
 from app.api.routers.reports import report_to_dict
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import Course, LearningReport, StudentProfile
+from app.services.governance_service import current_user_label, write_audit_log
+from app.services.json_utils import dumps, loads
 from app.services.report_service import create_learning_report, report_exists
 
 router = APIRouter(prefix="/admin/reports", tags=["admin-reports"])
@@ -22,6 +28,9 @@ class StatusPayload(BaseModel):
     status: str
 
 
+REVIEW_STATUSES = {"待审核", "已通过", "已驳回"}
+
+
 def _contexts(db: Session):
     return (
         {item.id: item.title for item in db.query(Course).all()},
@@ -29,37 +38,98 @@ def _contexts(db: Session):
     )
 
 
+def _admin_report_to_dict(
+    item: LearningReport,
+    course_title: str | None = None,
+    student_name: str | None = None,
+) -> dict[str, Any]:
+    row = report_to_dict(item, course_title, student_name)
+    report_json = loads(item.report_json, {})
+    row.pop("report_path", None)
+    row.pop("report_json", None)
+    row["creator"] = "EduMind 评价服务"
+    row["review_status"] = report_json.get("review_status") or ("待审核" if row["status"] == "completed" else "生成中")
+    row["download_url"] = f"/api/v1/admin/reports/{item.id}/download" if row.get("download_enabled") else ""
+    row["report_url"] = row["download_url"]
+    return row
+
+
+def _audit(
+    db: Session,
+    current_user: dict[str, Any],
+    *,
+    action: str,
+    target_id: str | int,
+    detail: str,
+    commit: bool = True,
+) -> None:
+    actor_id, actor_name, actor_role = current_user_label(current_user)
+    write_audit_log(
+        db,
+        actor_id=actor_id,
+        actor_name=actor_name,
+        actor_role=actor_role,
+        action=action,
+        target_type="admin_report",
+        target_id=target_id,
+        detail=detail,
+        commit=commit,
+    )
+
+
+def _safe_report_path(item: LearningReport) -> Path:
+    path = Path(item.report_path).resolve()
+    report_root = settings.path_from_root(settings.report_dir).resolve()
+    if not path.is_relative_to(report_root) or not path.is_file():
+        raise HTTPException(status_code=404, detail="报告文件不存在")
+    return path
+
+
 @router.get("")
-def list_reports(db: Session = Depends(get_db)):
+def list_reports(
+    current_user: dict[str, Any] = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     reports = db.query(LearningReport).order_by(LearningReport.id.desc()).all()
     courses, profiles = _contexts(db)
     rows = []
     for item in reports:
-        row = report_to_dict(item, courses.get(item.course_id), profiles.get(item.student_profile_id))
-        row.update({"creator": "EduMind 评价服务", "review_status": "待审核" if row["status"] == "completed" else "生成中"})
-        rows.append(row)
+        rows.append(_admin_report_to_dict(item, courses.get(item.course_id), profiles.get(item.student_profile_id)))
     return rows
 
 
 @router.get("/{report_id}/preview")
-def preview_report(report_id: int, db: Session = Depends(get_db)):
+def preview_report(
+    report_id: int,
+    current_user: dict[str, Any] = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     item = db.query(LearningReport).filter(LearningReport.id == report_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="报告不存在")
     courses, profiles = _contexts(db)
-    return report_to_dict(item, courses.get(item.course_id), profiles.get(item.student_profile_id))
+    return _admin_report_to_dict(item, courses.get(item.course_id), profiles.get(item.student_profile_id))
 
 
 @router.get("/{report_id}/download")
-def download_report(report_id: int, db: Session = Depends(get_db)):
+def download_report(
+    report_id: int,
+    current_user: dict[str, Any] = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     item = db.query(LearningReport).filter(LearningReport.id == report_id).first()
     if not item or not report_exists(item):
         raise HTTPException(status_code=404, detail="报告文件不存在")
-    return FileResponse(item.report_path, filename=f"admin-report-{report_id}.docx")
+    path = _safe_report_path(item)
+    return FileResponse(path, filename=f"admin-report-{report_id}{path.suffix or '.docx'}")
 
 
 @router.post("/{report_id}/regenerate")
-def regenerate_report(report_id: int, db: Session = Depends(get_db)):
+def regenerate_report(
+    report_id: int,
+    current_user: dict[str, Any] = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     old = db.query(LearningReport).filter(LearningReport.id == report_id).first()
     if not old:
         raise HTTPException(status_code=404, detail="报告不存在")
@@ -75,11 +145,15 @@ def regenerate_report(report_id: int, db: Session = Depends(get_db)):
         "regenerate_reason": "报告审核中心触发重新生成。",
     }
     new_item = create_learning_report(db, profile, course, payload)
-    return report_to_dict(new_item, course.title, profile.student_name)
+    _audit(db, current_user, action="admin_report_regenerated", target_id=report_id, detail=f"重新生成报告，新报告ID={new_item.id}")
+    return _admin_report_to_dict(new_item, course.title, profile.student_name)
 
 
 @router.post("/monthly")
-def monthly_report(db: Session = Depends(get_db)):
+def monthly_report(
+    current_user: dict[str, Any] = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     profile = db.query(StudentProfile).order_by(StudentProfile.id.desc()).first()
     course = db.query(Course).order_by(Course.id.desc()).first()
     if not profile or not course:
@@ -93,25 +167,59 @@ def monthly_report(db: Session = Depends(get_db)):
         "report_type": "平台运营报告",
     }
     item = create_learning_report(db, profile, course, payload)
-    return report_to_dict(item, course.title, profile.student_name)
+    _audit(db, current_user, action="admin_monthly_report_created", target_id=item.id, detail="已生成平台运营月报")
+    return _admin_report_to_dict(item, course.title, profile.student_name)
 
 
 @router.post("/export")
-def export_reports(db: Session = Depends(get_db)):
+def export_reports(
+    current_user: dict[str, Any] = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     reports = db.query(LearningReport).order_by(LearningReport.id.desc()).limit(20).all()
-    export_dir = settings.path_from_root("backend/storage/reports")
-    export_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = export_dir / "admin-reports-export.zip"
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         manifest = []
         for item in reports:
-            manifest.append({"id": item.id, "title": item.report_title, "path": item.report_path})
-            if report_exists(item):
-                archive.write(item.report_path, arcname=f"report-{item.id}.docx")
+            manifest.append({"id": item.id, "title": item.report_title})
+            try:
+                path = _safe_report_path(item)
+            except HTTPException:
+                continue
+            archive.write(path, arcname=f"report-{item.id}{path.suffix or '.docx'}")
         archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-    return FileResponse(zip_path, filename="admin-reports-export.zip")
+    buffer.seek(0)
+    _audit(db, current_user, action="admin_reports_exported", target_id="batch", detail=f"批量导出报告数量={len(reports)}")
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="admin-reports-export.zip"'},
+    )
 
 
 @router.patch("/{report_id}/status")
-def update_report_status(report_id: int, payload: StatusPayload):
+def update_report_status(
+    report_id: int,
+    payload: StatusPayload,
+    current_user: dict[str, Any] = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if payload.status not in REVIEW_STATUSES:
+        raise HTTPException(status_code=422, detail="报告审核状态不在允许范围内")
+    item = db.query(LearningReport).filter(LearningReport.id == report_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="报告不存在")
+    report_json = loads(item.report_json, {})
+    previous = report_json.get("review_status") or "待审核"
+    report_json["review_status"] = payload.status
+    item.report_json = dumps(report_json)
+    _audit(
+        db,
+        current_user,
+        action="admin_report_status_updated",
+        target_id=report_id,
+        detail=f"报告审核状态由 {previous} 更新为 {payload.status}",
+        commit=False,
+    )
+    db.commit()
     return {"report_id": report_id, "status": payload.status, "message": "报告审核状态已更新"}

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from app.api.deps import require_admin
 from app.services.competition_mock_service import (
     QUIZ,
     generate_teacher_workbench,
@@ -62,10 +63,10 @@ def teacher_ai_workbench_generate(payload: TeacherWorkbenchPayload):
 
 
 @router.get("/admin/content-review")
-def admin_content_review():
+def admin_content_review(current_user: dict[str, Any] = Depends(require_admin)):
     return build_content_review_items()
 
 
 @router.get("/admin/platform-quality")
-def admin_platform_quality() -> dict[str, Any]:
+def admin_platform_quality(current_user: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
     return get_platform_quality()

@@ -1,330 +1,306 @@
-# EduMind
+# EduMind 个性化学习多智能体系统
 
-EduMind 是基于大模型的“一人一堂”个性化资源生成与学习多智能体系统，包含 Web 学生端、教师端、管理员端、原生微信小程序学生端和 FastAPI 后端。本轮在当前 dev 分支上做局部增强，不重构项目、不删除原有演示入口，主演示课程统一为《Python 程序设计》，主演示章节为“循环结构”，主演示学生为“李明”。
+EduMind 面向软件杯个性化学习多智能体场景，围绕“学生画像—课程检索—资源生成—测验反馈—路径调整—教师仲裁—报告与审计”构建可运行、可解释、可降级的教学辅助闭环。
 
-## 竞品借鉴
+当前代码基线为 `4d8b658`，核心 Agent、RAG 与治理实现来自 `43f49d6`。本文档是项目最新版唯一入口；所有材料数字应以 [统一事实基线](docs/fact-baseline.md) 和实际验收日志为准。
 
-本轮功能设计参考智慧树/知到、超星学习通/泛雅、雨课堂、国家智慧教育公共服务平台等主流智慧教学平台：
+## 当前状态
 
-- 学生端强调课程进度、任务路径、资源推荐和练后反馈。
-- 教师端强调班级学情、风险学生识别、备课出题辅助和干预闭环。
-- 管理员端强调 AI 内容审核、课程质量评价和平台治理指标。
-- 小程序端保持轻量，服务移动端快速查看任务、资源、练习和报告。
+| 能力 | 当前状态 | 表达边界 |
+|---|---|---|
+| 后端 | FastAPI 服务、数据库、业务接口和测试可运行 | 323 项后端自动化测试全部通过，不代表系统不存在质量风险 |
+| Web | Vue 3 学生、教师、管理员角色页面可构建 | 生产构建和 14 个页面壳检查通过；三角色完整人工 UI 回归尚未完成 |
+| 微信小程序 | 7 个学生端页面及后端失败 fallback 已实现 | 尚未完成微信开发者工具和真机验收 |
+| Agent | 12 节点图工作流、重试、暂停、教师仲裁和续跑已实现 | 自动测试通过；approve/revise/reject 三类 UI 已在 Q014 限定范围完成人工回归；服务端课程授权为显式演示映射 |
+| RAG | 课程向量/混合检索优先，JSON+TF-IDF 稳定降级 | 5 条小规模回归评价，仅用于链路回归和演示验证 |
+| DKVMN | 轻量在线门控记忆知识追踪 | 无预训练检查点、训练实验和论文级效果验证 |
+| 外部 AI | LLM 与讯飞工具可选配置 | 当前验收为 mock 模式；真实讯飞云调用未验证 |
+| Docker | 仓库含 Compose/Dockerfile，静态解析检查通过 | 当前验收环境无 Docker CLI，动态构建和启动未验证 |
 
-## 核心闭环
+## 产品范围
 
-本轮新增和强化的演示闭环：
+### Web 学生端
 
-1. 学生画像：基础水平、学习目标、学习偏好、薄弱点、错题分布和风险等级。
-2. 知识图谱：Python 程序设计知识点关系、掌握状态、点击诊断。
-3. 资源推荐：根据薄弱知识点推荐讲义、微课、Notebook、练习和项目任务。
-4. 智能测评：章节练习提交后即时判分。
-5. 错因分析：按知识点和错因标签生成诊断。
-6. 教师干预：班级学情、风险学生、补救任务、提醒话术。
-7. 平台治理：AI 内容审核、课程质量评价、AI 能力边界说明。
+- 学生画像与对话式补全
+- 学习路径和任务
+- 课程知识与 RAG 问答
+- 多模态资源预览
+- 测验、错因反馈与学习报告
 
-## 新增 Web 演示入口
+### Web 教师端
 
-学生端：
+- 课程、学情、画像与学习路径管理
+- 教学资源生成和任务布置
+- 高风险内容仲裁
+- approve、revise、reject 决策入口
+- 报告与干预信息
 
-- `/student/knowledge-graph`：课程知识图谱。
-- `/student/learning-path`：任务式学习路径。
-- `/student/smart-quiz`：智能测验与练后分析。
-- `/student/assistant`：保留轻量 RAG / 本地知识库答疑链路。
+### Web 管理员端
 
-教师端：
+- 系统状态与演示能力检查
+- 知识库、内容审核和平台治理
+- Agent 工作流与审计日志
+- 用户、课程和报告管理
 
-- `/teacher/ai-workbench`：AI 教学工作台。
-- `/teacher`：增强班级学情。
-- `/profiles`：增强学生画像。
-- `/courses`：增强课程知识点、资源、题目关联。
+### 微信小程序学生端
 
-管理员端：
+`miniprogram/app.json` 当前注册 7 个页面：home、path、resources、tutor、quiz、report、profile-dialog。页面优先请求后端，失败时可回退本地演示数据。真机状态尚未验证。
 
-- `/dashboard`：增强平台 AI 治理指标。
-- `/admin/content-review`：AI 内容审核中心。
-- `/admin/platform-quality`：课程质量评价。
+## 技术架构
 
-## 新增后端接口
+- 后端：FastAPI、SQLAlchemy、Pydantic、SQLite 演示数据库
+- Agent：LangGraph 12 节点图工作流
+- RAG：课程向量/混合检索、TF-IDF embedding、课程语义约束、JSON fallback；Chroma 为可选能力
+- 知识追踪：轻量在线门控 Key-Value Memory 更新
+- 前端：Vue 3、TypeScript、Vite、Vue Router、ECharts
+- 移动端：原生微信小程序 WXML/WXSS/JavaScript
+- 外部能力：DeepSeek/Qwen/DashScope LLM、讯飞 TTS/Spark/安全适配器、FFmpeg、SentenceTransformer，均为可选配置
 
-- `GET /api/v1/knowledge-graph`
-- `GET /api/v1/student/learning-tasks`
-- `GET /api/v1/quiz/chapter`
-- `POST /api/v1/quiz/submit`
-- `POST /api/v1/teacher/ai-workbench/generate`
-- `GET /api/v1/admin/content-review`
-- `GET /api/v1/admin/platform-quality`
+详细架构见 [docs/architecture.md](docs/architecture.md)。
 
-接口当前使用集中 mock 数据，响应结构稳定，字段语义明确，后续可替换为数据库、知识追踪模型或真实大模型 API。
+## 12 节点 Agent 工作流
 
-## 小程序增强
+当前 `backend/app/agents/graph.py` 注册以下节点：
 
-小程序位于 `miniprogram`，仍使用原生微信小程序结构，不引入复杂依赖。
+1. ProfileAgent
+2. KnowledgeAgent
+3. PlannerAgent
+4. ResourcePlannerAgent
+5. ResourceAgent
+6. TutorAgent
+7. EvaluatorAgent
+8. AuditAgent
+9. ComplianceAgent
+10. AuditRetry
+11. TeacherArbitration
+12. ReporterAgent
 
-- 首页展示今日任务、课程进度、薄弱知识点。
-- 学习路径页展示任务式路径。
-- 资源页展示 AI 推荐资源包。
-- 练习页展示测验得分和错因分析。
-- 报告页展示知识点掌握情况和学习建议。
+主链为：
 
-## AI 能力边界
-
-AI 生成内容仅作为教学辅助。关键教学资源、测评结论、学生画像诊断和教师干预建议必须经教师或管理员审核后使用，不直接替代教师评价和平台治理决策。
-
-## 技术栈
-
-- 前端：Vue 3、Vite、TypeScript、Vue Router、ECharts。
-- 后端：FastAPI、SQLAlchemy、Pydantic。
-- 小程序：原生微信小程序。
-- 数据：SQLite 演示数据、本地 mock、课程知识库 JSON。
-- AI 演示：规则生成、轻量 RAG、本地知识库、内容审核 mock，不新增 LangChain、LangGraph、Chroma、FAISS 等重依赖。
-
-## 启动方式
-
-后端：
-
-```bash
-cd backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```text
+Profile -> Knowledge -> Planner -> ResourcePlanner -> Resource
+        -> Tutor -> Evaluator -> Audit -> Compliance
 ```
 
-前端：
+ComplianceAgent 根据审核结果进入 ReporterAgent、AuditRetry 或 TeacherArbitration。中风险内容最多回流 ResourceAgent 3 次；高风险或重试仍未通过时，运行持久化为 `pending_review`，等待教师决策：
 
-```bash
-cd frontend
-npm install
-npm run dev
+- approve：进入 ReporterAgent 并完成报告。
+- revise：携带教师意见回到 ResourceAgent，再生成并复审。
+- reject：阻断发布并结束运行。
+
+12 节点图和三种决策路由已通过自动测试；教师端完整人工 UI 演练尚待完成。
+
+## RAG 与降级路径
+
+RAG 问答入口为 `POST /api/v1/rag/ask`。
+
+```text
+课程查询
+  -> 已导入课程向量/混合检索
+  -> 课程语义约束与证据重排
+  -> 引用、置信度、课程边界和检索调试信息
+  -> 无可用向量项时回退 JSON + TF-IDF/关键词检索
+  -> 证据不足或超出课程范围时返回明确 fallback_reason
 ```
 
-前端构建：
+内置 `TfidfEmbeddingProvider` 支持中英文轻量特征；SentenceTransformer 是可选适配器。本项目不把 fallback 描述为向量检索成功，也不把单次引用数量当作固定指标。
 
-```bash
-cd frontend
-npm run build
-```
+当前回归评价集只有 5 条：
 
-小程序：
+| 指标 | 本轮结果 |
+|---|---:|
+| MRR | 1.0000 |
+| Recall@K | 1.0000 |
+| NDCG@K | 0.9751 |
+| Precision@K | 0.8267 |
+| CoverageRate | 0.6800 |
 
-1. 打开微信开发者工具。
-2. 导入 `miniprogram` 目录。
-3. AppID 可使用测试号或无 AppID 模式。
+这些结果只用于回归测试和演示验证，不代表复杂真实教学场景中的大规模准确率或泛化效果。详见 [reports/retrieval_eval_report.md](reports/retrieval_eval_report.md)。
 
-Windows 一键脚本：
+## 轻量知识追踪边界
+
+`backend/app/services/dkvmn_tracker.py` 实现了 softmax key 寻址、按学生维护的 value memory、erase/add 门控更新、掌握度估计、强弱项识别和六维画像映射。
+
+准确表述是“轻量在线门控记忆知识追踪实现”。当前没有预训练检查点、论文规模训练数据或论文级模型效果验证，不宣称完成论文复现或训练出生产级 DKVMN 模型。
+
+## 治理与教师仲裁
+
+系统采用本地规则审核、可选讯飞安全适配、课程证据检查、重试回流、教师仲裁和 AuditLog 记录。进入待仲裁状态时不会提前生成最终报告。
+
+审计日志用于演示和工程追踪，不等同于第三方合规认证或不可篡改审计系统。
+
+## 推荐环境
+
+正式提交和干净环境复验推荐：
+
+- Windows 10/11
+- Python 3.11.x（已在 3.11.9 干净 venv 中完成后端依赖安装与启动复验）
+- Node.js >=20（前端锁文件使用 `npm ci`；本轮实际构建验证版本为 Node.js 24.14.0）
+- npm 使用 `frontend/package-lock.json` 对应的 `npm ci`
+
+本轮全量测试环境为 Python 3.13.9、Node.js 24.14.0、npm 11.9.0；最终压缩前已补充 Python 3.11.9 干净 venv 后端依赖安装和 18006 端口启动复验。`py -0p` 只作为 Python Launcher 注册状态参考，不作为项目启动硬门槛。关键依赖实测版本见 [docs/environment-baseline.md](docs/environment-baseline.md)。
+
+## 首次安装
+
+在仓库根目录执行：
 
 ```bat
-start-dev.bat
-stop-dev.bat
-seed-demo-data.bat
-check-demo-ready.bat
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r backend\requirements.txt
+
+cd frontend
+npm.cmd ci
+cd ..
+
+copy .env.example .env
+python scripts\seed_demo_data.py
 ```
 
-## 比赛演示路线
+PowerShell 若因执行策略无法运行 `npm.ps1`，请使用 `npm.cmd`。
 
-学生端：
+## 快捷启动
 
-1. `/student` 查看今日任务和学习概览。
-2. `/student/knowledge-graph` 点击薄弱知识点，展示资源、练习和 AI 建议。
-3. `/student/learning-path` 切换三类画像路径。
-4. `/student/smart-quiz` 提交章节练习，展示得分和错因分析。
-5. `/student/assistant` 展示知识点绑定答疑和推荐练习。
-6. `/student/reports` 查看学习报告。
+依赖已经安装并初始化后，可以运行：
 
-教师端：
+```bat
+START_EDUMIND.bat
+```
 
-1. `/teacher` 展示班级完成率、正确率、活跃度、薄弱点排行和风险学生。
-2. `/teacher/ai-workbench` 生成教案、测验或学情分析。
-3. `/profiles` 查看学生画像和干预建议。
-4. `/courses` 展示知识点、资源、题目关联。
-5. `/teacher-analysis` 查看测评分析。
+`START_EDUMIND.bat` 是 Windows 兼容入口，内部调用同目录 `start-dev.bat`；该启动链路是“已安装环境下的快捷启动”，不会创建虚拟环境，也不会自动安装 Python/npm 依赖。停止服务使用 `stop-dev.bat`。
 
-管理员端：
-
-1. `/dashboard` 展示平台治理指标和 AI 能力边界。
-2. `/admin/content-review` 模拟 AI 生成内容通过、驳回、待审核。
-3. `/admin/platform-quality` 展示课程质量评价。
-4. `/logs` 查看运行日志。
-5. `/demo-status` 查看演示状态。
-
-小程序端：
-
-1. 首页：今日任务、课程进度、薄弱点。
-2. 路径：任务式学习路径。
-3. 资源：AI 推荐资源包。
-4. 练习：测验得分和错因分析。
-5. 报告：知识点掌握情况和学习建议。
-
-## 本轮新增/修改文件
+## 手动启动
 
 后端：
 
-- `backend/app/services/competition_mock_service.py`
-- `backend/app/api/routers/competition.py`
-- `backend/app/main.py`
+```bat
+cd backend
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
 前端：
 
-- `frontend/src/api/mocks/competitionData.ts`
-- `frontend/src/views/StudentKnowledgeGraph.vue`
-- `frontend/src/views/StudentSmartQuiz.vue`
-- `frontend/src/views/TeacherAIWorkbench.vue`
-- `frontend/src/views/AdminContentReview.vue`
-- `frontend/src/views/AdminPlatformQuality.vue`
-- `frontend/src/views/StudentLearningPath.vue`
-- `frontend/src/views/TeacherHome.vue`
-- `frontend/src/views/StudentProfile.vue`
-- `frontend/src/views/CourseManage.vue`
-- `frontend/src/views/Dashboard.vue`
-- `frontend/src/router/index.ts`
-- `frontend/src/config/roles.ts`
-
-小程序：
-
-- `miniprogram/utils/demoData.js`
-- `miniprogram/app.json`
-- `miniprogram/pages/home/index.wxml`
-- `miniprogram/pages/path/index.wxml`
-- `miniprogram/pages/path/index.wxss`
-- `miniprogram/pages/resources/index.wxml`
-- `miniprogram/pages/quiz/index.js`
-- `miniprogram/pages/quiz/index.wxml`
-- `miniprogram/pages/quiz/index.wxss`
-- `miniprogram/pages/report/index.js`
-- `miniprogram/pages/report/index.wxml`
-
-文档：
-
-- `README.md`
-- `docs/demo-checklist.md`
-- `docs/reports/demo_ready_check.md`
-- `docs/competition-enhancement.md`
-
-## 验收命令
-
-```bash
-git status --short
-```
-
-```bash
-cd backend
-python -m compileall app
-```
-
-```bash
+```bat
 cd frontend
-npm run build
+npm.cmd run dev
 ```
 
-```bash
-python scripts/check-demo-ready.py
-```
-# EduMind 赛题关键能力补强说明
+默认地址：
 
-当前版本围绕赛题核心要求补齐了低风险可演示能力：
+- 后端健康检查：<http://127.0.0.1:8000/health>
+- OpenAPI：<http://127.0.0.1:8000/docs>
+- Web：<http://127.0.0.1:5173>
 
-- 对话式学生画像通过多轮自然对话抽取 6 个维度：知识基础、认知风格、学习偏好、易错点、学习进度、情感动机，并保留 current_level、learning_goal、weak_points、learning_preference、diagnosis、strategy 等旧字段兼容。
-- 多模态资源包支持 9 类资源：知识讲义、思维导图、练习题、HTML/SVG 动画、视频讲解脚本、语音讲解资源、简易 MP4 视频、代码案例、项目任务。
-- HTML/CSS 动画当前可在前端通过 sandbox iframe 预览；MP4 合成为 FFmpeg 可选部署能力，未配置 FFmpeg 时稳定返回 HTML 动画、视频脚本和 TTS 资源，不宣传为完整生产级数字人视频。
-- 科大讯飞工具通过环境变量接入，优先支持 TTS；无 Key 时接口返回 `not_configured`，系统继续使用本地智能评测引擎稳定运行。
-- 测验提交后返回 `evaluation` 与 `path_adjustment`，前端可展示“测 -> 评 -> 调”的动态学习路径调整结果。
-- 内容安全采用“知识库引用 + 本地规则审核 + 可配置 AI 安全扩展”机制，AI 生成内容需经教师或管理员审核后进入正式教学资源。
-# EduMind 个性化学习多智能体系统（A3 完整演示版）
+如果系统代理拦截 localhost 请求，请设置：
 
-EduMind 面向软件杯 A3「个性化学习多智能体系统」赛题，提供学生端、教师端、管理端和微信小程序端的可信个性化学习闭环。当前主线演示为「Python 程序设计 / 循环结构 / 李明」，覆盖画像对话、在线门控 DKVMN 知识追踪、课程约束 RAG、多模态资源生成、测验提交、路径动态调整、教师仲裁、学习报告和治理日志。
-
-## 三端角色
-
-- 学生端：画像构建、学习路径、RAG 答疑、资源预览、章节测验、学习报告。
-- 教师端：课程管理、学情分析、资源生成、教师仲裁、报告中心。
-- 管理端：系统总览、知识库/RAG、内容审核、Agent 工作流、审计日志、系统状态。
-- 小程序端：学生端核心体验的轻量移动入口。
-
-## 技术栈
-
-- 后端：FastAPI、SQLAlchemy、SQLite，Chroma 可选，JSON/TF-IDF fallback。
-- 前端：Vue 3、Vite、TypeScript、ECharts。
-- 小程序：微信小程序原生 WXML/WXSS/JS。
-- 外部能力：LLM、讯飞 TTS/安全、FFmpeg、SentenceTransformer 均为可选接入，未配置时自动使用本地轻量能力。
-
-## 核心创新落地
-
-- DKVMN：`backend/app/services/dkvmn_tracker.py` 提供 softmax key 寻址、动态 value memory、erase/add 门控写入、掌握度更新、强弱点识别和 6 维画像映射。
-- EduLLM：`document_parser.py`、`chunk_strategy.py`、`curriculum_constraint.py`、`embedding_interface.py` 形成课程约束 RAG，`/api/v1/rag/ask` 优先检索已导入课程向量库并返回真实引用、置信度、课程对齐和检索 debug，无命中时降级到课程 JSON。
-- FACET：系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent。高风险运行会持久化暂停；教师 approve/revise/reject 后分别进入报告、重生成复审或阻断发布，并通过 `/api/v1/agent-runs`、`/api/v1/audit-logs` 追踪状态。
-- 多模态资源：支持讲义、思维导图、练习、HTML 动画、视频脚本、TTS 任务、MP4 可选合成、代码案例、小项目任务。
-
-## 启动方式
-
-```bash
-cd backend
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-cd ../frontend
-npm install
-npm run dev
+```bat
+set NO_PROXY=127.0.0.1,localhost
+set no_proxy=127.0.0.1,localhost
 ```
 
-演示数据：
+## 离线验收与测试
 
-```bash
-python scripts/seed_demo_data.py
-python scripts/check-demo-ready.py --skip-http
-python scripts/eval_retrieval.py
+无需真实密钥的离线就绪检查：
+
+```bat
+docs\check-demo-ready.bat
 ```
 
-## 演示账号
+等价命令为 `python scripts\check-demo-ready.py --skip-http`。
 
-- 学生：李明（基础薄弱 + 代码实操偏好 + 中风险）
-- 教师：王老师
-- 管理员：demo_admin
+其他验收：
 
-## 能力边界与 Fallback
+```bat
+python -m compileall backend\app
+python -m pytest backend\tests -q
 
-- LLM 未配置时使用本地规则和模板生成。
-- 讯飞 TTS/安全 API 未配置时返回文本讲解、任务状态和本地规则审核结果。
-- FFmpeg 未安装时降级为 HTML 动画与视频脚本。
-- Chroma 不可用时自动使用 JSON/TF-IDF 检索。
-- DKVMN 当前实现了在线门控 Key-Value Memory 推理核心，包含 `key_matrix`、softmax attention、按学生持久化的 `value_memory`、erase/add 写门、强弱点识别和画像映射；当前没有论文规模训练数据和预训练 checkpoint，不宣称复现论文指标。
-- EduLLM 当前是课程大纲约束 + 轻量语义/规则混合评分 + RAG 引用证据，不是完整教育大模型微调。
-- OCR、SentenceTransformer、DKVMN 离线训练与 checkpoint 加载均保留扩展边界，比赛工程默认使用可解释的在线更新模式。
+cd frontend
+npm.cmd run build
+cd ..
 
-## Docker 启动
-
-演示级容器配置已补齐，保留本地启动方式：
-
-```bash
-cp .env.example .env
-docker compose up --build
+python scripts\eval_retrieval.py
 ```
 
-访问地址：
+后端与前端服务启动后，可执行：
 
-- Web 前端：http://localhost:3000
-- 后端 API：http://localhost:8000/docs
-- Chroma 可选 profile：`docker compose --profile chroma up --build`
+```bat
+python scripts\e2e_demo_flow_check.py --base-url http://127.0.0.1:8000/api/v1
+python scripts\check_demo_pages.py
+python scripts\check-demo-ready.py
+```
 
-常见问题：
+## 当前验证结果
 
-- 如果 8000 或 3000 端口被占用，先停止本地 dev server 或修改 `docker-compose.yml` 端口映射。
-- SQLite 数据通过 `backend/storage` volume 保留。
-- Docker 不可用时仍按上方本地方式启动后端、前端和小程序。
+| 验收项 | 已验证结果 | 范围 |
+|---|---:|---|
+| 后端自动化测试 | 323/323 通过 | 单元/服务/部分集成测试；存在弃用 warnings |
+| API E2E | 16/16 通过 | 演示 API 链路，不是浏览器自动化 |
+| Web 页面壳 | 14/14 通过 | 页面可访问壳，不等于完整 UI 验收 |
+| 离线就绪检查 | 39/39 通过 | 数据、文件、源码契约和脚本 |
+| 在线就绪检查 | 72/72 通过 | 本地 HTTP 服务；不等于真实讯飞成功 |
+| 前端生产构建 | 通过 | 797 modules |
+| RAG 回归评价 | 5 条数据集运行成功 | 小规模回归与演示验证 |
+| OpenAPI | 111 个路径、117 个 HTTP operation | operation 数量不是用户功能数量 |
 
-## 小程序后端配置
+最终冻结验收记录为后端全量 `323 passed / 2696 warnings`；Q012—Q015 及 Q018 安全回归为 `241 passed / 2573 warnings`。warnings 主要是第三方兼容弃用和项目内 `datetime.utcnow()` 弃用，数量会受测试路径影响，不能作为功能数量或质量无风险声明。
 
-小程序默认优先访问 `http://127.0.0.1:8000/api/v1`，配置在 `miniprogram/config/api.js`：
+## 讯飞配置
 
-- 开发者工具可使用 `127.0.0.1`。
-- 真机调试需改成电脑局域网 IP，例如 `http://192.168.1.8:8000/api/v1`，并确认手机与电脑在同一网络。
-- `fallbackToDemoData: true` 时，后端不可达会展示“当前为本地示例数据”，页面不白屏。
+当前代码从仓库根目录未跟踪的 `.env` 或进程环境变量读取讯飞配置；`xfyun.env` 可作为本地受忽略密钥文件保存，但需要人工加载为环境变量或复制为同样受忽略的 `.env` 后再启动。只复制模板，不要提交真实文件：
 
-## CI
+```dotenv
+XFYUN_ENABLED=true
+XFYUN_APP_ID=your_app_id
+XFYUN_API_KEY=your_api_key
+XFYUN_API_SECRET=your_api_secret
+```
 
-`.github/workflows/ci.yml` 已加入基础检查：
+配置后重启后端，先访问 `GET /api/v1/xfyun/status`。TTS 调用入口为 `POST /api/v1/xfyun/tts`。
 
-- 后端：安装 `backend/requirements.txt`、`python -m compileall backend/app`、`pytest backend/tests`。
-- 前端：`npm ci`、`npm run build`。
+注意：
 
-## Agent 节点口径
+- 当前主 LLM provider 只支持 `mock`、`deepseek`、`qwen`、`dashscope`；不要设置 `LLM_PROVIDER=xfyun`。
+- 讯飞 Spark 当前具备配置状态与签名 URL 构造能力，尚未形成当前 main 中可直接执行的完整实调脚本。
+- 讯飞 TTS 具备 WebSocket 调用实现和 `/api/v1/xfyun/tts` 路由，但最终冻结前未使用真实凭据实调。
+- 讯飞云安全审核当前为配置/状态占位，不应描述为真实云审核已调用。
+- 当前仓库验收未配置真实讯飞凭据，真实云调用状态是“尚未验证”。
+- status 中的 `not_configured` 或本地 fallback 不能写成云调用成功。
 
-系统采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent。
+## Mock 与真实云调用
 
-原始开发方案中的 9+1 是核心教学闭环，当前工程版在其基础上扩展了 ComplianceAgent、AuditRetry、TeacherArbitration 等治理节点，用于满足可信、安全、可追溯要求。当前表述保持比赛工程实现口径，不夸大为真实商业生产系统。
+默认 `LLM_PROVIDER=mock`。mock 模式使用本地规则、模板、TF-IDF、JSON 知识库和演示数据，目的是在无外网或无密钥环境中保持链路可运行。
+
+真实云调用必须同时满足：对应 provider 和凭据已配置、状态明确为 configured、实际请求收到云端成功响应，并且日志不泄露密钥。页面可用、在线就绪 72/72 或 fallback 成功，都不能替代真实云调用验证。
+
+## 已知限制
+
+- 教师 approve/revise/reject 三类 UI 已在 Q014 限定范围完成人工回归；服务端课程授权为显式演示映射，不代表生产级跨班隔离。
+- 微信小程序开发者工具和真机尚未验证。
+- Docker 静态检查通过，构建与 Compose 启动尚未验证。
+- 全新机器从零安装尚未验证。
+- 真实讯飞云调用尚未验证。
+- RAG 评价集只有 5 条。
+- DKVMN 没有预训练检查点和论文级效果。
+- 后端 requirements 尚未精确锁定全部版本。
+
+详见 [docs/known-limitations.md](docs/known-limitations.md)。
+
+## 安全与密钥
+
+- 真实密钥只允许通过未跟踪的 `.env` 或临时环境变量注入。
+- `.env`、`xfyun.env`、`*.env`、私钥和常见本地凭据文件均应被 `.gitignore` 排除。
+- `.env.example` 只能保留空值或占位符。
+- 微信小程序配置模板为 `project.config.example.json`，使用 `touristappid`；根目录真实 `project.config.json` 不进入官网源码包。
+- 不把数据库、虚拟环境、node_modules、缓存、日志、媒体运行产物或真实用户数据放入交付包。
+- `sample_data/` 含第三方扩展课程资料和教程示例，默认排除出官网源码包；如未来需要分发，必须先完成来源、许可证、授权和署名确认。
+- 提交前执行 `git check-ignore -v .env xfyun.env` 和脱敏扫描。
+
+## 最终材料入口
+
+- 第一轮事实基线与验收：[交付成果_最新版](交付成果_最新版/)
+- 统一事实引用规范：[docs/fact-baseline.md](docs/fact-baseline.md)
+- 环境版本基线：[docs/environment-baseline.md](docs/environment-baseline.md)
+- 架构说明：[docs/architecture.md](docs/architecture.md)
+- 验收报告：[docs/final-acceptance-report.md](docs/final-acceptance-report.md)
+- 已知限制：[docs/known-limitations.md](docs/known-limitations.md)

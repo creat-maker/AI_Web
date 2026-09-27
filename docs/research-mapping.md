@@ -1,23 +1,44 @@
-# 论文方法到工程能力映射
+# 研究方法到工程能力映射
 
-## DKVMN -> 个性化画像与知识追踪
+本文档说明论文/方法概念在 EduMind 中的工程化范围，不把工程演示实现描述为论文完整复现。
 
-EduMind 使用在线门控 DKVMN 做知识追踪：Key 是 Python 知识点注册表和 `key_matrix`，查询概念通过 softmax attention 寻址；Value 是按学生持久化的 `value_memory`，通过 erase/add 式门控在线写入。测验题目携带 concept_id 后，系统综合对错、难度、响应时长和得分更新 value 向量，再估计 mastery、连续对错、强弱点，并映射到知识基础、学习节奏、学习偏好、代码实操能力、易错知识点、学习风险 6 维画像。
+## DKVMN：轻量在线门控记忆知识追踪
 
-边界：当前没有论文规模训练集和预训练 checkpoint，不宣称复现论文指标；`DKVMNModelInterface` 保留离线训练模型与 checkpoint 推理替换能力。
+工程实现位于 `backend/app/services/dkvmn_tracker.py`：
 
-## EduLLM -> 课程约束 RAG
+- Key：课程概念注册表和 `key_matrix`。
+- 寻址：softmax attention。
+- Value：按学生维护的 `value_memory`。
+- 更新：根据作答、难度、时间等信息执行 erase/add 门控更新。
+- 输出：掌握度、强弱项及六维画像映射。
 
-EduMind 将课程大纲约束、文档解析、章节分块、TF-IDF embedding、引用证据、超纲检测和课程对齐评分组合成可信教学问答。回答结构包含 answer、citations、confidence、curriculum_alignment_score、alignment_breakdown、matched_objectives、evidence_coverage_score、boundary_warning、suggested_actions 和 retrieval_debug。
+边界：没有论文规模训练集、预训练 checkpoint 或论文级指标验证；准确表述为“轻量在线门控记忆知识追踪实现”。
 
-边界：未配置 Chroma 或 embedding 模型时使用 JSON/TF-IDF fallback；OCR 仅预留。
+## 课程约束 RAG
 
-## FACET -> 多智能体教师仲裁治理
+工程实现组合：
 
-EduMind 采用 12 节点教学智能体治理增强流程，包括 ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent。审核维度包括事实准确性、课程对齐度、超纲风险、隐私风险、不当内容、幻觉风险、学段适配。中高风险内容进入回流或教师仲裁，结果写入日志。
+- 课程文档解析和分块；
+- TF-IDF embedding 接口；
+- 课程向量/混合检索优先；
+- JSON+TF-IDF fallback；
+- 引用、置信度、课程对齐、证据覆盖和边界告警；
+- 可选 Chroma 与 SentenceTransformer。
 
-边界：讯飞安全 API 未配置时使用本地规则；并行 Agent 仅保留扩展结构，当前以顺序兜底保证演示稳定。
+边界：本轮评价集只有 5 条，仅用于回归和演示验证；OCR 仍是扩展边界。
+
+## 多智能体教师仲裁治理
+
+工程采用 12 节点 LangGraph：
+
+ProfileAgent、KnowledgeAgent、PlannerAgent、ResourcePlannerAgent、ResourceAgent、TutorAgent、EvaluatorAgent、AuditAgent、ComplianceAgent、AuditRetry、TeacherArbitration、ReporterAgent。
+
+中风险内容回流再生成，高风险或达到重试上限后暂停等待教师。approve、revise、reject 分别进入报告、重新生成复审或阻断发布，并写入运行状态和审计日志。
+
+边界：这是教师中心的工程治理流程，不宣称完整复现特定论文系统；教师端三类决策的完整 UI 人工演练尚未完成。
 
 ## 工程化原则
 
-本项目强调可运行、可展示、可解释的轻量落地，不夸大为完整论文复现。所有外部依赖均有 fallback，优先保证比赛演示闭环稳定。
+- 外部能力不可用时明确 fallback，不把 fallback 冒充云服务成功。
+- 所有研究映射同时写明未训练、未验证或未接入的边界。
+- 评价数字必须引用 [统一事实基线](fact-baseline.md)。

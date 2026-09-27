@@ -23,7 +23,7 @@ interface LoginResponse {
 
 const router = useRouter();
 const route = useRoute();
-const { setDemoUserId, setRole } = useRole();
+const { clearRole, setDemoUserId, setRole } = useRole();
 
 const roleCards: Array<{
   role: UserRole;
@@ -175,16 +175,20 @@ async function submitLogin() {
     }
 
     const role = normalized.role;
-    const matched = roleCards.find((item) => item.role === role) || selected.value;
+    clearRole();
     localStorage.setItem('edumind.accessToken', String(normalized.token));
     localStorage.setItem('edumind.user', JSON.stringify({ ...(normalized.user || {}), role }));
     if (!setRole(role)) {
       error.value = '登录响应中的角色无效，请检查登录接口。';
       return;
     }
-    const studentId = normalized.user?.student_id || matched.userId;
-    setDemoUserId(studentId);
-    if (role === 'student') localStorage.setItem('edumind.studentId', studentId);
+    if (role === 'student') {
+      const studentId = String(normalized.user?.student_id || '').trim();
+      if (studentId) {
+        setDemoUserId(studentId);
+        localStorage.setItem('edumind.studentId', studentId);
+      }
+    }
     const redirect = legalRedirect(role, normalized.redirect) || legalRedirect(role, route.query.redirect) || defaultRedirect(role);
     await router.push(redirect);
   } catch (err) {

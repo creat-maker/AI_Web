@@ -1,13 +1,24 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Any
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.api.deps import require_staff
+from app.db.session import get_db
+from app.services.teacher_scope_service import get_authorized_course_ids
 
 
 router = APIRouter(prefix="/decision-center", tags=["decision-center"])
 
 
 @router.get("/overview")
-def overview():
+def overview(
+    db: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_staff),
+):
+    course_ids = get_authorized_course_ids(db, current_user)
     return {
         "title": "EduMind 教学智能决策中心",
         "metrics": [
@@ -33,4 +44,9 @@ def overview():
         "miniprogramActive": {"todayUsers": 86, "weeklyRetention": "68%"},
         "teacherEfficiency": {"savedHours": 42, "autoReports": 56, "recommendedInterventions": 18},
         "mode": "mock-fallback",
+        "authorization_scope": {
+            "type": "admin_global" if course_ids is None else "explicit_demo_teacher_course_mapping",
+            "course_ids": sorted(course_ids or []),
+            "production_class_isolation": False,
+        },
     }

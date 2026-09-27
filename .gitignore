@@ -1,8 +1,26 @@
 # Environment files
 .env
 .env.*
+*.env
+*.env.*
+xfyun.env
+**/xfyun.env
 !.env.example
 !**/.env.example
+
+# Secrets / credentials / private keys
+secrets.*
+credentials.*
+*.secrets.*
+*.credentials.*
+config.local.*
+*.private.config.*
+service-account*.json
+*_service_account.json
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Python virtual environments
 .venv/
@@ -85,10 +103,11 @@ Thumbs.db
 *.bin
 *.safetensors
 
-# local research papers and private config
+# Local research papers and private config
 docs/research_papers/
-ÎÄÏ×/
+æ–‡çŒ®/
 *.pdf
 project.private.config.json
 
+# Historical local copy
 EduMind/

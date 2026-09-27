@@ -4,18 +4,25 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_demo_user_id
+from app.api.deps import get_demo_user_id, require_staff
+from app.api.routers.auth import get_authenticated_user
 from app.db.session import get_db
 from app.models import Course, GeneratedResource, LearningPath, StudentProfile
 from app.services.business_event_service import record_event
-from app.services.demo_profile_chain import build_resource_pack, get_demo_student
+from app.services.demo_profile_chain import build_resource_pack, get_demo_student, normalize_user_id
 from app.services.json_utils import dumps, loads
 from app.services.llm_service import llm_service
 from app.services.personalization_service import generate_resource_pack
 from app.services.profile_service import latest_profile_by_user_id, profile_to_dict
 from app.services.courseware_service import CoursewareRequest, build_courseware_outline
-from app.services.governance_service import DEFAULT_ITEM_KEY, create_ai_task, create_review_item, write_audit_log
+from app.services.governance_service import DEFAULT_ITEM_KEY, create_ai_task, create_review_item, current_user_label, write_audit_log
 from app.services.multimodal_resource_service import RESOURCE_TYPE_CATALOG, build_multimodal_resources, ffmpeg_capability, xfyun_tts_capability
+from app.services.teacher_scope_service import (
+    can_manage_course,
+    get_course_for_write,
+    get_profile_for_write,
+    resolve_course_reference,
+)
 
 
 router = APIRouter(prefix="/resources", tags=["resources"])
@@ -116,17 +123,17 @@ def _preview_type(resource_type: str, content: str) -> str:
 
 
 @router.post("/generate")
-def generate_resources(payload: ResourceGeneratePayload, db: Session = Depends(get_db)):
-    course = db.query(Course).filter(Course.id == payload.course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="课程不存在")
+def generate_resources(
+    payload: ResourceGeneratePayload,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_staff),
+):
+    course = get_course_for_write(db, current_user, payload.course_id)
 
     profile = None
     profile_json = {}
     if payload.student_profile_id:
-        profile = db.query(StudentProfile).filter(StudentProfile.id == payload.student_profile_id).first()
-        if not profile:
-            raise HTTPException(status_code=404, detail="学生画像不存在")
+        profile = get_profile_for_write(db, current_user, payload.student_profile_id, course=course)
         profile_json = loads(profile.profile_json, {})
 
     path = None
@@ -179,10 +186,26 @@ def recommendations(
 
 
 @router.post("/generate-pack")
-def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), current_user_id: str = Depends(get_demo_user_id)):
+def generate_pack(
+    payload: ResourcePackPayload,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_staff),
+):
     data = payload.model_dump()
-    active_user_id = payload.studentId or current_user_id
-    profile = latest_profile_by_user_id(db, active_user_id)
+    requested_user_id = str(payload.studentId or "").strip()
+    normalized_user_id = normalize_user_id(requested_user_id) if requested_user_id else ""
+    owner_candidates = [requested_user_id, normalized_user_id]
+    if normalized_user_id == "demo-basic":
+        owner_candidates.append("student_001")
+    profile = None
+    for owner_id in owner_candidates:
+        if owner_id:
+            profile = latest_profile_by_user_id(db, owner_id)
+            if profile:
+                break
+    active_user_id = profile.owner_user_id if profile else requested_user_id
+    if requested_user_id and not profile:
+        raise HTTPException(status_code=404, detail="学生对象不存在或不可访问")
     data["studentId"] = active_user_id
     if profile:
         data["profile"] = profile_to_dict(profile)
@@ -204,17 +227,13 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         "xfyun_tts": xfyun_tts_capability(),
     })
     pack.setdefault("runtime_capabilities", pack["runtimeCapabilities"])
-    course_id = None
-    try:
-        course_id = int(payload.courseId) if payload.courseId else None
-    except (TypeError, ValueError):
-        course_id = None
-    if not course_id and payload.courseName:
-        course = db.query(Course).filter(Course.title == payload.courseName).first()
-        course_id = course.id if course else None
-    if not course_id:
-        course = db.query(Course).order_by(Course.id.asc()).first()
-        course_id = course.id if course else None
+    course = resolve_course_reference(db, payload.courseId) or resolve_course_reference(db, payload.courseName)
+    if not course:
+        raise HTTPException(status_code=404, detail="课程不存在或不可访问")
+    course = get_course_for_write(db, current_user, course.id)
+    course_id = course.id
+    if profile:
+        profile = get_profile_for_write(db, current_user, profile.id, course=course)
 
     if course_id:
         for item in pack.get("resources", []):
@@ -248,6 +267,7 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         db.commit()
 
     student = get_demo_student(active_user_id)
+    actor_id, actor_name, actor_role = current_user_label(current_user)
     should_fail = any(
         token in str(payload.learningGoal or "").lower()
         for token in ("fail", "failed", "error", "失败")
@@ -256,8 +276,8 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         db,
         task_type="resource_pack",
         title=pack.get("packageTitle") or "Python 循环结构个性化补弱资源包",
-        actor_id="teacher_001",
-        actor_role="teacher",
+        actor_id=actor_id,
+        actor_role=actor_role,
         input_summary={
             "course": pack.get("courseName"),
             "topic": "循环结构",
@@ -276,9 +296,9 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
     if should_fail:
         write_audit_log(
             db,
-            actor_id="teacher_001",
-            actor_name="王老师",
-            actor_role="teacher",
+            actor_id=actor_id,
+            actor_name=actor_name,
+            actor_role=actor_role,
             action="resource_generation_failed",
             target_type="resource_pack",
             target_id=task.id,
@@ -311,8 +331,9 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
         event_type="resource_pack_generated",
         title=f"{pack.get('resourceTypeCount', len(pack.get('resources', [])))} 类个性化资源包已生成",
         description=f"{pack['courseName']} 已生成讲义、思维导图、练习题、HTML 动画、视频脚本、语音讲解任务、简易 MP4 视频、代码案例和项目任务。",
-        actor_role="student",
-        actor_name=student["student_name"],
+        actor_id=actor_id,
+        actor_role=actor_role,
+        actor_name=actor_name,
         target_type="resource_pack",
         target_id=f"{pack['studentId']}-{pack['courseId']}",
         related_student=student["student_name"],
@@ -331,7 +352,14 @@ def generate_pack(payload: ResourcePackPayload, db: Session = Depends(get_db), c
 
 
 @router.post("/courseware-outline")
-def generate_courseware_outline(payload: CoursewareOutlinePayload) -> dict:
+def generate_courseware_outline(
+    payload: CoursewareOutlinePayload,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_staff),
+) -> dict:
+    course = resolve_course_reference(db, payload.course)
+    if not course or not can_manage_course(db, current_user, course):
+        raise HTTPException(status_code=404, detail="课程不存在或不可访问")
     request = CoursewareRequest(
         course=payload.course,
         chapter=payload.chapter,
@@ -367,10 +395,26 @@ def preview_resource(resource_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{resource_id}/rate")
-def rate_resource(resource_id: int, payload: ResourceRatingPayload, db: Session = Depends(get_db)):
+def rate_resource(
+    resource_id: int,
+    payload: ResourceRatingPayload,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_authenticated_user),
+):
     item = db.query(GeneratedResource).filter(GeneratedResource.id == resource_id).first()
     if not item:
-        raise HTTPException(status_code=404, detail="资源不存在")
+        raise HTTPException(status_code=404, detail="资源不存在或不可访问")
+    role = str(current_user.get("role") or "guest")
+    if role == "student":
+        if not item.student_profile_id:
+            raise HTTPException(status_code=404, detail="资源不存在或不可访问")
+        get_profile_for_write(db, current_user, item.student_profile_id)
+    elif role == "teacher":
+        course = db.query(Course).filter(Course.id == item.course_id).first()
+        if not course or not can_manage_course(db, current_user, course):
+            raise HTTPException(status_code=404, detail="资源不存在或不可访问")
+    elif role != "admin":
+        raise HTTPException(status_code=403, detail="当前角色无权评价资源")
     item.rating = max(0, min(5, float(payload.rating)))
     base_reason = item.recommend_reason or "根据画像推荐"
     item.recommend_reason = f"{base_reason}；最近评分 {item.rating}/5，反馈将用于后续路径推荐。"

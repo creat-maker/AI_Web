@@ -98,8 +98,8 @@ async function assignRole(user: AdminUser, role: string) {
 
 async function resetPassword(user: AdminUser) {
   try {
-    const result = await api.post<{ temp_password: string }>(`/api/v1/admin/users/${user.id}/reset-password`);
-    success.value = `${user.name} 的临时密码：${result.temp_password}`;
+    await api.post<{ temporary_password: string }>(`/api/v1/admin/users/${user.id}/reset-password`);
+    success.value = `${user.name} 的一次性临时密码已生成，请通过线下安全渠道传递，勿截图或写入日志。`;
   } catch (err) {
     error.value = err instanceof Error ? err.message : '密码重置失败。';
   }

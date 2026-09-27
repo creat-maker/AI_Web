@@ -3,12 +3,19 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from app.api.routers.auth import _sign_jwt
 
 
 REQUIRED_EVENT_TYPES = [
@@ -41,10 +48,54 @@ class DemoFlowChecker:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.steps: list[StepResult] = []
+        now = int(time.time())
+        self.role_tokens = {
+            "student": _sign_jwt(
+                {
+                    "username": "student",
+                    "role": "student",
+                    "name": "李明",
+                    "display_name": "李明",
+                    "user_id": "student_001",
+                    "iat": now,
+                    "exp": now + 600,
+                }
+            ),
+            "teacher": _sign_jwt(
+                {
+                    "username": "teacher",
+                    "role": "teacher",
+                    "name": "王老师",
+                    "display_name": "王老师",
+                    "user_id": "teacher_001",
+                    "iat": now,
+                    "exp": now + 600,
+                }
+            ),
+            "admin": _sign_jwt(
+                {
+                    "username": "admin",
+                    "role": "admin",
+                    "name": "管理员",
+                    "display_name": "管理员",
+                    "user_id": "admin_001",
+                    "iat": now,
+                    "exp": now + 600,
+                }
+            ),
+        }
 
-    def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> tuple[int, Any]:
+    def request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+        role: str | None = None,
+    ) -> tuple[int, Any]:
         data = None
         headers = {"Accept": "application/json", "User-Agent": "EduMind-e2e-demo-flow-check/1.0"}
+        if role:
+            headers["Authorization"] = f"Bearer {self.role_tokens[role]}"
         if payload is not None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             headers["Content-Type"] = "application/json"
@@ -53,9 +104,15 @@ class DemoFlowChecker:
             text = response.read().decode("utf-8", errors="replace")
             return int(response.status), json.loads(text) if text else None
 
-    def safe_request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> tuple[int | None, Any, str]:
+    def safe_request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+        role: str | None = None,
+    ) -> tuple[int | None, Any, str]:
         try:
-            status, body = self.request(method, path, payload)
+            status, body = self.request(method, path, payload, role)
             return status, body, ""
         except HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
@@ -87,7 +144,8 @@ class DemoFlowChecker:
     def first_course(self) -> dict[str, Any] | None:
         status, body, reason = self.safe_request("GET", "/api/v1/courses")
         if status and status < 400 and isinstance(body, list) and body:
-            return body[0]
+            teacher_course_titles = {"Python 程序设计", "Python 爬虫基础与实践"}
+            return next((item for item in body if item.get("title") in teacher_course_titles), body[0])
         self.add_step(
             name="准备课程数据",
             endpoint="/api/v1/courses",
@@ -182,8 +240,17 @@ class DemoFlowChecker:
             "readiness_count": len(body.get("readiness_checks", [])),
         }
 
-    def run_step(self, name: str, method: str, endpoint: str, payload: dict[str, Any] | None, expected_event: str | None, key_picker) -> Any:
-        status, body, reason = self.safe_request(method, endpoint, payload)
+    def run_step(
+        self,
+        name: str,
+        method: str,
+        endpoint: str,
+        payload: dict[str, Any] | None,
+        expected_event: str | None,
+        key_picker,
+        role: str | None = None,
+    ) -> Any:
+        status, body, reason = self.safe_request(method, endpoint, payload, role)
         success = bool(status and status < 400)
         key_fields: dict[str, Any] = {}
         target_id = None
@@ -223,6 +290,7 @@ class DemoFlowChecker:
             "/api/v1/profiles/generate",
             {
                 "course_id": course_id,
+                "user_id": "demo_student_zhangsan",
                 "student_name": "张三",
                 "current_level": "基础薄弱",
                 "learning_goal": "完成 Python 爬虫基础与实践学习闭环演示",
@@ -231,6 +299,7 @@ class DemoFlowChecker:
             },
             "profile_generated",
             lambda body: {"profile_id": body.get("id"), "student_name": body.get("student_name"), "target_id": body.get("id")},
+            role="teacher",
         )
         profile_id = profile.get("id") if isinstance(profile, dict) else None
         student_name = profile.get("student_name") if isinstance(profile, dict) else "张三"
@@ -242,6 +311,7 @@ class DemoFlowChecker:
             {"course_id": course_id, "student_profile_id": profile_id, "actor_role": "student", "actor_name": student_name},
             "resource_generated",
             lambda body: {"package_id": body.get("package_id"), "resource_count": len(body.get("resources", [])), "target_id": body.get("package_id")},
+            role="teacher",
         )
         package_id = package.get("package_id") if isinstance(package, dict) else "pkg-demo-missing"
 
@@ -252,6 +322,7 @@ class DemoFlowChecker:
             {"course_id": course_id, "student_profile_id": profile_id, "package_id": package_id, "actor_role": "student", "actor_name": student_name},
             "resource_added_to_path",
             lambda body: {"path_id": body.get("path_id"), "package_id": package_id, "target_id": body.get("path_id")},
+            role="teacher",
         )
 
         self.run_step(
@@ -261,6 +332,7 @@ class DemoFlowChecker:
             {"course_id": course_id, "student_profile_id": profile_id, "weak_point": "HTTP 请求", "task_type": "完成分层练习", "actor_role": "teacher", "actor_name": "王老师"},
             "task_assigned",
             lambda body: {"task_id": body.get("task", {}).get("task_id"), "target_id": body.get("task", {}).get("task_id")},
+            role="teacher",
         )
 
         self.run_step(
@@ -270,6 +342,7 @@ class DemoFlowChecker:
             {"course_id": course_id, "student_profile_id": profile_id, "actor_role": "student", "actor_name": student_name},
             "quiz_completed",
             lambda body: {"submission_id": body.get("id"), "score": body.get("quiz_result", {}).get("score"), "target_id": body.get("id")},
+            role="teacher",
         )
 
         self.run_step(
@@ -297,11 +370,12 @@ class DemoFlowChecker:
             },
             "admin_review_completed",
             lambda body: {"event_id": body.get("event_id")},
+            role="admin",
         )
 
         self.run_step("H. 查询业务事件", "GET", "/api/v1/events?limit=200", None, None, lambda body: {"event_count": len(body or [])})
         self.run_step("I. 查询治理审计日志", "GET", "/api/v1/audit-logs", None, None, lambda body: {"log_count": len(body or [])})
-        self.run_step("J. 查询 Agent 工作流", "GET", "/api/v1/agent-workflow", None, None, lambda body: {"template_count": len(body.get("workflow_templates", [])), "event_run_count": len(body.get("business_event_records", []))})
+        self.run_step("J. 查询 Agent 工作流", "GET", "/api/v1/agent-workflow", None, None, lambda body: {"template_count": len(body.get("workflow_templates", [])), "event_run_count": len(body.get("business_event_records", []))}, role="admin")
         self.run_step("K. 查询学习路径", "GET", "/api/v1/learning-paths", None, None, lambda body: {"path_count": len(body or []), "package_id_checked": package_id})
 
         self.run_step(
@@ -309,8 +383,8 @@ class DemoFlowChecker:
             "POST",
             "/api/v1/profile-dialog/run",
             {
-                "studentId": "demo-student-zhangsan",
-                "studentName": "张三",
+                "studentId": "student-li-ming",
+                "studentName": "李明",
                 "courseId": "demo-course-python",
                 "courseName": "Python 程序设计",
                 "answer": "Python 文件处理和递归边界比较薄弱，喜欢代码案例和分步练习。",
@@ -323,13 +397,14 @@ class DemoFlowChecker:
             "POST",
             "/api/v1/resources/generate-pack",
             {
-                "studentId": "demo-student-zhangsan",
+                "studentId": "student-li-ming",
                 "courseId": "demo-course-python",
                 "courseName": "Python 程序设计",
                 "weakPoints": ["Python 文件处理", "递归边界", "代码调试"],
             },
             None,
             self.pick_resource_pack,
+            role="teacher",
         )
         self.run_step(
             "N. rag/ask API",
@@ -338,7 +413,7 @@ class DemoFlowChecker:
             {
                 "question": "递归题应该怎么分析？",
                 "courseId": "python-programming",
-                "studentId": "demo-student-zhangsan",
+                "studentId": "student-li-ming",
             },
             None,
             self.pick_rag_answer,
@@ -361,6 +436,7 @@ class DemoFlowChecker:
             },
             None,
             self.pick_content_review,
+            role="teacher",
         )
         self.run_step("P. demo-status API", "GET", "/api/v1/demo-status", None, None, self.pick_demo_status)
 
@@ -401,7 +477,7 @@ class DemoFlowChecker:
                 "",
                 "- 业务事件写入 system_logs 表，用于 EduMind 三端演示闭环。",
                 "- 资源包、学习路径、测验、问答和报告记录会沉淀到后端数据表。",
-                "- 当前真实登录鉴权、真实 LangGraph、真实 RAGFlow/Dify/FastGPT 为后续扩展项。",
+                "- 当前演示 JWT 鉴权已实现；本脚本不验证全系统全部角色/对象权限，也不证明真实讯飞云调用或外部 RAGFlow/Dify/FastGPT 集成。",
                 "",
                 "## 推荐演示路线",
                 "",
